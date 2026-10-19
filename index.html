@@ -635,7 +635,7 @@ function openData(){
   modal(`<h3>Sync & Daten</h3>
   <h4 style="margin-top:0">Sync über privates GitHub-Repo</h4>
   <p class="muted">Deine Buchungen werden als JSON-Dateien (eine pro Monat) in ein <b>privates</b> Repo geschrieben. Auf jedem Gerät einmal Repo + Token eintragen – danach siehst du überall dieselben Daten.</p>
-  <div class="field"><label>Daten-Repo (owner/name)</label><input id="s_repo" placeholder="lucashcandido/1percent-data" value="${esc(c?c.repo:'')}" autocapitalize="off" autocomplete="off"></div>
+  <div class="field"><label>Daten-Repo (owner/name)</label><input id="s_repo" placeholder="lucashcandido/1percent-data" value="${esc(c?c.repo:'lucashcandido/1percent-data')}" autocapitalize="off" autocomplete="off"></div>
   <div class="field"><label>Zugriffstoken (Fine-grained Personal Access Token)</label><input id="s_tok" type="password" autocomplete="off" placeholder="${c?'gespeichert – leer lassen zum Behalten':'github_pat_…'}"></div>
   <div class="row"><button class="primary" id="s_save">Speichern &amp; testen</button>${c?'<button id="s_now">Jetzt synchronisieren</button><button id="s_off" class="danger">Trennen</button>':''}</div>
   <div id="s_msg" class="muted" style="margin:8px 0">${syncState.s==='err'?'⚠ '+esc(syncState.msg):''}</div>
