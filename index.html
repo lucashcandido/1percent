@@ -69,6 +69,17 @@ h4{margin:18px 0 8px;font-size:14px}
 details{margin:10px 0;font-size:13px}
 details ol{padding-left:20px;margin:8px 0}
 .modal.md{max-width:560px}
+.codein{font-size:22px;letter-spacing:.12em;text-align:center;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;text-transform:uppercase}
+.login{max-width:420px;margin:8vh auto 0;background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:24px}
+.login h2{margin:0 0 6px;font-size:20px}
+.login p{color:var(--mut);margin:0 0 14px}
+.login .btn{width:100%;margin-top:10px}
+.linkbtn{background:none;border:0;color:var(--acc);padding:6px 0;text-decoration:underline;width:100%}
+body.locked header nav,body.locked header .row{display:none}
+.qrbox{display:inline-block;background:#fff;padding:10px;border-radius:14px;border:1px solid var(--bd)}
+.qrbox svg{display:block;width:min(70vw,300px);height:auto}
+.codebig{font:600 22px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.1em;user-select:all}
+.ok{color:var(--pos)}
 @media(max-width:600px){.bar .name{width:90px}.hide-s{display:none}}
 </style>
 </head>
@@ -119,17 +130,17 @@ let filter={q:'',cat:''};
 
 function load(){
   let s=null;try{s=JSON.parse(localStorage.getItem(KEY))}catch(e){}
-  return {tx:(s&&s.tx)||[],tomb:(s&&s.tomb)||[],cats:(s&&s.cats)||DEFAULT_CATS,rules:(s&&s.rules)||DEFAULT_RULES,su:(s&&s.su)||0};
+  return {tx:(s&&s.tx)||[],tomb:(s&&s.tomb)||[],cats:(s&&s.cats)||DEFAULT_CATS,rules:(s&&s.rules)||DEFAULT_RULES,su:(s&&s.su)||0,access:(s&&s.access)||null};
 }
 /* Änderungen werden automatisch mit Zeitstempel (u) versehen, gelöschte Buchungen werden zu Tombstones.
    So lassen sich Änderungen von mehreren Geräten sauber zusammenführen. */
 const sig=t=>JSON.stringify([t.date,t.desc,t.amount,t.category,t.note||'']);
-function initSigs(){sigs={};S.tx.forEach(t=>sigs[t.id]=sig(t));ssig=JSON.stringify([S.cats,S.rules])}
+function initSigs(){sigs={};S.tx.forEach(t=>sigs[t.id]=sig(t));ssig=JSON.stringify([S.cats,S.rules,S.access])}
 function stamp(){
   const now=Date.now(),ids=new Set();
   for(const t of S.tx){ids.add(t.id);const j=sig(t);if(sigs[t.id]!==j){t.u=now;sigs[t.id]=j}}
   for(const id of Object.keys(sigs))if(!ids.has(id)){S.tomb.push({id,date:JSON.parse(sigs[id])[0],u:now});delete sigs[id]}
-  const ss=JSON.stringify([S.cats,S.rules]);if(ss!==ssig){S.su=now;ssig=ss}
+  const ss=JSON.stringify([S.cats,S.rules,S.access]);if(ss!==ssig){S.su=now;ssig=ss}
 }
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 let saveTimer;
@@ -181,6 +192,8 @@ function autoCat(desc,amount){
 function render(){
   document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.v===view));
   const app=$('#app');
+  const locked=isLocked();document.body.classList.toggle('locked',locked);
+  if(locked){app.innerHTML=loginHTML();bindLogin();updateSyncStatus();return}
   const banner=cfg()?'':'<div class="warn">Sync ist noch nicht eingerichtet – deine Daten liegen nur in diesem Browser. <button id="bannerSync">Jetzt einrichten</button></div>';
   if(view==='month')app.innerHTML=banner+monthView();
   else if(view==='year')app.innerHTML=banner+yearView();
@@ -531,7 +544,7 @@ function serMonth(m){
   const tb=S.tomb.filter(t=>t.date.startsWith(m)).map(t=>({id:t.id,date:t.date,u:t.u||0})).sort((a,b)=>a.id.localeCompare(b.id));
   return `{\n "tx": [${jlines(tx)}],\n "tomb": [${jlines(tb)}]\n}\n`;
 }
-const serSettings=()=>JSON.stringify({u:S.su||0,cats:S.cats,rules:S.rules},null,1)+'\n';
+const serSettings=()=>JSON.stringify({u:S.su||0,cats:S.cats,rules:S.rules,access:S.access||null},null,1)+'\n';
 const b64d=s=>new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\s/g,'')),c=>c.charCodeAt(0)));
 function b64e(s){const b=new TextEncoder().encode(s);let o='';for(let i=0;i<b.length;i+=8192)o+=String.fromCharCode(...b.subarray(i,i+8192));return btoa(o)}
 
@@ -566,7 +579,7 @@ function mergeIn(txs,tombs){
 function mergeFile(name,content){
   let d;try{d=JSON.parse(content)}catch(e){return false}
   if(name==='settings.json'){
-    if((d.u||0)>(S.su||0)&&Array.isArray(d.cats)&&Array.isArray(d.rules)){S.cats=d.cats;S.rules=d.rules;S.su=d.u;ssig=JSON.stringify([S.cats,S.rules]);return true}
+    if((d.u||0)>(S.su||0)&&Array.isArray(d.cats)&&Array.isArray(d.rules)){S.cats=d.cats;S.rules=d.rules;S.access=d.access||S.access;S.su=d.u;ssig=JSON.stringify([S.cats,S.rules,S.access]);return true}
     return false;
   }
   return mergeIn(d.tx||[],d.tomb||[]);
@@ -575,7 +588,7 @@ function mergeFile(name,content){
 async function syncNow(){
   const c=cfg();if(!c){setSync('off');return}
   if(syncing){again=true;return}
-  syncing=true;setSync('busy');let changed=false;
+  syncing=true;setSync('busy');let changed=false,retry=false;
   try{
     for(let attempt=0;;attempt++){
       stamp();
@@ -614,9 +627,10 @@ async function syncNow(){
     setSync('ok');
     if(changed)render();
   }catch(e){
-    setSync('err',e.offline?'Offline – Änderungen werden später synchronisiert':e.message);
+    if(e.status===401&&await tryHeal())retry=true;     /* Token wurde ersetzt: neuen per Code holen */
+    else setSync('err',e.offline?'Offline – Änderungen werden später synchronisiert':e.message);
   }finally{
-    syncing=false;if(again){again=false;syncNow()}
+    syncing=false;if(retry||again){again=false;syncNow()}
   }
 }
 function setSync(s,msg){syncState={s,msg:msg||'',at:s==='ok'?new Date():syncState.at};updateSyncStatus()}
@@ -629,12 +643,193 @@ function updateSyncStatus(){
   else b.textContent='☁ synchronisiert'+(syncState.at?' '+syncState.at.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}):'');
 }
 
+/* ============ Gerätezugang per Code ============
+   Das erste Gerät verschlüsselt {repo, token} mit einem 12-stelligen Code (PBKDF2 → AES-GCM) und legt das Ergebnis als
+   access.json im (öffentlichen) App-Repo ab. Weitere Geräte laden die Datei, entschlüsseln sie mit dem Code und müssen
+   nie einen Token tippen. Ohne den Code ist die Datei wertlos. Der Code steht in den synchronisierten Einstellungen. */
+const ACCESS_FILE='access.json',ACCESS_IT=600000,LOCAL_KEY='1percent-local',CODE_KEY='1percent-code';
+const CODE_CHARS='ABCDEFGHJKMNPQRSTUVWXYZ23456789',CODE_LEN=12;     /* ohne 0/O, 1/I/L: gut abzutippen */
+const APP_REPO=(()=>{const h=/^([\w-]+)\.github\.io$/i.exec(location.hostname),d=location.pathname.split('/').filter(Boolean)[0];return h&&d&&!/\./.test(d)?h[1]+'/'+d:'lucashcandido/1percent'})();
+const cleanCode=s=>String(s??'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+const showCode=c=>cleanCode(c).slice(0,CODE_LEN).replace(/(.{4})(?=.)/g,'$1-');
+function newCode(){let o='';while(o.length<CODE_LEN)for(const x of crypto.getRandomValues(new Uint8Array(24)))if(x<248&&o.length<CODE_LEN)o+=CODE_CHARS[x%31];return o}
+const bytesToB64=b=>{let o='';b.forEach(x=>o+=String.fromCharCode(x));return btoa(o)};
+const b64ToBytes=s=>Uint8Array.from(atob(String(s)),c=>c.charCodeAt(0));
+async function codeKey(code,salt,it){
+  const base=await crypto.subtle.importKey('raw',new TextEncoder().encode(cleanCode(code)),'PBKDF2',false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:it,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+}
+async function sealAccess(code,conf){
+  const salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12));
+  const key=await codeKey(code,salt,ACCESS_IT);
+  const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,new TextEncoder().encode(JSON.stringify({repo:conf.repo,token:conf.token})));
+  return {v:1,it:ACCESS_IT,salt:bytesToB64(salt),iv:bytesToB64(iv),ct:bytesToB64(new Uint8Array(ct))};
+}
+async function openAccess(code,blob){
+  if(!blob||blob.v!==1||!Number.isInteger(blob.it)||blob.it<100000||blob.it>5000000)throw new Error('format');
+  const key=await codeKey(code,b64ToBytes(blob.salt),blob.it);
+  const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:b64ToBytes(blob.iv)},key,b64ToBytes(blob.ct));
+  const conf=JSON.parse(new TextDecoder().decode(plain));
+  if(!conf||typeof conf.token!=='string'||!/^[\w.-]+\/[\w.-]+$/.test(conf.repo||''))throw new Error('format');
+  return {repo:conf.repo,token:conf.token};
+}
+async function fetchAccessBlob(){        /* null = noch nicht eingerichtet */
+  try{
+    const r=await fetch(`https://api.github.com/repos/${APP_REPO}/contents/${ACCESS_FILE}`,{headers:{Accept:'application/vnd.github+json'},cache:'no-store'});
+    if(r.ok){const j=await r.json();if(j&&j.content)return JSON.parse(b64d(j.content))}
+  }catch(e){}
+  const r=await fetch(ACCESS_FILE+'?v='+Date.now(),{cache:'no-store'});
+  if(r.status===404)return null;
+  if(!r.ok)throw new Error('net');
+  return r.json();
+}
+/* Der Code, den ein Gerät benutzt hat, bleibt gespeichert – so holt es sich später einen ersetzten Token selbst. */
+const COOKIE_PATH=location.pathname.replace(/[^/]*$/,'')||'/';
+function rememberCode(code){
+  try{localStorage.setItem(CODE_KEY,code)}catch(e){}
+  try{document.cookie='opc_code='+code+'; max-age=31536000; path='+COOKIE_PATH+'; SameSite=Strict'+(location.protocol==='https:'?'; Secure':'')}catch(e){}
+}
+function forgetCode(){try{localStorage.removeItem(CODE_KEY)}catch(e){}try{document.cookie='opc_code=; max-age=0; path='+COOKIE_PATH}catch(e){}}
+function knownCode(){
+  let c='';try{c=cleanCode(localStorage.getItem(CODE_KEY))}catch(e){}
+  if(c)return c;
+  const m=/(?:^|;\s*)opc_code=([A-Z0-9]+)/.exec(document.cookie||'');return m?m[1]:'';
+}
+async function tryHeal(){
+  const code=knownCode(),c=cfg();
+  if(!code||!c||!window.crypto||!crypto.subtle)return false;
+  try{
+    const blob=await fetchAccessBlob();if(!blob)return false;
+    const conf=await openAccess(code,blob);
+    if(conf.token===c.token&&conf.repo===c.repo)return false;
+    localStorage.setItem(CFG_KEY,JSON.stringify(conf));return true;
+  }catch(e){return false}
+}
+/* Prüft Repo + Token und verbindet dieses Gerät. Gibt '' oder eine Fehlermeldung zurück. */
+async function connect(repo,token){
+  try{
+    const r=await gh({repo,token},'GET','');
+    if(r.status===404)return 'Repo nicht gefunden – oder der Token hat keinen Zugriff darauf.';
+    if(r.json.private!==true)return '⚠ Dieses Repo ist ÖFFENTLICH. Deine Finanzdaten wären für alle sichtbar – bitte ein privates Repo verwenden.';
+    if(r.json.permissions&&r.json.permissions.push===false)return 'Der Token hat nur Lesezugriff – er braucht „Contents: Read and write“.';
+  }catch(e){return e.offline?'Keine Verbindung zu GitHub.':e.message}
+  localStorage.setItem(CFG_KEY,JSON.stringify({repo,token}));R={};persistR();
+  render();syncNow();return '';
+}
+async function unlockWithCode(code){
+  code=cleanCode(code);
+  if(!window.crypto||!crypto.subtle)return 'Dieser Browser unterstützt die Verschlüsselung hier nicht (HTTPS nötig).';
+  if(code.length!==CODE_LEN)return 'Bitte den vollständigen Code eingeben (12 Zeichen).';
+  let blob;try{blob=await fetchAccessBlob()}catch(e){return 'Keine Verbindung – bitte erneut versuchen.'}
+  if(!blob)return 'Es gibt noch keinen Gerätezugang. Richte ihn zuerst auf dem ersten Gerät ein (Sync → Weitere Geräte).';
+  let conf;try{conf=await openAccess(code,blob)}catch(e){return 'Code falsch.'}
+  const err=await connect(conf.repo,conf.token);
+  if(err)return err;
+  rememberCode(code);return '';
+}
+/* Login-Bildschirm: erstes Gerät ohne Verbindung und ohne Daten */
+const isLocked=()=>!cfg()&&!localStorage.getItem(LOCAL_KEY)&&S.tx.length===0;
+const loginHTML=()=>`<div class="login">
+  <h2>Mit Code verbinden</h2>
+  <p>Gib den 12-stelligen Code ein, den du auf deinem ersten Gerät unter <b>Sync → Weitere Geräte</b> findest. Oder scanne dort den QR-Code bzw. öffne den Link.</p>
+  <input id="codeIn" class="codein" style="width:100%" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" placeholder="XXXX-XXXX-XXXX" aria-label="Code">
+  <div id="codeMsg"></div>
+  <button class="primary btn" id="codeGo" type="button">Verbinden</button>
+  <button class="linkbtn" id="codeAdmin" type="button">Erstes Gerät einrichten (mit Token)</button>
+  <button class="linkbtn" id="codeLocal" type="button">Nur auf diesem Gerät nutzen</button>
+</div>`;
+function bindLogin(){
+  const inp=$('#codeIn');
+  inp.oninput=()=>{inp.value=showCode(inp.value)};
+  inp.onkeydown=e=>{if(e.key==='Enter')submitCode(inp.value)};
+  $('#codeGo').onclick=()=>submitCode(inp.value);
+  $('#codeAdmin').onclick=openData;
+  $('#codeLocal').onclick=()=>{try{localStorage.setItem(LOCAL_KEY,'1')}catch(e){}render()};
+}
+async function submitCode(code){
+  const btn=$('#codeGo'),msg=$('#codeMsg');
+  if(btn&&btn.disabled)return;
+  if(btn){btn.disabled=true;btn.textContent='Verbinde…'}
+  if(msg)msg.innerHTML='';
+  const err=await unlockWithCode(code);
+  if(!err){toast('Gerät verbunden');return}
+  const b=$('#codeGo');if(b){b.disabled=false;b.textContent='Verbinden'}
+  const m=$('#codeMsg');if(m)m.innerHTML=`<div class="warn">${esc(err)}</div>`;else toast(err);
+}
+/* Start: Link mit Code (#c=…) oder ein bekannter Code verbindet das Gerät ohne Tippen. */
+async function startAccess(){
+  const m=/^#c=([\w-]+)$/.exec(location.hash);
+  if(m)history.replaceState(null,'',location.pathname+location.search);    /* der Code bleibt nicht in der Adresszeile */
+  if(cfg())return;
+  const code=m?cleanCode(m[1]):knownCode();
+  if(!code)return;
+  const i=$('#codeIn');if(i)i.value=showCode(code);
+  await submitCode(code);
+}
+
+/* ---- Admin: Zugang veröffentlichen ---- */
+let acNote='',pendingText='',pendingCode='';
+const shareLink=()=>location.origin+location.pathname+'#c='+showCode(S.access&&S.access.code);
+async function publishAccess(code,oneTime){
+  const c=cfg(),text=JSON.stringify(await sealAccess(code,c));
+  const wc={repo:APP_REPO,token:oneTime||c.token};
+  try{
+    const got=await gh(wc,'GET','/contents/'+ACCESS_FILE);
+    const body={message:'1Percent: Gerätezugang aktualisiert',content:b64e(text)};
+    if(got.status===200)body.sha=got.json.sha;
+    await gh(wc,'PUT','/contents/'+ACCESS_FILE,body);
+    return {ok:true,text};
+  }catch(e){return {ok:false,text,err:e.offline?'Keine Verbindung zu GitHub':e.message}}
+}
+async function activateAccess(code,oneTime){
+  acNote='<div class="muted">Veröffentliche…</div>';openData();
+  const r=await publishAccess(code,oneTime);
+  if(r.ok){
+    S.access={code,t:Date.now()};save();rememberCode(code);pendingText='';pendingCode='';
+    let wide=false;
+    if(!oneTime){try{const w=await gh({repo:APP_REPO,token:cfg().token},'GET','');wide=!!(w.json&&w.json.permissions&&w.json.permissions.push)}catch(e){}}
+    acNote='<div class="ok">✓ Gerätezugang aktiv.</div>'+(wide?'<div class="warn">Dein Token kann auch ins öffentliche App-Repo schreiben – und genau diesen Token bekommen alle Geräte. Sicherer: ein Token nur für das Daten-Repo (Sync), und zum Veröffentlichen hier einen Einmal-Token verwenden.</div>':'');
+  }else{
+    pendingText=r.text;pendingCode=code;
+    acNote=`<div class="warn">Mit dem Sync-Token kann ich nicht ins App-Repo <b>${esc(APP_REPO)}</b> schreiben (${esc(r.err)}). Das ist so gewollt und sicherer. Gib einmalig einen Token mit <b>Contents: Read and write</b> auf <b>${esc(APP_REPO)}</b> ein – er wird nicht gespeichert.</div>
+    <div class="field"><input id="ac_once" type="password" autocomplete="off" placeholder="github_pat_… (Einmal-Token)"></div>
+    <div class="row"><button class="primary" id="ac_once_go">Mit Einmal-Token veröffentlichen</button></div>
+    <details><summary>Oder von Hand</summary><p class="muted">Lege in <a href="https://github.com/${esc(APP_REPO)}/new/main?filename=${ACCESS_FILE}" target="_blank" rel="noopener">${esc(APP_REPO)}</a> die Datei <code>${ACCESS_FILE}</code> mit diesem Inhalt an:</p><textarea readonly style="width:100%;min-height:110px">${esc(r.text)}</textarea>
+    <button id="ac_manual_done">Ist erledigt</button></details>`;
+  }
+  openData();
+}
+let qrReady=null;
+const loadQr=()=>qrReady||(qrReady=new Promise((ok,no)=>{if(window.qrcode)return ok();const sc=document.createElement('script');sc.src='qrcode.js';sc.onload=ok;sc.onerror=()=>{qrReady=null;no()};document.head.appendChild(sc)}));
+function qrSvg(text){
+  const q=qrcode(0,'M');q.addData(text);q.make();
+  const n=q.getModuleCount(),m=4,all=n+2*m;let d='';
+  for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(q.isDark(r,c))d+='M'+(c+m)+' '+(r+m)+'h1v1h-1z';
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${all} ${all}" shape-rendering="crispEdges" role="img" aria-label="QR"><rect width="${all}" height="${all}" fill="#fff"/><path d="${d}" fill="#000"/></svg>`;
+}
+async function showQr(){
+  try{await loadQr()}catch(e){return toast('QR-Code konnte nicht geladen werden.')}
+  modal(`<div style="text-align:center"><h3>Neues Gerät verbinden</h3><p class="muted">Scanne den Code mit der Kamera des neuen Geräts. Er enthält den Zugangscode – nur selbst scannen, nicht teilen.</p><div class="qrbox">${qrSvg(shareLink())}</div><div class="row" style="margin-top:14px;justify-content:center"><button class="primary" id="qr_close">Fertig</button></div></div>`,'sm');
+  $('#qr_close').onclick=()=>{closeModal();openData()};
+}
+async function copyText(text,ok){try{await navigator.clipboard.writeText(text);toast(ok)}catch(e){prompt('Zum Kopieren:',text)}}
+function devicesHTML(){
+  const code=S.access&&S.access.code;
+  return `<h4>Weitere Geräte</h4>`+(code?
+   `<p class="muted">Auf einem neuen Gerät die App öffnen und diesen Code eingeben – oder den Link/QR-Code nutzen. Ein Token muss dort nie getippt werden.</p>
+    <div class="codebig">${esc(showCode(code))}</div>
+    <div class="row" style="margin-top:10px"><button id="ac_copy">Code kopieren</button><button id="ac_link">Link kopieren</button><button id="ac_qr">QR-Code zeigen</button><button id="ac_new">Neuen Code erzeugen</button></div>`
+   :`<p class="muted">Erzeugt einen Code, mit dem sich weitere Geräte (Handy, Tablet, zweiter Rechner) verbinden – ohne dass du dort den Token tippen musst. Der Token wird dafür mit dem Code verschlüsselt im App-Repo abgelegt.</p>
+    <div class="row"><button class="primary" id="ac_make">Gerätezugang einrichten</button></div>`)
+   +`<div id="ac_note" style="margin-top:8px">${acNote}</div>`;
+}
+
 /* ============ Sync & Daten (Dialog) ============ */
 function openData(){
   const c=cfg();
   modal(`<h3>Sync & Daten</h3>
   <h4 style="margin-top:0">Sync über privates GitHub-Repo</h4>
-  <p class="muted">Deine Buchungen werden als JSON-Dateien (eine pro Monat) in ein <b>privates</b> Repo geschrieben. Auf jedem Gerät einmal Repo + Token eintragen – danach siehst du überall dieselben Daten.</p>
+  <p class="muted">Deine Buchungen werden als JSON-Dateien (eine pro Monat) in ein <b>privates</b> Repo geschrieben. Auf dem ersten Gerät trägst du Repo + Token ein, alle weiteren verbindest du per Code.</p>
   <div class="field"><label>Daten-Repo (owner/name)</label><input id="s_repo" placeholder="lucashcandido/1percent-data" value="${esc(c?c.repo:'lucashcandido/1percent-data')}" autocapitalize="off" autocomplete="off"></div>
   <div class="field"><label>Zugriffstoken (Fine-grained Personal Access Token)</label><input id="s_tok" type="password" autocomplete="off" placeholder="${c?'gespeichert – leer lassen zum Behalten':'github_pat_…'}"></div>
   <div class="row"><button class="primary" id="s_save">Speichern &amp; testen</button>${c?'<button id="s_now">Jetzt synchronisieren</button><button id="s_off" class="danger">Trennen</button>':''}</div>
@@ -643,8 +838,9 @@ function openData(){
     <li>GitHub → Settings → Developer settings → Personal access tokens → <b>Fine-grained tokens</b> → Generate new token</li>
     <li>Repository access: <b>Only select repositories</b> → nur dein privates Daten-Repo</li>
     <li>Repository permissions → <b>Contents: Read and write</b></li>
-    <li>Token kopieren und oben einfügen. Der Token wird nur in diesem Browser gespeichert – auf jedem Gerät also einmal eingeben.</li>
+    <li>Token kopieren und oben einfügen.</li>
   </ol></details>
+  ${c?devicesHTML():''}
   <h4>Backup</h4>
   <div class="row">
     <button id="d_exp">Als JSON exportieren</button>
@@ -653,24 +849,26 @@ function openData(){
     <button id="d_csv">Als CSV exportieren</button>
   </div>
   <div class="row" style="margin-top:18px"><button class="danger" id="d_wipe">Alle Buchungen löschen</button><span class="grow"></span><button id="d_close">Schließen</button></div>`,'md');
-  $('#d_close').onclick=closeModal;
+  $('#d_close').onclick=()=>{acNote='';closeModal()};
   $('#s_save').onclick=async()=>{
     const repo=$('#s_repo').value.trim().replace(/^https?:\/\/github\.com\//,'').replace(/\.git$/,'').replace(/\/$/,''),token=$('#s_tok').value.trim()||(c?c.token:'');
     const msg=$('#s_msg');
     if(!/^[\w.-]+\/[\w.-]+$/.test(repo)||!token){msg.textContent='Bitte Repo (owner/name) und Token angeben.';return}
     msg.textContent='Prüfe Zugriff…';
-    try{
-      const r=await gh({repo,token},'GET','');
-      if(r.status===404){msg.textContent='Repo nicht gefunden – oder der Token hat keinen Zugriff darauf.';return}
-      if(r.json.private!==true){msg.textContent='⚠ Dieses Repo ist ÖFFENTLICH. Deine Finanzdaten wären für alle sichtbar – bitte ein privates Repo verwenden.';return}
-      if(r.json.permissions&&r.json.permissions.push===false){msg.textContent='Der Token hat nur Lesezugriff – er braucht „Contents: Read and write“.';return}
-      localStorage.setItem(CFG_KEY,JSON.stringify({repo,token}));R={};persistR();
-      closeModal();toast('Verbunden – synchronisiere…');render();syncNow();
-    }catch(e){msg.textContent='⚠ '+e.message}
+    const err=await connect(repo,token);
+    if(err)msg.textContent=err;else{closeModal();toast('Verbunden – synchronisiere…')}
   };
   if(c){
     $('#s_now').onclick=()=>{closeModal();syncNow()};
-    $('#s_off').onclick=()=>{if(confirm('Sync trennen? Die Daten bleiben lokal in diesem Browser und im Daten-Repo erhalten, der Token wird hier entfernt.')){localStorage.removeItem(CFG_KEY);R={};persistR();closeModal();setSync('off');render()}};
+    $('#s_off').onclick=()=>{if(confirm('Sync trennen? Die Daten bleiben lokal in diesem Browser und im Daten-Repo erhalten, der Token wird hier entfernt.')){localStorage.removeItem(CFG_KEY);forgetCode();R={};persistR();closeModal();setSync('off');render()}};
+    const on=(id,fn)=>{const e=$(id);if(e)e.onclick=fn};
+    on('#ac_make',()=>activateAccess(newCode()));
+    on('#ac_new',()=>{if(confirm('Neuen Code erzeugen? Der alte Code funktioniert danach nicht mehr für neue Geräte (bereits verbundene Geräte bleiben verbunden).'))activateAccess(newCode())});
+    on('#ac_copy',()=>copyText(showCode(S.access.code),'Code kopiert'));
+    on('#ac_link',()=>copyText(shareLink(),'Link kopiert'));
+    on('#ac_qr',showQr);
+    on('#ac_once_go',()=>{const t=$('#ac_once').value.trim();if(t)activateAccess(pendingCode||newCode(),t)});
+    on('#ac_manual_done',()=>{if(pendingCode){S.access={code:pendingCode,t:Date.now()};save();rememberCode(pendingCode);acNote='<div class="ok">✓ Code gespeichert. Sobald die Datei im Repo liegt, funktioniert der Zugang.</div>';openData()}});
   }
   $('#d_exp').onclick=()=>download('1percent-daten.json',JSON.stringify({tx:S.tx.map(normTx),cats:S.cats,rules:S.rules},null,2),'application/json');
   $('#d_csv').onclick=()=>download('1percent.csv','Datum;Beschreibung;Betrag;Kategorie;Notiz\n'+[...S.tx].sort((a,b)=>a.date.localeCompare(b.date)).map(t=>[dateDE(t.date),`"${t.desc.replace(/"/g,'""')}"`,t.amount.toFixed(2).replace('.',','),t.category,`"${(t.note||'').replace(/"/g,'""')}"`].join(';')).join('\n'),'text/csv;charset=utf-8');
@@ -696,6 +894,7 @@ $('#btnAdd').onclick=()=>editTx(null);
 $('#btnImport').onclick=openImport;
 $('#syncBtn').onclick=openData;
 render();
+startAccess();
 if(cfg())syncNow();
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncNow()});
 addEventListener('online',syncNow);
