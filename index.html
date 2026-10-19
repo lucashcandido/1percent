@@ -1,0 +1,705 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>1Percent</title>
+<meta name="theme-color" content="#4f46e5">
+<meta name="robots" content="noindex">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="1Percent">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%234f46e5'/><text x='32' y='43' font-size='30' font-weight='700' text-anchor='middle' fill='white' font-family='sans-serif'>1%25</text></svg>">
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--tx:#1b1f24;--mut:#6b7280;--bd:#e3e6ea;--acc:#4f46e5;--pos:#15803d;--neg:#b91c1c;--hov:#f0f2f5}
+@media (prefers-color-scheme:dark){:root{--bg:#14161a;--card:#1e2126;--tx:#e8eaed;--mut:#9aa1ab;--bd:#2e333a;--acc:#818cf8;--pos:#4ade80;--neg:#f87171;--hov:#272b31}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,-apple-system,Segoe UI,sans-serif}
+header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:14px 20px;background:var(--card);border-bottom:1px solid var(--bd);position:sticky;top:0;z-index:5}
+header h1{font-size:18px;margin:0}
+nav{display:flex;gap:4px}
+nav button.active{background:var(--acc);color:#fff;border-color:var(--acc)}
+main{max-width:1000px;margin:0 auto;padding:20px}
+button,select,input{font:inherit;color:var(--tx)}
+button{background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;cursor:pointer}
+button:hover{background:var(--hov)}
+button.primary{background:var(--acc);border-color:var(--acc);color:#fff}
+button.danger{color:var(--neg)}
+input,select{background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 9px;max-width:100%}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.grow{flex:1}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:16px 0}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px 16px}
+.card .l{color:var(--mut);font-size:13px}
+.card .v{font-size:22px;font-weight:600;margin-top:2px}
+.pos{color:var(--pos)}.neg{color:var(--neg)}
+h2{font-size:16px;margin:24px 0 10px}
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--bd);border-radius:12px;overflow:hidden}
+th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--bd);vertical-align:middle}
+th{font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}
+tr:last-child td{border-bottom:0}
+tbody tr.click{cursor:pointer}tbody tr.click:hover{background:var(--hov)}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.bar{display:flex;align-items:center;gap:10px;margin:6px 0}
+.bar .name{width:150px;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar .track{flex:1;background:var(--hov);border-radius:6px;height:14px;overflow:hidden}
+.bar .fill{height:100%;border-radius:6px}
+.bar .amt{width:100px;text-align:right;font-variant-numeric:tabular-nums;font-size:14px}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px}
+.pill{font-size:12px;padding:2px 8px;border-radius:999px;background:var(--hov)}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:flex-start;justify-content:center;padding:30px 12px;overflow:auto;z-index:20}
+.modal{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:20px;width:100%;max-width:860px}
+.modal.sm{max-width:420px}
+.modal h3{margin:0 0 14px}
+.field{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+.field label{font-size:13px;color:var(--mut)}
+.drop{border:2px dashed var(--bd);border-radius:12px;padding:28px;text-align:center;color:var(--mut)}
+.drop.over{border-color:var(--acc);color:var(--acc)}
+.muted{color:var(--mut);font-size:13px}
+.warn{background:rgba(234,179,8,.15);border:1px solid rgba(234,179,8,.5);padding:8px 12px;border-radius:8px;font-size:13px;margin:10px 0}
+.scroll{max-height:50vh;overflow:auto;border:1px solid var(--bd);border-radius:10px}
+.scroll table{border:0}
+.scroll input,.scroll select{width:100%;padding:4px 6px}
+.dup{opacity:.55}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--tx);color:var(--bg);padding:9px 16px;border-radius:10px;z-index:50;font-size:14px}
+.status{font-size:12px;color:var(--mut)}
+.logo{display:inline-block;background:var(--acc);color:#fff;border-radius:8px;padding:1px 7px;font-weight:700;margin-right:7px}
+.syncbtn{font-size:12px;padding:5px 10px}
+.syncbtn.err{color:var(--neg);border-color:var(--neg)}
+h4{margin:18px 0 8px;font-size:14px}
+details{margin:10px 0;font-size:13px}
+details ol{padding-left:20px;margin:8px 0}
+.modal.md{max-width:560px}
+@media(max-width:600px){.bar .name{width:90px}.hide-s{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <h1><span class="logo">1%</span>1Percent</h1>
+  <nav>
+    <button data-v="month">Monat</button>
+    <button data-v="year">Jahr</button>
+    <button data-v="settings">Einstellungen</button>
+  </nav>
+  <div class="row">
+    <button id="syncBtn" class="syncbtn"></button>
+    <button id="btnAdd">+ Buchung</button>
+    <button id="btnImport" class="primary">Import</button>
+    
+  </div>
+</header>
+<main id="app"></main>
+
+<script>
+/* ============ Konstanten & State ============ */
+const KEY='1percent-v1',CFG_KEY='1percent-cfg',REM_KEY='1percent-remote';
+const DEFAULT_CATS=[
+ {name:'Gehalt',color:'#16a34a'},{name:'Sonstige Einnahmen',color:'#65a30d'},
+ {name:'Miete & Wohnen',color:'#7c3aed'},{name:'Lebensmittel',color:'#f59e0b'},
+ {name:'Restaurant & Café',color:'#ef4444'},{name:'Mobilität',color:'#0ea5e9'},
+ {name:'Abos',color:'#ec4899'},{name:'Freizeit',color:'#14b8a6'},
+ {name:'Shopping',color:'#f97316'},{name:'Gesundheit',color:'#06b6d4'},
+ {name:'Versicherung',color:'#6366f1'},{name:'Bildung',color:'#8b5cf6'},
+ {name:'Sonstiges',color:'#9ca3af'}];
+const DEFAULT_RULES=[
+ ['rewe','Lebensmittel'],['aldi','Lebensmittel'],['lidl','Lebensmittel'],['edeka','Lebensmittel'],['kaufland','Lebensmittel'],['penny','Lebensmittel'],['netto','Lebensmittel'],['spar','Lebensmittel'],
+ ['mcdonald','Restaurant & Café'],['burger king','Restaurant & Café'],['starbucks','Restaurant & Café'],['lieferando','Restaurant & Café'],
+ ['netflix','Abos'],['spotify','Abos'],['disney','Abos'],['icloud','Abos'],['apple.com/bill','Abos'],
+ ['db vertrieb','Mobilität'],['deutsche bahn','Mobilität'],['bvg','Mobilität'],['mvv','Mobilität'],['uber','Mobilität'],['shell','Mobilität'],['aral','Mobilität'],
+ ['miete','Miete & Wohnen'],['stadtwerke','Miete & Wohnen'],['strom','Miete & Wohnen'],
+ ['gehalt','Gehalt'],['lohn','Gehalt'],
+ ['amazon','Shopping'],['zalando','Shopping'],['apotheke','Gesundheit'],['versicherung','Versicherung'],['allianz','Versicherung'],
+].map(([k,c])=>({kw:k,cat:c}));
+
+let sigs={},ssig='';
+let S=load();initSigs();
+let view='month';
+let curMonth=new Date().toISOString().slice(0,7);
+let curYear=new Date().getFullYear();
+let filter={q:'',cat:''};
+
+function load(){
+  let s=null;try{s=JSON.parse(localStorage.getItem(KEY))}catch(e){}
+  return {tx:(s&&s.tx)||[],tomb:(s&&s.tomb)||[],cats:(s&&s.cats)||DEFAULT_CATS,rules:(s&&s.rules)||DEFAULT_RULES,su:(s&&s.su)||0};
+}
+/* Änderungen werden automatisch mit Zeitstempel (u) versehen, gelöschte Buchungen werden zu Tombstones.
+   So lassen sich Änderungen von mehreren Geräten sauber zusammenführen. */
+const sig=t=>JSON.stringify([t.date,t.desc,t.amount,t.category,t.note||'']);
+function initSigs(){sigs={};S.tx.forEach(t=>sigs[t.id]=sig(t));ssig=JSON.stringify([S.cats,S.rules])}
+function stamp(){
+  const now=Date.now(),ids=new Set();
+  for(const t of S.tx){ids.add(t.id);const j=sig(t);if(sigs[t.id]!==j){t.u=now;sigs[t.id]=j}}
+  for(const id of Object.keys(sigs))if(!ids.has(id)){S.tomb.push({id,date:JSON.parse(sigs[id])[0],u:now});delete sigs[id]}
+  const ss=JSON.stringify([S.cats,S.rules]);if(ss!==ssig){S.su=now;ssig=ss}
+}
+function persist(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+let saveTimer;
+function save(){stamp();persist();clearTimeout(saveTimer);saveTimer=setTimeout(syncNow,1500)}
+
+/* ============ Helpers ============ */
+const $=(s,r=document)=>r.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=n=>new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR'}).format(n);
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const catColor=n=>(S.cats.find(c=>c.name===n)||{color:'#9ca3af'}).color;
+const monthLabel=m=>new Date(m+'-01T12:00').toLocaleDateString('de-DE',{month:'long',year:'numeric'});
+const dateDE=d=>d.split('-').reverse().join('.');
+function toast(t){const e=document.createElement('div');e.className='toast';e.textContent=t;document.body.appendChild(e);setTimeout(()=>e.remove(),2500)}
+function shiftMonth(m,d){const [y,mo]=m.split('-').map(Number);const dt=new Date(y,mo-1+d,1);return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')}
+const norm=s=>s.toLowerCase().replace(/\s+/g,' ').trim();
+const keyOf=t=>t.date+'|'+t.amount.toFixed(2)+'|'+norm(t.desc);
+
+function parseAmount(raw){
+  let s=String(raw).trim();if(!s)return NaN;
+  let sign=1;
+  if(/^\(.*\)$/.test(s)){sign=-1;s=s.slice(1,-1)}
+  if(/[-−–]\s*$/.test(s)||/^\s*[-−–]/.test(s))sign=-1;
+  if(/\s[S]$/.test(s))sign=-1;
+  s=s.replace(/[€$]|EUR|\s|[SH+\-−–]/g,'');
+  if(!s)return NaN;
+  const c=s.lastIndexOf(','),d=s.lastIndexOf('.');
+  if(c>-1&&d>-1){s=c>d?s.replace(/\./g,'').replace(',','.'):s.replace(/,/g,'')}
+  else if(c>-1){s=s.replace(',','.')}
+  else if(d>-1){ if((s.match(/\./g)||[]).length>1||/\.\d{3}$/.test(s))s=s.replace(/\./g,'') }
+  const v=parseFloat(s);return isNaN(v)?NaN:sign*v;
+}
+function parseDate(raw,fallbackYear){
+  const s=String(raw).trim();let m;
+  if(m=s.match(/(\d{4})-(\d{1,2})-(\d{1,2})/))return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+  if(m=s.match(/(\d{1,2})[./](\d{1,2})[./](\d{4}|\d{2})?/)){
+    let y=m[3]||String(fallbackYear||new Date().getFullYear());if(y.length==2)y='20'+y;
+    return `${y}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+  }
+  return null;
+}
+function autoCat(desc,amount){
+  const d=desc.toLowerCase();
+  for(const r of S.rules)if(r.kw&&d.includes(r.kw.toLowerCase())&&S.cats.some(c=>c.name===r.cat))return r.cat;
+  return amount>0?'Sonstige Einnahmen':'Sonstiges';
+}
+
+/* ============ Rendering ============ */
+function render(){
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.v===view));
+  const app=$('#app');
+  const banner=cfg()?'':'<div class="warn">Sync ist noch nicht eingerichtet – deine Daten liegen nur in diesem Browser. <button id="bannerSync">Jetzt einrichten</button></div>';
+  if(view==='month')app.innerHTML=banner+monthView();
+  else if(view==='year')app.innerHTML=banner+yearView();
+  else app.innerHTML=banner+settingsView();
+  bindView();
+  const bs=$('#bannerSync');if(bs)bs.onclick=openData;
+  updateSyncStatus();
+}
+function sums(list){
+  const inc=list.filter(t=>t.amount>0).reduce((a,t)=>a+t.amount,0);
+  const exp=list.filter(t=>t.amount<0).reduce((a,t)=>a+t.amount,0);
+  return {inc,exp,net:inc+exp};
+}
+function catBars(list){
+  const by={};list.filter(t=>t.amount<0).forEach(t=>by[t.category]=(by[t.category]||0)+Math.abs(t.amount));
+  const arr=Object.entries(by).sort((a,b)=>b[1]-a[1]);
+  if(!arr.length)return '<p class="muted">Keine Ausgaben.</p>';
+  const max=arr[0][1];
+  return arr.map(([n,v])=>`<div class="bar"><div class="name"><span class="dot" style="background:${catColor(n)}"></span>${esc(n)}</div><div class="track"><div class="fill" style="width:${v/max*100}%;background:${catColor(n)}"></div></div><div class="amt">${fmt(v)}</div></div>`).join('');
+}
+function monthView(){
+  const all=S.tx.filter(t=>t.date.startsWith(curMonth));
+  const sm=sums(all);
+  let list=all.filter(t=>(!filter.cat||t.category===filter.cat)&&(!filter.q||norm(t.desc+' '+(t.note||'')).includes(norm(filter.q))));
+  list.sort((a,b)=>b.date.localeCompare(a.date)||0);
+  return `
+  <div class="row">
+    <button id="pm">←</button>
+    <input type="month" id="mp" value="${curMonth}">
+    <button id="nm">→</button>
+    <strong class="grow" style="font-size:18px">${monthLabel(curMonth)}</strong>
+  </div>
+  <div class="cards">
+    <div class="card"><div class="l">Einnahmen</div><div class="v pos">${fmt(sm.inc)}</div></div>
+    <div class="card"><div class="l">Ausgaben</div><div class="v neg">${fmt(sm.exp)}</div></div>
+    <div class="card"><div class="l">Saldo</div><div class="v ${sm.net>=0?'pos':'neg'}">${fmt(sm.net)}</div></div>
+    <div class="card"><div class="l">Sparquote</div><div class="v">${sm.inc>0?Math.round(sm.net/sm.inc*100)+' %':'–'}</div></div>
+  </div>
+  <h2>Ausgaben nach Kategorie</h2>
+  <div class="card">${catBars(all)}</div>
+  <h2>Buchungen (${list.length})</h2>
+  <div class="row" style="margin-bottom:10px">
+    <input id="fq" placeholder="Suchen…" value="${esc(filter.q)}" class="grow">
+    <select id="fc"><option value="">Alle Kategorien</option>${S.cats.map(c=>`<option ${filter.cat===c.name?'selected':''}>${esc(c.name)}</option>`).join('')}</select>
+  </div>
+  <table><thead><tr><th>Datum</th><th>Beschreibung</th><th class="hide-s">Kategorie</th><th class="n">Betrag</th></tr></thead><tbody>
+  ${list.map(t=>`<tr class="click" data-id="${t.id}"><td>${dateDE(t.date)}</td><td>${esc(t.desc)}${t.note?`<div class="muted">${esc(t.note)}</div>`:''}</td><td class="hide-s"><span class="dot" style="background:${catColor(t.category)}"></span>${esc(t.category)}</td><td class="n ${t.amount>=0?'pos':'neg'}">${fmt(t.amount)}</td></tr>`).join('')||'<tr><td colspan="4" class="muted">Noch keine Buchungen in diesem Monat. Nutze „Import“ oder „+ Buchung“.</td></tr>'}
+  </tbody></table>`;
+}
+function yearView(){
+  const all=S.tx.filter(t=>t.date.startsWith(curYear+'-'));
+  const months=Array.from({length:12},(_,i)=>{const m=curYear+'-'+String(i+1).padStart(2,'0');return {m,...sums(all.filter(t=>t.date.startsWith(m)))}});
+  const max=Math.max(1,...months.flatMap(x=>[x.inc,-x.exp]));
+  const tot=sums(all);
+  return `
+  <div class="row"><button id="py">←</button><strong style="font-size:18px">${curYear}</strong><button id="ny">→</button></div>
+  <div class="cards">
+    <div class="card"><div class="l">Einnahmen</div><div class="v pos">${fmt(tot.inc)}</div></div>
+    <div class="card"><div class="l">Ausgaben</div><div class="v neg">${fmt(tot.exp)}</div></div>
+    <div class="card"><div class="l">Saldo</div><div class="v ${tot.net>=0?'pos':'neg'}">${fmt(tot.net)}</div></div>
+  </div>
+  <h2>Monate</h2>
+  <table><thead><tr><th>Monat</th><th>Verlauf</th><th class="n">Einnahmen</th><th class="n">Ausgaben</th><th class="n">Saldo</th></tr></thead><tbody>
+  ${months.map(x=>`<tr class="click" data-m="${x.m}"><td>${new Date(x.m+'-01T12:00').toLocaleDateString('de-DE',{month:'short'})}</td>
+   <td style="width:35%"><div style="height:8px;border-radius:4px;background:var(--pos);width:${x.inc/max*100}%;margin-bottom:3px"></div><div style="height:8px;border-radius:4px;background:var(--neg);width:${-x.exp/max*100}%"></div></td>
+   <td class="n pos">${fmt(x.inc)}</td><td class="n neg">${fmt(x.exp)}</td><td class="n ${x.net>=0?'pos':'neg'}">${fmt(x.net)}</td></tr>`).join('')}
+  </tbody></table>
+  <h2>Ausgaben nach Kategorie (Jahr)</h2><div class="card">${catBars(all)}</div>`;
+}
+function settingsView(){
+  return `
+  <h2>Kategorien</h2>
+  <div class="card">
+    ${S.cats.map((c,i)=>`<div class="row" style="margin-bottom:6px"><input type="color" data-ci="${i}" value="${c.color}" style="padding:0;width:36px;height:32px"><input data-cn="${i}" value="${esc(c.name)}" class="grow"><button class="danger" data-cd="${i}">✕</button></div>`).join('')}
+    <button id="addCat">+ Kategorie</button>
+  </div>
+  <h2>Automatische Zuordnung</h2>
+  <p class="muted">Enthält die Beschreibung den Suchbegriff (Groß-/Kleinschreibung egal), wird die Kategorie gesetzt. Die erste passende Regel gewinnt. Gilt beim Import.</p>
+  <div class="card">
+    ${S.rules.map((r,i)=>`<div class="row" style="margin-bottom:6px"><input data-rk="${i}" value="${esc(r.kw)}" class="grow"><select data-rc="${i}">${S.cats.map(c=>`<option ${c.name===r.cat?'selected':''}>${esc(c.name)}</option>`).join('')}</select><button class="danger" data-rd="${i}">✕</button></div>`).join('')}
+    <button id="addRule">+ Regel</button>
+    <button id="reapply">Regeln auf alle Buchungen anwenden</button>
+  </div>`;
+}
+function bindView(){
+  const on=(id,ev,fn)=>{const e=$(id);if(e)e.addEventListener(ev,fn)};
+  on('#pm','click',()=>{curMonth=shiftMonth(curMonth,-1);render()});
+  on('#nm','click',()=>{curMonth=shiftMonth(curMonth,1);render()});
+  on('#mp','change',e=>{if(e.target.value){curMonth=e.target.value;render()}});
+  on('#py','click',()=>{curYear--;render()});
+  on('#ny','click',()=>{curYear++;render()});
+  on('#fq','input',e=>{filter.q=e.target.value;const p=e.target.selectionStart;render();const f=$('#fq');f.focus();f.setSelectionRange(p,p)});
+  on('#fc','change',e=>{filter.cat=e.target.value;render()});
+  document.querySelectorAll('tr[data-id]').forEach(r=>r.onclick=()=>editTx(r.dataset.id));
+  document.querySelectorAll('tr[data-m]').forEach(r=>r.onclick=()=>{curMonth=r.dataset.m;view='month';render()});
+  // Einstellungen
+  document.querySelectorAll('[data-ci]').forEach(e=>e.onchange=()=>{S.cats[e.dataset.ci].color=e.value;save()});
+  document.querySelectorAll('[data-cn]').forEach(e=>e.onchange=()=>{
+    const i=e.dataset.cn,old=S.cats[i].name,nw=e.value.trim();if(!nw)return;
+    S.tx.forEach(t=>{if(t.category===old)t.category=nw});S.rules.forEach(r=>{if(r.cat===old)r.cat=nw});S.cats[i].name=nw;save();render()});
+  document.querySelectorAll('[data-cd]').forEach(e=>e.onclick=()=>{
+    const c=S.cats[e.dataset.cd];if(!confirm(`Kategorie „${c.name}“ löschen? Buchungen werden zu „Sonstiges“.`))return;
+    if(!S.cats.some(x=>x.name==='Sonstiges'&&x!==c))S.cats.push({name:'Sonstiges',color:'#9ca3af'});
+    S.tx.forEach(t=>{if(t.category===c.name)t.category='Sonstiges'});S.rules=S.rules.filter(r=>r.cat!==c.name);
+    S.cats.splice(e.dataset.cd,1);save();render()});
+  on('#addCat','click',()=>{S.cats.push({name:'Neu',color:'#'+Math.floor(Math.random()*0xffffff).toString(16).padStart(6,'0')});save();render()});
+  document.querySelectorAll('[data-rk]').forEach(e=>e.onchange=()=>{S.rules[e.dataset.rk].kw=e.value;save()});
+  document.querySelectorAll('[data-rc]').forEach(e=>e.onchange=()=>{S.rules[e.dataset.rc].cat=e.value;save()});
+  document.querySelectorAll('[data-rd]').forEach(e=>e.onclick=()=>{S.rules.splice(e.dataset.rd,1);save();render()});
+  on('#addRule','click',()=>{S.rules.unshift({kw:'',cat:S.cats[0].name});save();render()});
+  on('#reapply','click',()=>{if(!confirm('Alle Buchungen neu kategorisieren? Manuelle Zuordnungen werden überschrieben.'))return;
+    S.tx.forEach(t=>t.category=autoCat(t.desc,t.amount));save();toast('Kategorien aktualisiert');render()});
+}
+
+/* ============ Modal ============ */
+function modal(html,cls=''){
+  closeModal();
+  const bg=document.createElement('div');bg.className='modal-bg';bg.id='modalBg';
+  bg.innerHTML=`<div class="modal ${cls}">${html}</div>`;
+  bg.addEventListener('mousedown',e=>{if(e.target===bg)closeModal()});
+  document.body.appendChild(bg);return bg;
+}
+function closeModal(){const b=$('#modalBg');if(b)b.remove()}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
+
+/* ============ Buchung hinzufügen / bearbeiten ============ */
+function editTx(id){
+  const t=id?S.tx.find(x=>x.id===id):{date:new Date().toISOString().slice(0,10).replace(/^\d{4}-\d{2}/,curMonth),desc:'',amount:-1,category:'Sonstiges',note:''};
+  if(!id)t.date=(curMonth+'-'+new Date().toISOString().slice(8,10));
+  const bg=modal(`<h3>${id?'Buchung bearbeiten':'Neue Buchung'}</h3>
+    <div class="field"><label>Datum</label><input type="date" id="e_date" value="${t.date}"></div>
+    <div class="field"><label>Beschreibung</label><input id="e_desc" value="${esc(t.desc)}"></div>
+    <div class="row"><div class="field grow"><label>Art</label><select id="e_type"><option value="-1" ${t.amount<0?'selected':''}>Ausgabe</option><option value="1" ${t.amount>=0?'selected':''}>Einnahme</option></select></div>
+    <div class="field grow"><label>Betrag (€)</label><input id="e_amt" inputmode="decimal" value="${id?Math.abs(t.amount).toFixed(2).replace('.',','):''}" placeholder="0,00"></div></div>
+    <div class="field"><label>Kategorie</label><select id="e_cat">${S.cats.map(c=>`<option ${c.name===t.category?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div>
+    <div class="field"><label>Notiz</label><input id="e_note" value="${esc(t.note||'')}"></div>
+    <div class="row"><button class="primary" id="e_save">Speichern</button><button id="e_cancel">Abbrechen</button><span class="grow"></span>${id?'<button class="danger" id="e_del">Löschen</button>':''}</div>`,'sm');
+  $('#e_cancel').onclick=closeModal;
+  $('#e_save').onclick=()=>{
+    const amt=parseAmount($('#e_amt').value);
+    if(isNaN(amt)||!$('#e_date').value)return toast('Datum und Betrag prüfen');
+    const o={id:id||uid(),date:$('#e_date').value,desc:$('#e_desc').value.trim()||'(ohne Beschreibung)',amount:Math.abs(amt)*Number($('#e_type').value),category:$('#e_cat').value,note:$('#e_note').value.trim()};
+    if(id)Object.assign(t,o);else S.tx.push(o);
+    curMonth=o.date.slice(0,7);save();closeModal();render();
+  };
+  if(id)$('#e_del').onclick=()=>{if(confirm('Buchung löschen?')){S.tx=S.tx.filter(x=>x.id!==id);save();closeModal();render()}};
+}
+
+/* ============ Import ============ */
+let stage={rows:[],csv:null,log:[]};
+function openImport(){
+  stage={rows:[],csv:null,log:[]};
+  renderImport();
+}
+function renderImport(){
+  const hasRows=stage.rows.length>0;
+  const bg=modal(`<h3>Import</h3>
+  <div class="drop" id="drop">Kontoauszug (CSV / PDF) oder Screenshots hierher ziehen<br><br>
+    <button id="pick">Dateien auswählen…</button>
+    <input type="file" id="file" multiple accept=".csv,.txt,.pdf,image/*" hidden>
+    <div class="muted" style="margin-top:10px">CSV: zuverlässig · PDF/Screenshot: Texterkennung im Browser, bitte Vorschau prüfen. Es wird nichts hochgeladen.</div>
+  </div>
+  <div id="imp_log" class="muted" style="margin-top:8px">${stage.log.map(esc).join('<br>')}</div>
+  ${stage.csv?csvMapUI():''}
+  ${hasRows?previewUI():''}
+  <div class="row" style="margin-top:14px">${hasRows?'<button class="primary" id="doImport">Ausgewählte importieren</button>':''}<button id="impClose">Schließen</button></div>`);
+  $('#impClose').onclick=closeModal;
+  $('#pick').onclick=()=>$('#file').click();
+  $('#file').onchange=e=>handleFiles([...e.target.files]);
+  const drop=$('#drop');
+  ['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over')}));
+  ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over')}));
+  drop.addEventListener('drop',e=>handleFiles([...e.dataTransfer.files]));
+  bindCsvMap();bindPreview();
+}
+// Screenshots aus der Zwischenablage
+document.addEventListener('paste',e=>{
+  if(!$('#drop'))return;
+  const f=[...(e.clipboardData?.files||[])].filter(f=>f.type.startsWith('image/'));
+  if(f.length)handleFiles(f);
+});
+function log(msg){stage.log.push(msg);const l=$('#imp_log');if(l)l.innerHTML=stage.log.map(esc).join('<br>')}
+async function handleFiles(files){
+  for(const f of files){
+    try{
+      const n=f.name.toLowerCase();
+      if(f.type.startsWith('image/'))await importImage(f);
+      else if(n.endsWith('.pdf'))await importPdf(f);
+      else await importCsv(f);
+    }catch(err){console.error(err);log(`✗ ${f.name}: ${err.message||err}`)}
+  }
+  renderImport();
+}
+async function decodeText(f){
+  const buf=await f.arrayBuffer();
+  try{return new TextDecoder('utf-8',{fatal:true}).decode(buf)}catch(e){return new TextDecoder('windows-1252').decode(buf)}
+}
+function detectDelim(t){
+  const head=t.split(/\r?\n/).slice(0,8).join('\n');
+  const c={';':0,',':0,'\t':0};for(const ch of head)if(ch in c)c[ch]++;
+  return Object.entries(c).sort((a,b)=>b[1]-a[1])[0][0];
+}
+function parseCSV(t){
+  const d=detectDelim(t);const rows=[];let r=[],c='',q=false;
+  for(let i=0;i<t.length;i++){const ch=t[i];
+    if(q){if(ch=='"'){if(t[i+1]=='"'){c+='"';i++}else q=false}else c+=ch}
+    else if(ch=='"')q=true;
+    else if(ch==d){r.push(c);c=''}
+    else if(ch=='\n'||ch=='\r'){if(ch=='\r'&&t[i+1]=='\n')i++;r.push(c);c='';rows.push(r);r=[]}
+    else c+=ch}
+  if(c||r.length){r.push(c);rows.push(r)}
+  return rows.filter(r=>r.some(x=>x.trim()));
+}
+async function importCsv(f){
+  const rows=parseCSV(await decodeText(f));
+  let h=rows.findIndex(r=>r.filter(x=>x.trim()).length>=3);
+  if(h<0)throw new Error('Keine Tabelle erkannt');
+  const head=rows[h].map(x=>x.trim());
+  const find=re=>head.findIndex(x=>re.test(x));
+  let date=find(/buchungstag|buchungsdatum|^datum|booking|date|valuta|wertstellung/i);
+  let amount=find(/^betrag|umsatz|amount|^betrag/i);
+  if(amount<0)amount=find(/betrag|amount/i);
+  let d1=find(/verwendungszweck|buchungstext|beschreibung|description|text/i);
+  let d2=find(/beg(ü|ue|u)nstigter|zahlungspflichtiger|empf(ä|ae|a)nger|name|auftraggeber|payee/i);
+  stage.csv={file:f.name,head,body:rows.slice(h+1),map:{date,amount,d1,d2}};
+  log(`✓ ${f.name}: ${stage.csv.body.length} Zeilen gelesen – Spalten bitte prüfen.`);
+  applyCsvMap();
+}
+function csvMapUI(){
+  const c=stage.csv,opt=(sel)=>`<option value="-1">— keine —</option>`+c.head.map((h,i)=>`<option value="${i}" ${sel==i?'selected':''}>${esc(h||'Spalte '+(i+1))}</option>`).join('');
+  return `<h3 style="margin-top:18px">Spalten zuordnen (${esc(c.file)})</h3>
+  <div class="row">
+   <div class="field"><label>Datum</label><select id="m_date">${opt(c.map.date)}</select></div>
+   <div class="field"><label>Betrag</label><select id="m_amount">${opt(c.map.amount)}</select></div>
+   <div class="field"><label>Beschreibung 1</label><select id="m_d1">${opt(c.map.d1)}</select></div>
+   <div class="field"><label>Beschreibung 2</label><select id="m_d2">${opt(c.map.d2)}</select></div>
+  </div>`;
+}
+function bindCsvMap(){
+  if(!stage.csv)return;
+  for(const k of ['date','amount','d1','d2'])$('#m_'+k).onchange=e=>{stage.csv.map[k]=Number(e.target.value);applyCsvMap();renderImport()};
+}
+function applyCsvMap(){
+  const {body,map}=stage.csv;
+  stage.rows=stage.rows.filter(r=>r.src!=='csv');
+  for(const r of body){
+    if(map.date<0||map.amount<0)continue;
+    const date=parseDate(r[map.date]||''),amt=parseAmount(r[map.amount]||'');
+    if(!date||isNaN(amt))continue;
+    const desc=[map.d2>=0?r[map.d2]:'',map.d1>=0?r[map.d1]:''].map(x=>(x||'').trim()).filter(Boolean).join(' – ')||'(ohne Beschreibung)';
+    stage.rows.push(mkRow(date,desc,amt,'csv'));
+  }
+  markDups();
+}
+function mkRow(date,desc,amount,src,uncertain){
+  return {date,desc,amount,category:autoCat(desc,amount),include:true,src,uncertain:!!uncertain};
+}
+function markDups(){
+  const ex=new Set(S.tx.map(keyOf));const seen=new Set();
+  stage.rows.forEach(r=>{const k=keyOf(r);r.dup=ex.has(k)||seen.has(k)&&false;if(r.dup)r.include=false;seen.add(k)});
+}
+/* Text (OCR / PDF) → Buchungen */
+function parseTextLines(lines,src){
+  const out=[];const dre=/(\d{1,2})\.(\d{1,2})\.(\d{4}|\d{2})?/;
+  const are=/[-+−–]?\s?\d{1,3}(?:\.\d{3})*,\d{2}\s?(?:€|EUR)?\s?[-+SH]?(?=\s|$)/;
+  for(const line of lines){
+    const l=line.replace(/\s+/g,' ').trim();
+    const dm=l.match(dre),am=l.match(are);
+    if(!dm||!am)continue;
+    const date=parseDate(dm[0]);if(!date)continue;
+    let amt=parseAmount(am[0]);if(isNaN(amt))continue;
+    const hasSign=/[-+−–]|\s[SH]$|[SH]$/.test(am[0].trim());
+    if(!hasSign)amt=-Math.abs(amt);
+    const desc=l.replace(dm[0],' ').replace(am[0],' ').replace(/\s+/g,' ').trim()||'(ohne Beschreibung)';
+    out.push(mkRow(date,desc,amt,src,!hasSign));
+  }
+  return out;
+}
+function loadScript(src){return new Promise((res,rej)=>{if(document.querySelector(`script[src="${src}"]`))return res();const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>rej(new Error('Bibliothek konnte nicht geladen werden (offline?)'));document.head.appendChild(s)})}
+async function importImage(f){
+  log(`… ${f.name}: Texterkennung läuft (beim ersten Mal wird das deutsche Sprachmodell geladen)`);
+  await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js');
+  const {data}=await Tesseract.recognize(f,'deu');
+  const rows=parseTextLines(data.text.split('\n'),'img');
+  stage.rows.push(...rows);markDups();
+  log(rows.length?`✓ ${f.name}: ${rows.length} Buchungen erkannt.`:`⚠ ${f.name}: Keine Buchungen mit Datum und Betrag in einer Zeile erkannt. Bitte manuell erfassen.`);
+}
+async function importPdf(f){
+  log(`… ${f.name}: PDF wird gelesen`);
+  await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
+  pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const pdf=await pdfjsLib.getDocument({data:await f.arrayBuffer()}).promise;
+  const lines=[];
+  for(let p=1;p<=pdf.numPages;p++){
+    const tc=await (await pdf.getPage(p)).getTextContent();
+    const byY={};
+    tc.items.forEach(it=>{const y=Math.round(it.transform[5]/3);(byY[y]=byY[y]||[]).push(it)});
+    Object.keys(byY).map(Number).sort((a,b)=>b-a).forEach(y=>lines.push(byY[y].sort((a,b)=>a.transform[4]-b.transform[4]).map(i=>i.str).join(' ')));
+  }
+  const rows=parseTextLines(lines,'pdf');
+  stage.rows.push(...rows);markDups();
+  log(rows.length?`✓ ${f.name}: ${rows.length} Buchungen erkannt.`:`⚠ ${f.name}: Keine Buchungen erkannt (evtl. gescannte PDF – als Screenshot/Bild versuchen, oder CSV exportieren).`);
+}
+function previewUI(){
+  const n=stage.rows.filter(r=>r.include).length,dups=stage.rows.filter(r=>r.dup).length,unc=stage.rows.filter(r=>r.uncertain).length;
+  return `<h3 style="margin-top:18px">Vorschau (${n} von ${stage.rows.length} ausgewählt)</h3>
+  ${dups?`<div class="warn">${dups} mögliche Duplikate (bereits vorhanden) sind abgewählt.</div>`:''}
+  ${unc?`<div class="warn">Bei ${unc} Zeilen war das Vorzeichen unklar – als Ausgabe angenommen. Bitte prüfen (Einnahmen ohne Minus eingeben, z. B. 1500,00).</div>`:''}
+  <div class="scroll"><table><thead><tr><th></th><th>Datum</th><th>Beschreibung</th><th>Betrag</th><th>Kategorie</th></tr></thead><tbody>
+  ${stage.rows.map((r,i)=>`<tr class="${r.dup?'dup':''}"><td><input type="checkbox" data-i="${i}" data-f="include" ${r.include?'checked':''}></td>
+   <td><input type="date" data-i="${i}" data-f="date" value="${r.date}"></td>
+   <td><input data-i="${i}" data-f="desc" value="${esc(r.desc)}"></td>
+   <td><input data-i="${i}" data-f="amount" value="${r.amount.toFixed(2).replace('.',',')}" style="min-width:80px;text-align:right"></td>
+   <td><select data-i="${i}" data-f="category">${S.cats.map(c=>`<option ${c.name===r.category?'selected':''}>${esc(c.name)}</option>`).join('')}</select></td></tr>`).join('')}
+  </tbody></table></div>`;
+}
+function bindPreview(){
+  document.querySelectorAll('[data-f]').forEach(e=>e.onchange=()=>{
+    const r=stage.rows[e.dataset.i],f=e.dataset.f;
+    if(f==='include')r.include=e.checked;
+    else if(f==='amount'){const v=parseAmount(e.value);if(!isNaN(v))r.amount=v;e.value=r.amount.toFixed(2).replace('.',',')}
+    else r[f]=e.value;
+  });
+  const b=$('#doImport');
+  if(b)b.onclick=()=>{
+    const ex=new Set(S.tx.map(keyOf));let added=0,skipped=0;
+    stage.rows.filter(r=>r.include).forEach(r=>{
+      const t={id:uid(),date:r.date,desc:r.desc,amount:r.amount,category:r.category,note:''};
+      if(ex.has(keyOf(t))&&r.dup){skipped++;return}
+      S.tx.push(t);ex.add(keyOf(t));added++;
+    });
+    const last=stage.rows.filter(r=>r.include).map(r=>r.date).sort().pop();
+    if(last)curMonth=last.slice(0,7);
+    save();closeModal();view='month';render();toast(`${added} Buchungen importiert`);
+  };
+}
+
+/* ============ Sync (privates GitHub-Repo) ============ */
+const cfg=()=>{try{const c=JSON.parse(localStorage.getItem(CFG_KEY));return c&&c.repo&&c.token?c:null}catch(e){return null}};
+let R={};try{R=JSON.parse(localStorage.getItem(REM_KEY))||{}}catch(e){}
+const persistR=()=>{try{localStorage.setItem(REM_KEY,JSON.stringify(R))}catch(e){}};
+let syncState={s:'off',msg:'',at:null},syncing=false,again=false;
+
+const normTx=t=>({id:t.id,date:t.date,desc:t.desc,amount:Number(t.amount),category:t.category,note:t.note||'',u:t.u||0});
+const jlines=a=>a.length?'\n'+a.map(x=>'  '+JSON.stringify(x)).join(',\n')+'\n ':'';
+function serMonth(m){
+  const tx=S.tx.filter(t=>t.date.startsWith(m)).map(normTx).sort((a,b)=>a.date.localeCompare(b.date)||a.id.localeCompare(b.id));
+  const tb=S.tomb.filter(t=>t.date.startsWith(m)).map(t=>({id:t.id,date:t.date,u:t.u||0})).sort((a,b)=>a.id.localeCompare(b.id));
+  return `{\n "tx": [${jlines(tx)}],\n "tomb": [${jlines(tb)}]\n}\n`;
+}
+const serSettings=()=>JSON.stringify({u:S.su||0,cats:S.cats,rules:S.rules},null,1)+'\n';
+const b64d=s=>new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\s/g,'')),c=>c.charCodeAt(0)));
+function b64e(s){const b=new TextEncoder().encode(s);let o='';for(let i=0;i<b.length;i+=8192)o+=String.fromCharCode(...b.subarray(i,i+8192));return btoa(o)}
+
+async function gh(c,method,path,body){
+  let r;
+  try{
+    r=await fetch(`https://api.github.com/repos/${c.repo}${path}`,{method,cache:'no-store',
+      headers:{Authorization:'Bearer '+c.token,Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28',...(body?{'Content-Type':'application/json'}:{})},
+      body:body?JSON.stringify(body):undefined});
+  }catch(e){const x=new Error('Keine Verbindung zu GitHub');x.offline=true;throw x}
+  if(r.status===404&&method==='GET')return {status:404};
+  if(!r.ok){
+    const e=new Error(r.status===401?'Token ungültig oder abgelaufen':r.status===403?'Keine Berechtigung (Token braucht „Contents: Read and write“) oder Rate-Limit':'GitHub-Fehler '+r.status);
+    e.status=r.status;throw e;
+  }
+  return {status:r.status,json:await r.json()};
+}
+
+function mergeIn(txs,tombs){
+  let changed=false;
+  const map=new Map(S.tx.map(t=>[t.id,t])),tm=new Map(S.tomb.map(t=>[t.id,t]));
+  for(const t of tombs){const c=tm.get(t.id);if(!c||(t.u||0)>(c.u||0))tm.set(t.id,t)}
+  for(const t of txs){
+    if(!t||!t.id||!t.date)continue;
+    const c=map.get(t.id);
+    if(!c||(t.u||0)>(c.u||0)){map.set(t.id,{...t});sigs[t.id]=sig(t);changed=true}
+  }
+  for(const [id,t] of tm){const c=map.get(id);if(c&&(t.u||0)>=(c.u||0)){map.delete(id);delete sigs[id];changed=true}}
+  S.tx=[...map.values()];S.tomb=[...tm.values()];
+  return changed;
+}
+function mergeFile(name,content){
+  let d;try{d=JSON.parse(content)}catch(e){return false}
+  if(name==='settings.json'){
+    if((d.u||0)>(S.su||0)&&Array.isArray(d.cats)&&Array.isArray(d.rules)){S.cats=d.cats;S.rules=d.rules;S.su=d.u;ssig=JSON.stringify([S.cats,S.rules]);return true}
+    return false;
+  }
+  return mergeIn(d.tx||[],d.tomb||[]);
+}
+
+async function syncNow(){
+  const c=cfg();if(!c){setSync('off');return}
+  if(syncing){again=true;return}
+  syncing=true;setSync('busy');let changed=false;
+  try{
+    for(let attempt=0;;attempt++){
+      stamp();
+      const ls=await gh(c,'GET','/contents/data');
+      const items=ls.status===404?[]:ls.json.filter(x=>x.type==='file'&&/^(\d{4}-\d{2}|settings)\.json$/.test(x.name));
+      const names=new Set(items.map(x=>x.name));
+      for(const n of Object.keys(R))if(!names.has(n))delete R[n];
+      for(const it of items){
+        if(R[it.name]&&R[it.name].sha===it.sha)continue;
+        const f=await gh(c,'GET','/contents/data/'+it.name);
+        const content=b64d(f.json.content);
+        R[it.name]={sha:f.json.sha,content};
+        if(mergeFile(it.name,content))changed=true;
+      }
+      const months=new Set([...S.tx,...S.tomb].map(t=>t.date.slice(0,7)));
+      Object.keys(R).forEach(n=>{if(/^\d{4}-\d{2}\.json$/.test(n))months.add(n.slice(0,7))});
+      const jobs=[];
+      for(const m of [...months].sort()){
+        const n=m+'.json',s=serMonth(m);
+        const has=S.tx.some(t=>t.date.startsWith(m))||S.tomb.some(t=>t.date.startsWith(m));
+        if((R[n]?R[n].content:null)!==s&&(R[n]||has))jobs.push([n,s,m]);
+      }
+      const ss=serSettings();
+      if(!R['settings.json']||R['settings.json'].content!==ss)jobs.push(['settings.json',ss,'Einstellungen']);
+      let conflict=false;
+      for(const [n,s,label] of jobs){
+        try{
+          const r=await gh(c,'PUT','/contents/data/'+n,{message:`1Percent: ${label} aktualisiert`,content:b64e(s),...(R[n]?{sha:R[n].sha}:{})});
+          R[n]={sha:r.json.content.sha,content:s};
+        }catch(e){if(e.status===409||e.status===422){conflict=true;delete R[n];break}throw e}
+      }
+      if(!conflict)break;
+      if(attempt>=3)throw new Error('Konflikt beim Speichern – bitte erneut versuchen');
+    }
+    persist();persistR();
+    setSync('ok');
+    if(changed)render();
+  }catch(e){
+    setSync('err',e.offline?'Offline – Änderungen werden später synchronisiert':e.message);
+  }finally{
+    syncing=false;if(again){again=false;syncNow()}
+  }
+}
+function setSync(s,msg){syncState={s,msg:msg||'',at:s==='ok'?new Date():syncState.at};updateSyncStatus()}
+function updateSyncStatus(){
+  const b=$('#syncBtn');if(!b)return;
+  b.classList.toggle('err',syncState.s==='err');b.title=syncState.msg||'';
+  if(!cfg())b.textContent='☁ Sync einrichten';
+  else if(syncState.s==='busy')b.textContent='⟳ synchronisiere…';
+  else if(syncState.s==='err')b.textContent='⚠ Sync-Problem';
+  else b.textContent='☁ synchronisiert'+(syncState.at?' '+syncState.at.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}):'');
+}
+
+/* ============ Sync & Daten (Dialog) ============ */
+function openData(){
+  const c=cfg();
+  modal(`<h3>Sync & Daten</h3>
+  <h4 style="margin-top:0">Sync über privates GitHub-Repo</h4>
+  <p class="muted">Deine Buchungen werden als JSON-Dateien (eine pro Monat) in ein <b>privates</b> Repo geschrieben. Auf jedem Gerät einmal Repo + Token eintragen – danach siehst du überall dieselben Daten.</p>
+  <div class="field"><label>Daten-Repo (owner/name)</label><input id="s_repo" placeholder="lucashcandido/1percent-data" value="${esc(c?c.repo:'')}" autocapitalize="off" autocomplete="off"></div>
+  <div class="field"><label>Zugriffstoken (Fine-grained Personal Access Token)</label><input id="s_tok" type="password" autocomplete="off" placeholder="${c?'gespeichert – leer lassen zum Behalten':'github_pat_…'}"></div>
+  <div class="row"><button class="primary" id="s_save">Speichern &amp; testen</button>${c?'<button id="s_now">Jetzt synchronisieren</button><button id="s_off" class="danger">Trennen</button>':''}</div>
+  <div id="s_msg" class="muted" style="margin:8px 0">${syncState.s==='err'?'⚠ '+esc(syncState.msg):''}</div>
+  <details><summary>So erstellst du den Token</summary><ol class="muted">
+    <li>GitHub → Settings → Developer settings → Personal access tokens → <b>Fine-grained tokens</b> → Generate new token</li>
+    <li>Repository access: <b>Only select repositories</b> → nur dein privates Daten-Repo</li>
+    <li>Repository permissions → <b>Contents: Read and write</b></li>
+    <li>Token kopieren und oben einfügen. Der Token wird nur in diesem Browser gespeichert – auf jedem Gerät also einmal eingeben.</li>
+  </ol></details>
+  <h4>Backup</h4>
+  <div class="row">
+    <button id="d_exp">Als JSON exportieren</button>
+    <button id="d_imp">JSON importieren</button>
+    <input type="file" id="d_file" accept=".json" hidden>
+    <button id="d_csv">Als CSV exportieren</button>
+  </div>
+  <div class="row" style="margin-top:18px"><button class="danger" id="d_wipe">Alle Buchungen löschen</button><span class="grow"></span><button id="d_close">Schließen</button></div>`,'md');
+  $('#d_close').onclick=closeModal;
+  $('#s_save').onclick=async()=>{
+    const repo=$('#s_repo').value.trim().replace(/^https?:\/\/github\.com\//,'').replace(/\.git$/,'').replace(/\/$/,''),token=$('#s_tok').value.trim()||(c?c.token:'');
+    const msg=$('#s_msg');
+    if(!/^[\w.-]+\/[\w.-]+$/.test(repo)||!token){msg.textContent='Bitte Repo (owner/name) und Token angeben.';return}
+    msg.textContent='Prüfe Zugriff…';
+    try{
+      const r=await gh({repo,token},'GET','');
+      if(r.status===404){msg.textContent='Repo nicht gefunden – oder der Token hat keinen Zugriff darauf.';return}
+      if(r.json.private!==true){msg.textContent='⚠ Dieses Repo ist ÖFFENTLICH. Deine Finanzdaten wären für alle sichtbar – bitte ein privates Repo verwenden.';return}
+      if(r.json.permissions&&r.json.permissions.push===false){msg.textContent='Der Token hat nur Lesezugriff – er braucht „Contents: Read and write“.';return}
+      localStorage.setItem(CFG_KEY,JSON.stringify({repo,token}));R={};persistR();
+      closeModal();toast('Verbunden – synchronisiere…');render();syncNow();
+    }catch(e){msg.textContent='⚠ '+e.message}
+  };
+  if(c){
+    $('#s_now').onclick=()=>{closeModal();syncNow()};
+    $('#s_off').onclick=()=>{if(confirm('Sync trennen? Die Daten bleiben lokal in diesem Browser und im Daten-Repo erhalten, der Token wird hier entfernt.')){localStorage.removeItem(CFG_KEY);R={};persistR();closeModal();setSync('off');render()}};
+  }
+  $('#d_exp').onclick=()=>download('1percent-daten.json',JSON.stringify({tx:S.tx.map(normTx),cats:S.cats,rules:S.rules},null,2),'application/json');
+  $('#d_csv').onclick=()=>download('1percent.csv','Datum;Beschreibung;Betrag;Kategorie;Notiz\n'+[...S.tx].sort((a,b)=>a.date.localeCompare(b.date)).map(t=>[dateDE(t.date),`"${t.desc.replace(/"/g,'""')}"`,t.amount.toFixed(2).replace('.',','),t.category,`"${(t.note||'').replace(/"/g,'""')}"`].join(';')).join('\n'),'text/csv;charset=utf-8');
+  $('#d_imp').onclick=()=>$('#d_file').click();
+  $('#d_file').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{applyData(JSON.parse(await f.text()));closeModal()}catch(err){toast('Ungültige Datei')}};
+  $('#d_wipe').onclick=()=>{if(confirm('Wirklich ALLE Buchungen löschen? Das wird auch ins Daten-Repo synchronisiert.')){S.tx=[];save();closeModal();render()}};
+}
+function applyData(d){
+  if(!d||!Array.isArray(d.tx))throw new Error('format');
+  const items=d.tx.filter(t=>t&&t.date&&typeof t.amount==='number').map(t=>({...t,id:t.id||uid(),category:t.category||'Sonstiges'}));
+  const ids=new Set(items.map(t=>t.id));
+  S.tomb=S.tomb.filter(t=>!ids.has(t.id));
+  const map=new Map(S.tx.map(t=>[t.id,t]));items.forEach(t=>map.set(t.id,t));
+  S.tx=[...map.values()];
+  if(Array.isArray(d.cats)&&Array.isArray(d.rules)){S.cats=d.cats;S.rules=d.rules}
+  save();render();toast(items.length+' Buchungen geladen');
+}
+function download(name,text,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+
+/* ============ Start ============ */
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{view=b.dataset.v;render()});
+$('#btnAdd').onclick=()=>editTx(null);
+$('#btnImport').onclick=openImport;
+$('#syncBtn').onclick=openData;
+render();
+if(cfg())syncNow();
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncNow()});
+addEventListener('online',syncNow);
+setInterval(()=>{if(!document.hidden)syncNow()},120000);
+</script>
+</body>
+</html>
