@@ -63,8 +63,17 @@ Unter *Sync & Daten → Claude* trägst du einen eigenen [Anthropic-API-Schlüss
 - Alles landet zuerst in der Vorschau – dort korrigieren, dann übernehmen. Pro Import lässt sich Claude abschalten.
 - Kosten laufen über dein Anthropic-Konto. Der Schlüssel liegt in den synchronisierten Einstellungen (privates Daten-Repo), damit alle deine Geräte ihn haben.
 
+## Claude-Assistent
+
+Unten rechts öffnet **✦ Assistent** einen Chat, in dem du deine Buchungen nachträglich verwalten kannst – z. B. „Setz alle Lidl-Buchungen auf Nahrung & Pflege“, „Lösch die doppelte Netflix-Buchung“, „Ordne alle Buchungen ohne Kategorie zu“ oder „Was habe ich im September für Tank ausgegeben?“.
+
+- Claude sucht, ändert, löscht und legt Buchungen über Werkzeuge an, die im Browser ausgeführt werden; außerdem kann er Summen auswerten und Stichwort-Regeln anlegen.
+- Kategorien und Konten werden geprüft (z. B. keine Ausgaben-Kategorie für Einnahmen).
+- Nach jeder Antwort mit Änderungen gibt es **„Änderungen rückgängig machen“** (für die letzte Runde).
+- Braucht denselben Claude-API-Schlüssel wie der Import.
+
 ## Datenschutz
 
 - Der Token liegt nur im `localStorage` des jeweiligen Browsers und ist durch die Fine-grained-Berechtigung auf das Daten-Repo beschränkt.
-- Mit Claude: Screenshots, PDFs und die zu kategorisierenden Buchungstexte werden an die Anthropic-API geschickt (direkt aus deinem Browser, mit deinem Schlüssel).
+- Mit Claude: Screenshots, PDFs, die zu kategorisierenden Buchungstexte und – beim Assistenten – die Buchungen, die er für deine Anfrage sucht, werden an die Anthropic-API geschickt (direkt aus deinem Browser, mit deinem Schlüssel).
 - Ohne Claude: Für PDF-/Screenshot-Import werden bei Bedarf `pdf.js` und `tesseract.js` von einem CDN nachgeladen (die Dateien selbst bleiben lokal).

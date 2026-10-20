@@ -211,6 +211,29 @@ select.nocat{border-color:rgba(250,204,21,.55);color:#fde68a}
   .scroll td:nth-child(5){grid-column:2;grid-row:3}
   .scroll td:nth-child(6){grid-column:3;grid-row:3}
 }
+/* --- Assistent --- */
+.fab{position:fixed;right:18px;bottom:18px;z-index:15;padding:11px 18px;font-size:16px;color:#0b0d12;background:#d4d7dd;border:0;border-radius:999px;box-shadow:0 10px 30px rgba(0,0,0,.6)}
+.fab:hover{background:#e1e4e9}
+body.locked .fab,body.asst-open .fab{display:none}
+body.asst-open .toast{bottom:96px;z-index:60}
+#asst{position:fixed;right:18px;bottom:18px;z-index:18;width:min(440px,calc(100vw - 36px));height:min(640px,calc(100vh - 36px));display:flex;flex-direction:column;
+  background:rgba(10,13,21,.94);border:1px solid rgba(255,255,255,.12);border-radius:22px;box-shadow:0 30px 80px rgba(0,0,0,.8);-webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px);overflow:hidden}
+#asst[hidden]{display:none}
+.asst-head{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.asst-head strong{font:800 italic 20px/1 var(--serif);text-transform:uppercase;letter-spacing:.01em}
+.asst-head button{padding:5px 11px;font-size:13px}
+#asstLog{flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
+#asstLog .msg{max-width:88%;padding:9px 13px;border-radius:16px;line-height:1.45;font-size:14.5px;white-space:normal;word-wrap:break-word}
+#asstLog .msg.user{align-self:flex-end;background:#d4d7dd;color:#0b0d12;border-bottom-right-radius:5px;white-space:pre-wrap}
+#asstLog .msg.bot{align-self:flex-start;background:rgba(255,255,255,.06);border:1px solid var(--line);border-bottom-left-radius:5px}
+#asstLog .msg.status{align-self:flex-start;color:var(--mut);font-size:13px;padding:2px 4px;animation:pulse 1.2s ease-in-out infinite}
+#asstLog .msg.undo{align-self:flex-start;padding:0 4px}
+@keyframes pulse{50%{opacity:.4}}
+.chips{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.chips button{font:500 13.5px var(--sans)!important;font-style:normal!important;text-transform:none;letter-spacing:0;text-align:left;border-radius:12px;padding:7px 12px}
+.asst-in{display:flex;gap:8px;padding:10px;border-top:1px solid var(--line);align-items:flex-end}
+.asst-in textarea{flex:1;resize:none;min-height:40px;max-height:140px;font:inherit;line-height:1.4}
+@media(max-width:600px){#asst{right:0;bottom:0;width:100vw;height:100dvh;border-radius:0;border:0}.fab{right:14px;bottom:14px}}
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.card,.modal,.login,table,header{background:rgba(10,13,21,.96)}}
 </style>
 </head>
@@ -973,6 +996,194 @@ async function aiCategorize(rows,onProgress){
   return n;
 }
 
+/* ============ Claude-Assistent: Buchungen im Chat verwalten ============
+   Claude bekommt Werkzeuge, die hier im Browser ausgeführt werden (suchen, ändern, löschen, anlegen, auswerten, Regel anlegen).
+   Jede Runde mit Änderungen lässt sich vollständig rückgängig machen. */
+const ASST_TOOLS=[
+ {name:'find_transactions',description:'Sucht Buchungen. Alle Filter optional und kombinierbar. Liefert id, Datum, Beschreibung, Betrag, Kategorie, Konto, Notiz sowie Anzahl und Summe aller Treffer.',
+  input_schema:{type:'object',properties:{
+   from:{type:'string',description:'ab Datum YYYY-MM-DD (inklusive)'},to:{type:'string',description:'bis Datum YYYY-MM-DD (inklusive)'},
+   text:{type:'string',description:'Suchtext in Beschreibung/Notiz (Groß/klein egal)'},category:{type:'string',description:'exakter Kategoriename; "" = ohne Kategorie'},
+   account:{type:'string',description:'exakter Kontoname; "" = ohne Konto'},type:{type:'string',enum:['expense','income']},
+   min_amount:{type:'number',description:'Mindestbetrag (Betrag ohne Vorzeichen)'},max_amount:{type:'number',description:'Höchstbetrag (ohne Vorzeichen)'},
+   limit:{type:'integer',description:'max. Anzahl zurückgegebener Buchungen (Standard 100, max 300)'}}}},
+ {name:'update_transactions',description:'Ändert Felder bei den angegebenen Buchungen (ids aus find_transactions). Nur die Felder in "set" werden geändert.',
+  input_schema:{type:'object',required:['ids','set'],properties:{ids:{type:'array',items:{type:'string'}},
+   set:{type:'object',properties:{category:{type:'string'},account:{type:'string'},description:{type:'string'},date:{type:'string',description:'YYYY-MM-DD'},amount:{type:'number',description:'Ausgaben negativ, Einnahmen positiv'},note:{type:'string'}}}}}},
+ {name:'set_categories',description:'Setzt für viele Buchungen jeweils eine eigene Kategorie in einem Schritt.',
+  input_schema:{type:'object',required:['items'],properties:{items:{type:'array',items:{type:'object',required:['id','category'],properties:{id:{type:'string'},category:{type:'string'}}}}}}},
+ {name:'delete_transactions',description:'Löscht die angegebenen Buchungen.',input_schema:{type:'object',required:['ids'],properties:{ids:{type:'array',items:{type:'string'}}}}},
+ {name:'add_transaction',description:'Legt eine neue Buchung an.',input_schema:{type:'object',required:['date','description','amount'],properties:{
+   date:{type:'string'},description:{type:'string'},amount:{type:'number',description:'Ausgaben negativ, Einnahmen positiv'},category:{type:'string'},account:{type:'string'},note:{type:'string'}}}},
+ {name:'summarize',description:'Summen gruppiert nach Kategorie, Monat oder Konto. Umbuchungen sind ausgeschlossen. Filter wie bei find_transactions.',
+  input_schema:{type:'object',required:['group_by'],properties:{group_by:{type:'string',enum:['category','month','account']},from:{type:'string'},to:{type:'string'},account:{type:'string'},type:{type:'string',enum:['expense','income']},text:{type:'string'}}}},
+ {name:'add_rule',description:'Legt eine Stichwort-Regel für künftige Importe an (Beschreibung enthält Stichwort → Kategorie).',
+  input_schema:{type:'object',required:['keyword','category'],properties:{keyword:{type:'string'},category:{type:'string'}}}},
+];
+const asst={messages:[],busy:false,undo:null};
+const compactTx=t=>({id:t.id,date:t.date,description:t.desc,amount:t.amount,category:t.category||'',account:t.account||'',...(t.note?{note:t.note}:{})});
+function asstFilter(a){
+  let l=S.tx.slice();
+  if(a.from)l=l.filter(t=>t.date>=a.from);if(a.to)l=l.filter(t=>t.date<=a.to);
+  if(a.text){const q=norm(a.text);l=l.filter(t=>norm(t.desc+' '+(t.note||'')).includes(q))}
+  if(a.category!==undefined)l=l.filter(t=>(t.category||'')===a.category);
+  if(a.account!==undefined)l=l.filter(t=>(t.account||'')===a.account);
+  if(a.type)l=l.filter(t=>typeOf(t.amount)===a.type);
+  if(typeof a.min_amount==='number')l=l.filter(t=>Math.abs(t.amount)>=a.min_amount);
+  if(typeof a.max_amount==='number')l=l.filter(t=>Math.abs(t.amount)<=a.max_amount);
+  return l.sort((x,y)=>y.date.localeCompare(x.date));
+}
+const round2=n=>Math.round(n*100)/100;
+function asstSnapshot(){if(!asst.turnSnap)asst.turnSnap={tx:JSON.parse(JSON.stringify(S.tx)),rules:JSON.parse(JSON.stringify(S.rules))}}
+function asstCatErr(cat,amount){if(cat===''||cat==null)return '';return S.cats.some(c=>c.name===cat&&catType(c)===typeOf(amount))?'':`Kategorie „${cat}“ gibt es für ${typeOf(amount)===INC?'Einnahmen':'Ausgaben'} nicht`}
+function asstRun(name,a){
+  a=a||{};
+  if(name==='find_transactions'){const l=asstFilter(a),lim=Math.min(300,a.limit||100);return {count:l.length,sum:round2(l.reduce((x,t)=>x+t.amount,0)),transactions:l.slice(0,lim).map(compactTx),...(l.length>lim?{note:`nur die ersten ${lim} von ${l.length}`}:{})}}
+  if(name==='summarize'){
+    const l=asstFilter(a).filter(t=>!isXfer(t)),g={};
+    for(const t of l){const k=a.group_by==='month'?t.date.slice(0,7):a.group_by==='account'?(t.account||NO_ACC):(catLabel(t.category)+(typeOf(t.amount)===INC?' (Einnahme)':' (Ausgabe)'));(g[k]=g[k]||{sum:0,count:0});g[k].sum+=t.amount;g[k].count++}
+    return {groups:Object.entries(g).map(([k,v])=>({group:k,sum:round2(v.sum),count:v.count})).sort((x,y)=>Math.abs(y.sum)-Math.abs(x.sum)),income:round2(l.filter(t=>t.amount>0).reduce((x,t)=>x+t.amount,0)),expenses:round2(l.filter(t=>t.amount<0).reduce((x,t)=>x+t.amount,0))};
+  }
+  if(name==='update_transactions'||name==='set_categories'){
+    const items=name==='set_categories'?(a.items||[]).map(i=>({id:i.id,set:{category:i.category}})):(a.ids||[]).map(id=>({id,set:a.set||{}}));
+    const errors=[];let changed=0;asstSnapshot();
+    for(const {id,set} of items){
+      const t=S.tx.find(x=>x.id===id);if(!t){errors.push(`${id}: nicht gefunden`);continue}
+      const amount=typeof set.amount==='number'?set.amount:t.amount;
+      if(typeof set.amount==='number'&&!set.amount){errors.push(`${id}: Betrag 0 ist nicht erlaubt`);continue}
+      if('category' in set){const e=asstCatErr(set.category,amount);if(e){errors.push(`${id}: ${e}`);continue}}
+      else if(typeOf(amount)!==typeOf(t.amount)&&t.category&&asstCatErr(t.category,amount)){errors.push(`${id}: Vorzeichen ändert sich – bitte auch eine passende Kategorie setzen`);continue}
+      if('account' in set&&set.account&&!S.accounts.includes(set.account)){errors.push(`${id}: Konto „${set.account}“ gibt es nicht`);continue}
+      let date=t.date;if(set.date){date=parseDate(set.date);if(!date){errors.push(`${id}: Datum ungültig`);continue}}
+      if('category' in set)t.category=set.category||'';if('account' in set)t.account=set.account||'';
+      if(typeof set.description==='string'&&set.description.trim())t.desc=set.description.trim();
+      if('note' in set)t.note=String(set.note||'');t.date=date;t.amount=round2(amount);changed++;
+    }
+    return {changed,errors};
+  }
+  if(name==='delete_transactions'){asstSnapshot();const ids=new Set(a.ids||[]),before=S.tx.length;S.tx=S.tx.filter(t=>!ids.has(t.id));return {deleted:before-S.tx.length}}
+  if(name==='add_transaction'){
+    const date=parseDate(String(a.date||'')),amount=Number(a.amount);
+    if(!date||!amount)return {error:'Datum oder Betrag ungültig'};
+    const e=asstCatErr(a.category,amount);if(e)return {error:e};
+    if(a.account&&!S.accounts.includes(a.account))return {error:`Konto „${a.account}“ gibt es nicht`};
+    asstSnapshot();const t={id:uid(),date,desc:String(a.description||'').trim()||'(ohne Beschreibung)',amount:round2(amount),category:a.category||'',account:a.account||'',note:String(a.note||'')};
+    S.tx.push(t);return {created:compactTx(t)};
+  }
+  if(name==='add_rule'){
+    const kw=String(a.keyword||'').trim().toLowerCase();if(!kw)return {error:'Stichwort fehlt'};
+    if(!S.cats.some(c=>c.name===a.category))return {error:`Kategorie „${a.category}“ gibt es nicht`};
+    asstSnapshot();S.rules=S.rules.filter(r=>r.kw!==kw);S.rules.unshift({kw,cat:a.category});return {ok:true};
+  }
+  return {error:'unbekanntes Werkzeug'};
+}
+function asstSystem(){
+  const dates=S.tx.map(t=>t.date).sort();
+  return `Du bist der Assistent in „1Percent“, der Finanz-App des Nutzers (Deutsch, Euro). Du verwaltest seine Buchungen mit den Werkzeugen. Heute ist ${new Date().toISOString().slice(0,10)}; in der App ist gerade ${view==='year'?'das Jahr '+curYear:'der Monat '+curMonth} geöffnet${filter.acc!=='*'?` (Konto-Filter: ${filter.acc||NO_ACC})`:''}.
+Es gibt ${S.tx.length} Buchungen${dates.length?` von ${dates[0]} bis ${dates[dates.length-1]}`:''}.
+Ausgaben-Kategorien: ${S.cats.filter(c=>catType(c)===EXP).map(c=>c.name).join(', ')}.
+Einnahmen-Kategorien: ${S.cats.filter(c=>catType(c)===INC).map(c=>c.name).join(', ')}.
+Konten: ${S.accounts.join(', ')||'–'}.${S.owner?` Kontoinhaber: ${S.owner}.`:''}
+„${xferName(EXP)||'Umbuchung'}“ = Überweisung zwischen den eigenen Konten; zählt in keiner Summe.
+Regeln für dich:
+- Suche Buchungen immer zuerst mit find_transactions und arbeite nur mit den ids daraus. Erfinde keine ids.
+- Ausgaben haben negative, Einnahmen positive Beträge. Ausgaben bekommen nur Ausgaben-, Einnahmen nur Einnahmen-Kategorien.
+- Ist unklar, welche Buchungen gemeint sind, oder träfe eine Änderung/Löschung unerwartet viele (mehr als 15), frage kurz nach, statt zu raten – außer der Nutzer hat es eindeutig so verlangt.
+- Für Fragen zu Summen nutze summarize.
+- Antworte kurz auf Deutsch: was du gefunden bzw. geändert hast (Anzahl, wichtigste Beispiele mit Datum und Betrag). Kein Markdown außer **fett** und Listen mit „- “.`;
+}
+async function asstCall(){
+  const model=await pickModel();
+  let res;
+  try{res=await fetch(AI_URL+'/messages',{method:'POST',headers:{'content-type':'application/json',...aiHeaders()},body:JSON.stringify({model,max_tokens:4096,system:asstSystem(),tools:ASST_TOOLS,messages:asst.messages})})}
+  catch(e){throw new AiError('Keine Verbindung zu Claude.')}
+  if(!res.ok)throw await aiError(res);
+  return res.json();
+}
+const TOOL_LABEL={find_transactions:'sucht Buchungen',summarize:'rechnet',update_transactions:'ändert Buchungen',set_categories:'ordnet Kategorien zu',delete_transactions:'löscht Buchungen',add_transaction:'legt eine Buchung an',add_rule:'legt eine Regel an'};
+async function asstSend(text){
+  if(asst.busy||!text.trim())return;
+  if(!aiKey()){asstAdd('bot','Für den Assistenten brauche ich deinen Claude-API-Schlüssel – trag ihn unter **Sync & Daten → Claude** ein.');return}
+  asst.busy=true;asst.turnSnap=null;asstAdd('user',text);
+  asst.messages.push({role:'user',content:text});
+  const status=asstAdd('status','denkt nach …');
+  let changes=0;
+  try{
+    for(let step=0;step<10;step++){
+      const r=await asstCall();
+      asst.messages.push({role:'assistant',content:r.content});
+      const uses=(r.content||[]).filter(b=>b.type==='tool_use');
+      const txt=(r.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n').trim();
+      if(!uses.length||r.stop_reason!=='tool_use'){if(txt)asstAdd('bot',txt);break}
+      const results=[];
+      for(const u of uses){
+        status.textContent=TOOL_LABEL[u.name]||'arbeitet';
+        let out;try{out=asstRun(u.name,u.input)}catch(e){out={error:String(e.message||e)}}
+        if(out.changed||out.deleted||out.created||(u.name==='add_rule'&&out.ok))changes+=(out.changed||out.deleted||1);
+        results.push({type:'tool_result',tool_use_id:u.id,content:JSON.stringify(out)});
+      }
+      asst.messages.push({role:'user',content:results});
+      if(step===9)asstAdd('bot','(Ich habe aufgehört, weil es zu viele Schritte wurden – sag mir, wie ich weitermachen soll.)');
+    }
+  }catch(e){console.error(e);asstAdd('bot','⚠ '+(e.message||e));asst.messages=asstTrim(asst.messages,true)}
+  status.remove();
+  if(asst.turnSnap&&!changes)asst.turnSnap=null;
+  if(asst.turnSnap){
+    save();render();
+    asst.undo=asst.turnSnap;asst.turnSnap=null;
+    const u=asstAdd('undo','');u.innerHTML='<button class="linkbtn" style="width:auto">↶ Änderungen rückgängig machen</button>';
+    u.querySelector('button').onclick=()=>{asstUndo();u.innerHTML='<span class="muted">↶ rückgängig gemacht</span>'};
+    document.querySelectorAll('#asstLog .undo').forEach(x=>{if(x!==u&&x.querySelector('button'))x.innerHTML='<span class="muted">(ältere Änderung – nur die letzte lässt sich rückgängig machen)</span>'});
+  }
+  asst.messages=asstTrim(asst.messages);
+  asst.busy=false;$('#asstIn')&&$('#asstIn').focus();
+}
+/* Verlauf kurz halten; er muss mit einer Nutzer-Textnachricht beginnen. Nach einem Fehler: offene Tool-Aufrufe entfernen. */
+function asstTrim(m,afterError){
+  if(afterError){while(m.length&&!(m[m.length-1].role==='assistant'&&!(m[m.length-1].content||[]).some(b=>b.type==='tool_use')))m.pop()}
+  if(m.length>40){let i=m.length-40;while(i<m.length&&!(m[i].role==='user'&&typeof m[i].content==='string'))i++;m=m.slice(i)}
+  return m;
+}
+function asstUndo(){
+  const u=asst.undo;if(!u)return;
+  const ids=new Set(u.tx.map(t=>t.id));
+  S.tx=u.tx;S.rules=u.rules;S.tomb=S.tomb.filter(t=>!ids.has(t.id));asst.undo=null;
+  save();render();toast('Änderungen des Assistenten rückgängig gemacht');
+  asst.messages.push({role:'user',content:'(Hinweis: Der Nutzer hat deine letzten Änderungen in der App rückgängig gemacht.)'},{role:'assistant',content:[{type:'text',text:'Verstanden, die letzten Änderungen sind zurückgenommen.'}]});
+}
+const mdLite=t=>esc(t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/^- (.*)$/gm,'• $1').replace(/\n/g,'<br>');
+function asstAdd(kind,text){
+  const log=$('#asstLog');const d=document.createElement('div');d.className='msg '+kind;
+  if(kind==='bot')d.innerHTML=mdLite(text);else d.textContent=text;
+  log.appendChild(d);log.scrollTop=log.scrollHeight;return d;
+}
+function asstOpen(){
+  const p=$('#asst');p.hidden=false;document.body.classList.add('asst-open');
+  if(!$('#asstLog').children.length){
+    asstAdd('bot',aiKey()?'Hi! Ich kann deine Buchungen nachträglich ändern, löschen, ergänzen oder auswerten. Zum Beispiel:':'Für den Assistenten brauche ich deinen Claude-API-Schlüssel – trag ihn unter **Sync & Daten → Claude** ein.');
+    if(aiKey()){const c=document.createElement('div');c.className='chips';
+      ['Ordne alle Buchungen ohne Kategorie zu','Was habe ich diesen Monat für Tank ausgegeben?','Setze alle Lidl-Buchungen auf Nahrung & Pflege','Finde doppelte Buchungen im aktuellen Monat'].forEach(q=>{const b=document.createElement('button');b.textContent=q;b.onclick=()=>{c.remove();asstSend(q)};c.appendChild(b)});
+      $('#asstLog').appendChild(c)}
+  }
+  setTimeout(()=>$('#asstIn').focus(),50);
+}
+function asstClose(){$('#asst').hidden=true;document.body.classList.remove('asst-open')}
+function asstInit(){
+  const fab=document.createElement('button');fab.id='asstBtn';fab.className='fab';fab.innerHTML='✦ Assistent';fab.onclick=asstOpen;document.body.appendChild(fab);
+  const p=document.createElement('section');p.id='asst';p.hidden=true;p.setAttribute('aria-label','Claude-Assistent');
+  p.innerHTML=`<div class="asst-head"><strong>✦ Assistent</strong><span class="grow"></span><button id="asstNew" title="Neues Gespräch">Neu</button><button id="asstX" aria-label="Schließen">✕</button></div>
+  <div id="asstLog"></div>
+  <form id="asstForm" class="asst-in"><textarea id="asstIn" rows="1" placeholder="z. B. „Setz die Shell-Buchung vom 13.10. auf Tank“"></textarea><button class="primary" type="submit">Senden</button></form>`;
+  document.body.appendChild(p);
+  $('#asstX').onclick=asstClose;
+  $('#asstNew').onclick=()=>{asst.messages=[];asst.undo=null;$('#asstLog').innerHTML='';asstOpen()};
+  const inp=$('#asstIn');
+  $('#asstForm').onsubmit=e=>{e.preventDefault();const v=inp.value;inp.value='';inp.style.height='';asstSend(v)};
+  inp.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('#asstForm').requestSubmit()}};
+  inp.oninput=()=>{inp.style.height='';inp.style.height=Math.min(140,inp.scrollHeight)+'px'};
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#modalBg')&&!p.hidden)asstClose()});
+}
+
 /* ============ Sync (privates GitHub-Repo) ============ */
 const cfg=()=>{try{const c=JSON.parse(localStorage.getItem(CFG_KEY));return c&&c.repo&&c.token?c:null}catch(e){return null}};
 let R={};try{R=JSON.parse(localStorage.getItem(REM_KEY))||{}}catch(e){}
@@ -1303,6 +1514,7 @@ document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{view=b.dataset
 $('#btnAdd').onclick=()=>editTx(null);
 $('#btnImport').onclick=openImport;
 $('#syncBtn').onclick=openData;
+asstInit();
 render();
 startAccess();
 if(cfg())syncNow();
