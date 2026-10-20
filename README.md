@@ -4,6 +4,7 @@ Einnahmen und Ausgaben tracken – als einzelne HTML-Datei (`index.html`), ohne 
 
 - Monats- und Jahresübersicht, Kategorien, automatische Zuordnung per Stichwort-Regeln
 - Import von Kontoauszügen (**CSV**, **PDF**) und **Screenshots** – mit **Claude**: liest die Dateien und ordnet jede Buchung deinen Kategorien zu (ohne Claude: Texterkennung im Browser)
+- **Konto pro Buchung** (Standard: Commerzbank, N26; in den Einstellungen änderbar) – beim Import automatisch erkannt (Claude am Dokument, CSV am Exportformat), Filter „Alle Konten“ / einzelnes Konto in Monats- und Jahresansicht
 - Duplikat-Erkennung beim Import, Vorschau zum Korrigieren vor dem Übernehmen
 - **Geräteübergreifender Sync** über ein *privates* GitHub-Repo (eine JSON-Datei pro Monat)
 
