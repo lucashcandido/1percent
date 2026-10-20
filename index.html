@@ -193,6 +193,19 @@ button{font-weight:700;text-transform:uppercase;letter-spacing:.04em;font-size:1
 .linkbtn{text-transform:none;letter-spacing:0;font-style:normal;font-family:var(--sans)!important;font-weight:500}
 th{text-transform:uppercase;letter-spacing:.08em;font-size:11px}
 @media(max-width:600px){.card .v{font-size:29px}header h1{font-size:21px}main>.row strong{font-size:26px!important}header button{font-size:14px}}
+select.nocat{border-color:rgba(250,204,21,.55);color:#fde68a}
+@media(max-width:600px){
+  .scroll thead{display:none}
+  .scroll table,.scroll tbody,.scroll .tablewrap{display:block;width:100%}
+  .scroll td>input,.scroll td>select{width:100%;min-width:0!important}
+  .scroll tr{display:grid;grid-template-columns:26px minmax(0,1fr) 104px;gap:6px 8px;padding:10px;border-bottom:1px solid var(--line)}
+  .scroll td{padding:0;border:0}
+  .scroll td:nth-child(1){grid-row:1/4;align-self:center}
+  .scroll td:nth-child(2){grid-column:2;grid-row:1}
+  .scroll td:nth-child(4){grid-column:3;grid-row:1}
+  .scroll td:nth-child(3){grid-column:2/4;grid-row:2}
+  .scroll td:nth-child(5){grid-column:2/4;grid-row:3}
+}
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.card,.modal,.login,table,header{background:rgba(10,13,21,.96)}}
 </style>
 </head>
@@ -217,7 +230,7 @@ th{text-transform:uppercase;letter-spacing:.08em;font-size:11px}
 <script>
 /* ============ Konstanten & State ============ */
 const KEY='1percent-v1',CFG_KEY='1percent-cfg',REM_KEY='1percent-remote';
-const CATS_V=3;          /* Version der Kategorienliste – bei Änderung wird einmalig migriert */
+const CATS_V=4;          /* Version der Kategorienliste – bei Änderung wird einmalig migriert */
 const EXP='expense',INC='income';
 const DEFAULT_CATS=[
  ['Miete','#8b5cf6'],['Nahrung & Pflege','#f59e0b'],['Transport','#0ea5e9'],['Freizeit & Vergnügen','#14b8a6'],
@@ -232,14 +245,14 @@ const DEFAULT_CATS=[
 ].map(([name,color])=>({name,color,type:INC})));
 const DEFAULT_RULES=[
  ['miete','Miete'],
- ['rewe','Nahrung & Pflege'],['aldi','Nahrung & Pflege'],['lidl','Nahrung & Pflege'],['edeka','Nahrung & Pflege'],['kaufland','Nahrung & Pflege'],['penny','Nahrung & Pflege'],['netto','Nahrung & Pflege'],['dm-drogerie','Nahrung & Pflege'],['dm drogerie','Nahrung & Pflege'],['rossmann','Nahrung & Pflege'],['müller','Nahrung & Pflege'],
+ ['rewe','Nahrung & Pflege'],['aldi','Nahrung & Pflege'],['lidl','Nahrung & Pflege'],['edeka','Nahrung & Pflege'],['kaufland','Nahrung & Pflege'],['penny','Nahrung & Pflege'],['netto marken','Nahrung & Pflege'],['netto filiale','Nahrung & Pflege'],['dm-drogerie','Nahrung & Pflege'],['dm drogerie','Nahrung & Pflege'],['rossmann','Nahrung & Pflege'],['müller handels','Nahrung & Pflege'],['mueller handels','Nahrung & Pflege'],
  ['db vertrieb','Transport'],['deutsche bahn','Transport'],['bvg','Transport'],['mvv','Transport'],['hvv','Transport'],['rmv','Transport'],['vrr','Transport'],['flixbus','Transport'],['uber','Transport'],['bolt','Transport'],
  ['shell','Tank'],['aral','Tank'],['esso','Tank'],['jet tankstelle','Tank'],['totalenergies','Tank'],['tankstelle','Tank'],
  ['netflix','Abo'],['spotify','Abo'],['disney','Abo'],['icloud','Abo'],['apple.com/bill','Abo'],['amazon prime','Abo'],['youtube','Abo'],
  ['telekom','Internet & Telefon'],['vodafone','Internet & Telefon'],['o2 ','Internet & Telefon'],['telefonica','Internet & Telefon'],['1&1','Internet & Telefon'],['congstar','Internet & Telefon'],
  ['stadtwerke','Strom'],['vattenfall','Strom'],['e.on','Strom'],['eon energie','Strom'],['enbw','Strom'],['strom','Strom'],
  ['rundfunk','Rundfunk'],['beitragsservice','Rundfunk'],
- ['techniker krankenkasse','Krankenkasse'],['aok','Krankenkasse'],['barmer','Krankenkasse'],['dak','Krankenkasse'],['krankenkasse','Krankenkasse'],
+ ['techniker krankenkasse','Krankenkasse'],['aok','Krankenkasse'],['barmer','Krankenkasse'],['dak-gesundheit','Krankenkasse'],['dak gesundheit','Krankenkasse'],['krankenkasse','Krankenkasse'],
  ['apotheke','Medizin'],
  ['finanzamt','Steuern'],
  ['kontoführung','Kontogebühren'],['entgelt','Kontogebühren'],['kontogebühr','Kontogebühren'],
@@ -275,7 +288,7 @@ let filter={q:'',cat:'*'};
 
 function load(){
   let s=null;try{s=JSON.parse(localStorage.getItem(KEY))}catch(e){}
-  return {tx:(s&&s.tx)||[],tomb:(s&&s.tomb)||[],cats:(s&&s.cats)||DEFAULT_CATS,rules:(s&&s.rules)||DEFAULT_RULES,su:(s&&s.su)||0,access:(s&&s.access)||null,catsV:(s&&s.catsV)||0};
+  return {tx:(s&&s.tx)||[],tomb:(s&&s.tomb)||[],cats:(s&&s.cats)||DEFAULT_CATS,rules:(s&&s.rules)||DEFAULT_RULES,su:(s&&s.su)||0,access:(s&&s.access)||null,ai:(s&&s.ai)||null,catsV:(s&&s.catsV)||0};
 }
 function migrateCats(){
   if(S.catsV>=CATS_V)return;
@@ -283,7 +296,12 @@ function migrateCats(){
   if(S.catsV===2){
     DEFAULT_CATS.filter(c=>c.type===INC&&!S.cats.some(x=>x.name===c.name&&catType(x)===INC)).forEach(c=>S.cats.push({...c}));
     DEFAULT_RULES.filter(r=>!S.rules.some(x=>x.kw===r.kw)).forEach(r=>S.rules.push({...r}));
-    S.catsV=CATS_V;return;
+    S.catsV=3;
+  }
+  if(S.catsV===3){         /* zu breite Stichwörter ersetzen („netto“ traf „Nettogehalt“, „müller“ jeden Herrn Müller) */
+    const FIX={'netto':['netto marken','netto filiale'],'müller':['müller handels','mueller handels'],'dak':['dak-gesundheit','dak gesundheit']};
+    S.rules=S.rules.flatMap(r=>FIX[r.kw]?FIX[r.kw].filter(k=>!S.rules.some(x=>x.kw===k)).map(k=>({kw:k,cat:r.cat})):[r]);
+    S.catsV=4;return;
   }
   const names=new Set(DEFAULT_CATS.map(c=>c.name));
   S.tx.forEach(t=>{const m=CAT_MIGRATE[t.category];t.category=m||(names.has(t.category)?t.category:'')});
@@ -292,12 +310,12 @@ function migrateCats(){
 /* Änderungen werden automatisch mit Zeitstempel (u) versehen, gelöschte Buchungen werden zu Tombstones.
    So lassen sich Änderungen von mehreren Geräten sauber zusammenführen. */
 function sig(t){return JSON.stringify([t.date,t.desc,t.amount,t.category,t.note||''])}
-function initSigs(){sigs={};S.tx.forEach(t=>sigs[t.id]=sig(t));ssig=JSON.stringify([S.cats,S.rules,S.access])}
+function initSigs(){sigs={};S.tx.forEach(t=>sigs[t.id]=sig(t));ssig=JSON.stringify([S.cats,S.rules,S.access,S.ai])}
 function stamp(){
   const now=Date.now(),ids=new Set();
   for(const t of S.tx){ids.add(t.id);const j=sig(t);if(sigs[t.id]!==j){t.u=now;sigs[t.id]=j}}
   for(const id of Object.keys(sigs))if(!ids.has(id)){S.tomb.push({id,date:JSON.parse(sigs[id])[0],u:now});delete sigs[id]}
-  const ss=JSON.stringify([S.cats,S.rules,S.access]);if(ss!==ssig){S.su=now;ssig=ss}
+  const ss=JSON.stringify([S.cats,S.rules,S.access,S.ai]);if(ss!==ssig){S.su=now;ssig=ss}
 }
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 let saveTimer;
@@ -520,13 +538,15 @@ function renderImport(){
   <div class="drop" id="drop">Kontoauszug (CSV / PDF) oder Screenshots hierher ziehen<br><br>
     <button id="pick">Dateien auswählen…</button>
     <input type="file" id="file" multiple accept=".csv,.txt,.pdf,image/*" hidden>
-    <div class="muted" style="margin-top:10px">CSV: zuverlässig · PDF/Screenshot: Texterkennung im Browser, bitte Vorschau prüfen. Es wird nichts hochgeladen.</div>
+    <div class="muted" style="margin-top:10px">${aiKey()&&stage.useAi!==false?'Claude liest Screenshots und PDFs und ordnet alles deinen Kategorien zu. Bitte die Vorschau prüfen.':'CSV: zuverlässig · PDF/Screenshot: Texterkennung im Browser, bitte Vorschau prüfen. Es wird nichts hochgeladen.'+(aiKey()?'':' Tipp: Mit einem Claude-API-Schlüssel (Sync &amp; Daten) liest Claude die Dateien und ordnet Kategorien zu.')}</div>
+    ${aiKey()?`<label class="muted" style="display:inline-flex;gap:6px;align-items:center;margin-top:8px"><input type="checkbox" id="useAi" ${stage.useAi!==false?'checked':''}> Mit Claude auswerten</label>`:''}
   </div>
   <div id="imp_log" class="muted" style="margin-top:8px">${stage.log.map(esc).join('<br>')}</div>
   ${stage.csv?csvMapUI():''}
   ${hasRows?previewUI():''}
   <div class="row" style="margin-top:14px">${hasRows?'<button class="primary" id="doImport">Ausgewählte importieren</button>':''}<button id="impClose">Schließen</button></div>`);
   $('#impClose').onclick=closeModal;
+  if($('#useAi'))$('#useAi').onchange=e=>{stage.useAi=e.target.checked;renderImport()};
   $('#pick').onclick=()=>$('#file').click();
   $('#file').onchange=e=>handleFiles([...e.target.files]);
   const drop=$('#drop');
@@ -542,7 +562,21 @@ document.addEventListener('paste',e=>{
   if(f.length)handleFiles(f);
 });
 function log(msg){stage.log.push(msg);const l=$('#imp_log');if(l)l.innerHTML=stage.log.map(esc).join('<br>')}
+function logLast(msg){if(stage.log.length)stage.log[stage.log.length-1]=msg;else stage.log.push(msg);const l=$('#imp_log');if(l)l.innerHTML=stage.log.map(esc).join('<br>')}
 async function handleFiles(files){
+  const isAiFile=f=>f.type.startsWith('image/')||f.type==='application/pdf'||f.name.toLowerCase().endsWith('.pdf');
+  if(aiKey()&&stage.useAi!==false){
+    const aiFiles=files.filter(isAiFile);files=files.filter(f=>!isAiFile(f));
+    if(aiFiles.length){
+      const names=aiFiles.map(f=>f.name||'Screenshot').join(', ');
+      log(`… Claude liest ${aiFiles.length===1?names:aiFiles.length+' Dateien'} und ordnet Kategorien zu – das dauert einen Moment`);
+      try{
+        const rows=await aiReadFiles(aiFiles,n=>logLast(`… Claude liest und schreibt die Buchungen (${Math.round(n/100)/10}k Zeichen)`));
+        stage.rows.push(...rows);markDups();
+        logLast(rows.length?`✓ Claude: ${rows.length} Buchungen erkannt, ${rows.filter(r=>r.category).length} mit Kategorie.`:'⚠ Claude hat keine Buchungen gefunden.');
+      }catch(err){console.error(err);log('✗ '+(err.message||err))}
+    }
+  }
   for(const f of files){
     try{
       const n=f.name.toLowerCase();
@@ -551,7 +585,16 @@ async function handleFiles(files){
       else await importCsv(f);
     }catch(err){console.error(err);log(`✗ ${f.name}: ${err.message||err}`)}
   }
+  await aiFillOpen();
   renderImport();
+}
+/* Was die Regeln nicht zuordnen konnten, ordnet Claude zu */
+async function aiFillOpen(){
+  const open=stage.rows.filter(r=>!r.category&&!r.dup&&!r.aiTried);
+  if(!aiKey()||stage.useAi===false||!open.length)return;
+  open.forEach(r=>r.aiTried=true);
+  log(`… Claude ordnet ${open.length} Buchung${open.length===1?'':'en'} ohne Kategorie zu`);
+  try{const n=await aiCategorize(open);logLast(`✓ Claude: ${n} von ${open.length} Buchung${open.length===1?'':'en'} zugeordnet.`)}catch(err){console.error(err);log('✗ '+(err.message||err))}
 }
 async function decodeText(f){
   const buf=await f.arrayBuffer();
@@ -600,7 +643,7 @@ function csvMapUI(){
 }
 function bindCsvMap(){
   if(!stage.csv)return;
-  for(const k of ['date','amount','d1','d2'])$('#m_'+k).onchange=e=>{stage.csv.map[k]=Number(e.target.value);applyCsvMap();renderImport()};
+  for(const k of ['date','amount','d1','d2'])$('#m_'+k).onchange=e=>{stage.csv.map[k]=Number(e.target.value);applyCsvMap();renderImport();aiFillOpen().then(()=>{if($('#drop'))renderImport()})};
 }
 function applyCsvMap(){
   const {body,map}=stage.csv;
@@ -671,9 +714,9 @@ function previewUI(){
   <div class="scroll"><div class="tablewrap"><table><thead><tr><th></th><th>Datum</th><th>Beschreibung</th><th>Betrag</th><th>Kategorie</th></tr></thead><tbody>
   ${stage.rows.map((r,i)=>`<tr class="${r.dup?'dup':''}"><td><input type="checkbox" data-i="${i}" data-f="include" ${r.include?'checked':''}></td>
    <td><input type="date" data-i="${i}" data-f="date" value="${r.date}"></td>
-   <td><input data-i="${i}" data-f="desc" value="${esc(r.desc)}"></td>
+   <td><input data-i="${i}" data-f="desc" value="${esc(r.desc)}"${r.ai?' title="Kategorie von Claude"':''}></td>
    <td><input data-i="${i}" data-f="amount" value="${r.amount.toFixed(2).replace('.',',')}" style="min-width:80px;text-align:right"></td>
-   <td><select data-i="${i}" data-f="category">${catOptions(r.category,typeOf(r.amount))}</select></td></tr>`).join('')}
+   <td><select data-i="${i}" data-f="category" class="${r.category?'':'nocat'}">${catOptions(r.category,typeOf(r.amount))}</select></td></tr>`).join('')}
   </tbody></table></div></div>`;
 }
 function bindPreview(){
@@ -681,7 +724,7 @@ function bindPreview(){
     const r=stage.rows[e.dataset.i],f=e.dataset.f;
     if(f==='include')r.include=e.checked;
     else if(f==='amount'){const v=parseAmount(e.value);if(!isNaN(v))r.amount=v;e.value=r.amount.toFixed(2).replace('.',',')}
-    else r[f]=e.value;
+    else{r[f]=e.value;if(f==='category')e.classList.toggle('nocat',!e.value)}
   });
   const b=$('#doImport');
   if(b)b.onclick=()=>{
@@ -697,6 +740,148 @@ function bindPreview(){
   };
 }
 
+/* ============ Claude: Screenshots, PDFs und Kontoauszüge auswerten und Kategorien zuordnen ============
+   Läuft direkt im Browser mit deinem eigenen Anthropic-API-Schlüssel. Der Schlüssel liegt in den synchronisierten
+   Einstellungen (dein privates Daten-Repo), damit jedes verbundene Gerät ihn hat. */
+const AI_URL='https://api.anthropic.com/v1',AI_FALLBACK_MODEL='claude-sonnet-5-5',AI_TEXT_LIMIT=150000;
+class AiError extends Error{}
+const aiKey=()=>S.ai&&S.ai.key?S.ai.key:'';
+const aiHeaders=k=>({'x-api-key':k||aiKey(),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'});
+let aiModel=null;
+async function aiError(res){
+  let msg='',type='';try{const j=await res.json();msg=(j.error&&j.error.message)||'';type=(j.error&&j.error.type)||''}catch(e){}
+  const e=new AiError(res.status===401?'Claude: API-Schlüssel ungültig.':res.status===429?'Claude: zu viele Anfragen – bitte kurz warten.':res.status===529||/overloaded/.test(type)?'Claude ist gerade überlastet – bitte gleich nochmal.':/credit|billing/i.test(msg)?'Claude: Guthaben aufgebraucht (console.anthropic.com → Billing).':'Claude-Fehler '+res.status+(msg?': '+msg:''));
+  e.status=res.status;e.detail=msg;return e;
+}
+async function pickModel(){
+  if(aiModel)return aiModel;
+  try{const r=await fetch(AI_URL+'/models?limit=100',{headers:aiHeaders()});if(r.ok){const l=((await r.json()).data||[]).map(m=>String(m.id));aiModel=l.find(id=>/sonnet/i.test(id))||l[0]}}catch(e){}
+  return aiModel||(aiModel=AI_FALLBACK_MODEL);
+}
+async function testAiKey(k){
+  let r;try{r=await fetch(AI_URL+'/models?limit=1',{headers:aiHeaders(k)})}catch(e){return 'Keine Verbindung zu Claude.'}
+  return r.ok?'':(await aiError(r)).message;
+}
+/* Antwort wird gestreamt (lange Listen laufen so nicht in ein Timeout); zurück kommen die Argumente des Tool-Aufrufs */
+const aiLimits={};
+async function aiAsk(content,tool,onProgress){
+  if(!aiKey())throw new AiError('Kein Claude-API-Schlüssel hinterlegt.');
+  const model=await pickModel(),lim=aiLimits[model]||(aiLimits[model]={max:32000,force:true});
+  const ask=()=>fetch(AI_URL+'/messages',{method:'POST',headers:{'content-type':'application/json',...aiHeaders()},
+    body:JSON.stringify({model,max_tokens:lim.max,stream:true,tools:[tool],tool_choice:lim.force?{type:'tool',name:tool.name}:{type:'auto'},messages:[{role:'user',content}]})});
+  let res;
+  try{
+    for(let tries=0;;tries++){
+      res=await ask();if(res.ok)break;
+      const err=await aiError(res);
+      if(err.status!==400||tries>=2)throw err;
+      if(lim.force&&/tool_choice/i.test(err.detail))lim.force=false;
+      else if(lim.max>8000&&/max_tokens/i.test(err.detail))lim.max=8000;
+      else throw err;
+    }
+  }catch(e){if(e instanceof AiError)throw e;throw new AiError('Keine Verbindung zu Claude.')}
+  const calls={},reader=res.body.getReader(),dec=new TextDecoder();let buf='',text='',stop='',size=0;
+  for(;;){
+    const {done,value}=await reader.read();if(done)break;
+    buf+=dec.decode(value,{stream:true});let nl;
+    while((nl=buf.indexOf('\n'))>=0){
+      const line=buf.slice(0,nl).trim();buf=buf.slice(nl+1);
+      if(!line.startsWith('data:'))continue;
+      let ev;try{ev=JSON.parse(line.slice(5))}catch(e){continue}
+      if(ev.type==='content_block_start'&&ev.content_block&&ev.content_block.type==='tool_use')calls[ev.index]='';
+      else if(ev.type==='content_block_delta'&&ev.delta){
+        if(ev.delta.type==='input_json_delta'&&ev.index in calls){calls[ev.index]+=ev.delta.partial_json||'';size+=(ev.delta.partial_json||'').length;if(onProgress)onProgress(size)}
+        else if(ev.delta.type==='text_delta')text+=ev.delta.text||'';
+      }
+      else if(ev.type==='message_delta'&&ev.delta&&ev.delta.stop_reason)stop=ev.delta.stop_reason;
+      else if(ev.type==='error')throw new AiError('Claude-Fehler: '+((ev.error||{}).message||''));
+    }
+  }
+  if(stop==='max_tokens')throw new AiError('Die Antwort war zu lang – bitte weniger Dateien auf einmal.');
+  const out=[];const take=raw=>{try{const o=JSON.parse(raw);if(o&&typeof o==='object')out.push(o)}catch(e){}};
+  Object.values(calls).forEach(take);
+  if(!out.length){const a=text.indexOf('{'),b=text.lastIndexOf('}');if(a>=0&&b>a)take(text.slice(a,b+1))}
+  if(!out.length)throw new AiError('Claude hat keine auswertbare Antwort geliefert.');
+  return out;
+}
+/* Datei → Inhalt für Claude: PDF wie es ist, Bild als JPEG (lange Screenshots in überlappende Teile geschnitten), Text als Text */
+async function loadBitmap(file){
+  if(window.createImageBitmap){try{return await createImageBitmap(file)}catch(e){}}
+  return new Promise((ok,no)=>{const img=new Image(),u=URL.createObjectURL(file);img.onload=()=>{URL.revokeObjectURL(u);ok(img)};img.onerror=()=>{URL.revokeObjectURL(u);no(new Error('img'))};img.src=u});
+}
+function bufToB64(bytes){let bin='';for(let i=0;i<bytes.length;i+=0x8000)bin+=String.fromCharCode.apply(null,bytes.subarray(i,i+0x8000));return btoa(bin)}
+async function fileBlocks(file){
+  const n=(file.name||'').toLowerCase(),label={type:'text',text:'Datei „'+(file.name||'Bild')+'“:'};
+  if(file.type==='application/pdf'||n.endsWith('.pdf')){
+    if(file.size>30*1024*1024)throw new AiError(file.name+': PDF ist zu groß (max. 30 MB).');
+    return [label,{type:'document',source:{type:'base64',media_type:'application/pdf',data:bufToB64(new Uint8Array(await file.arrayBuffer()))}}];
+  }
+  if(!file.type.startsWith('image/')){
+    const t=await decodeText(file);
+    return [{type:'text',text:'Datei „'+file.name+'“ (Text/CSV'+(t.length>AI_TEXT_LIMIT?', nur der Anfang':'')+'):\n'+t.slice(0,AI_TEXT_LIMIT)}];
+  }
+  let bmp;try{bmp=await loadBitmap(file)}catch(e){throw new AiError(file.name+': Bild konnte nicht gelesen werden.')}
+  const W=bmp.width,H=bmp.height,tall=H>1600&&H/W>1.6,parts=tall?Math.min(6,Math.ceil(H/(W*1.4))):1,th=tall?Math.min(H,Math.ceil(H/parts*1.08)):H,out=[label];
+  for(let i=0;i<parts;i++){
+    const y=parts===1?0:Math.round(i*(H-th)/(parts-1)),sc=Math.min(1,1568/Math.max(W,th)),cv=document.createElement('canvas');
+    cv.width=Math.max(1,Math.round(W*sc));cv.height=Math.max(1,Math.round(th*sc));
+    const cx=cv.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,cv.width,cv.height);cx.drawImage(bmp,0,y,W,th,0,0,cv.width,cv.height);
+    out.push({type:'image',source:{type:'base64',media_type:'image/jpeg',data:cv.toDataURL('image/jpeg',0.9).split(',')[1]}});
+  }
+  if(bmp.close)bmp.close();
+  return out;
+}
+/* Was Claude über deine Kategorien wissen muss: Listen, Regeln und Beispiele aus deinen bisherigen Buchungen */
+function aiCategoryContext(){
+  const list=t=>S.cats.filter(c=>catType(c)===t).map(c=>'- '+c.name).join('\n')||'(keine)';
+  const rules=S.rules.filter(r=>r.kw&&r.cat).map(r=>`„${r.kw}“ → ${r.cat}`).join('; ');
+  const seen=new Set(),ex=[];
+  for(const t of [...S.tx].sort((a,b)=>(b.date||'').localeCompare(a.date||''))){
+    if(!t.category)continue;const k=norm(t.desc).slice(0,50)+'|'+typeOf(t.amount);if(seen.has(k))continue;seen.add(k);
+    ex.push(`${t.desc.slice(0,60)} (${t.amount<0?'Ausgabe':'Einnahme'}) → ${t.category}`);if(ex.length>=80)break;
+  }
+  return `AUSGABEN-Kategorien (nur für Beträge < 0):\n${list(EXP)}\n\nEINNAHMEN-Kategorien (nur für Beträge > 0):\n${list(INC)}\n\n`+
+    (rules?`Stichwort-Regeln des Nutzers (Beschreibung enthält Stichwort → Kategorie): ${rules}\n\n`:'')+
+    (ex.length?`So hat der Nutzer bisher zugeordnet (daran orientieren):\n${ex.join('\n')}\n\n`:'')+
+    `Wähle für jede Buchung genau eine Kategorie aus der passenden Liste, Name exakt wie angegeben. Wenn keine eindeutig passt, gib "" zurück – nicht raten.`;
+}
+const AI_TX_TOOL={name:'report_transactions',description:'Gibt alle gefundenen Buchungen mit Kategorie zurück.',
+  input_schema:{type:'object',required:['transactions'],properties:{transactions:{type:'array',items:{type:'object',required:['date','description','amount','category'],properties:{
+    date:{type:'string',description:'Buchungsdatum YYYY-MM-DD'},
+    description:{type:'string',description:'Empfänger/Auftraggeber und Verwendungszweck, kurz und lesbar'},
+    amount:{type:'number',description:'Betrag in Euro: Ausgaben/Abbuchungen negativ, Einnahmen/Gutschriften positiv'},
+    category:{type:'string',description:'Exakter Kategoriename aus der passenden Liste oder ""'}}}}}}};
+const AI_CAT_TOOL={name:'assign_categories',description:'Ordnet Buchungen Kategorien zu.',
+  input_schema:{type:'object',required:['items'],properties:{items:{type:'array',items:{type:'object',required:['i','category'],properties:{i:{type:'integer'},category:{type:'string'}}}}}}};
+const validCat=(name,amount)=>name&&S.cats.some(c=>c.name===name&&catType(c)===typeOf(amount))?name:'';
+async function aiReadFiles(files,onProgress){
+  const content=[];for(const f of files)content.push(...await fileBlocks(f));
+  const today=new Date().toISOString().slice(0,10);
+  content.push({type:'text',text:`Das sind Kontoauszüge, Screenshots aus einer Banking-App, Rechnungen oder Belege des Nutzers (Deutschland, Euro). Heute ist ${today}.
+Lies ALLE einzelnen Buchungen heraus und melde sie mit report_transactions.
+- Nur echte Buchungen: keine Kontostände, Salden, Zwischensummen, Überschriften oder vorgemerkten Umsätze ohne Betrag.
+- Vorzeichen: Abbuchung/Lastschrift/Kartenzahlung/Überweisung an andere = negativ; Gutschrift/Eingang/Gehalt = positiv. Bei Belegen und Rechnungen (Kassenbon) ist es eine Ausgabe mit der Endsumme.
+- Fehlt das Jahr im Datum, nimm das plausibelste (meist das aktuelle; Daten nach heute gehören ins Vorjahr).
+- Überlappende Bildteile oder mehrere Screenshots derselben Liste: jede Buchung nur einmal.
+- Beschreibung: Name des Händlers/Empfängers bzw. Auftraggebers, ggf. kurz der Zweck (ohne IBAN, Mandats- oder Referenznummern).
+
+${aiCategoryContext()}`});
+  const all=[];for(const o of await aiAsk(content,AI_TX_TOOL,onProgress))if(Array.isArray(o.transactions))all.push(...o.transactions);
+  return all.map(t=>{const date=parseDate(String(t.date||'')),amount=typeof t.amount==='number'?t.amount:parseAmount(String(t.amount));
+    if(!date||isNaN(amount)||!amount)return null;
+    const desc=String(t.description||'').trim()||'(ohne Beschreibung)';
+    return {date,desc,amount:Math.round(amount*100)/100,category:validCat(String(t.category||''),amount)||autoCat(desc,amount),include:true,src:'ai',uncertain:false,ai:true,aiTried:true};
+  }).filter(Boolean);
+}
+async function aiCategorize(rows,onProgress){
+  if(!rows.length)return 0;
+  const lines=rows.map((r,i)=>`${i}\t${r.date}\t${r.amount.toFixed(2)}\t${r.desc.slice(0,160)}`).join('\n');
+  const content=[{type:'text',text:`Ordne diese Buchungen (Index, Datum, Betrag in €, Beschreibung) den Kategorien des Nutzers zu und melde das Ergebnis mit assign_categories.\n\n${aiCategoryContext()}\n\nBuchungen:\n${lines}`}];
+  let n=0;
+  for(const o of await aiAsk(content,AI_CAT_TOOL,onProgress))for(const it of o.items||[]){const r=rows[it.i];if(!r)continue;const c=validCat(String(it.category||''),r.amount);if(c){r.category=c;r.ai=true;n++}}
+  return n;
+}
+
 /* ============ Sync (privates GitHub-Repo) ============ */
 const cfg=()=>{try{const c=JSON.parse(localStorage.getItem(CFG_KEY));return c&&c.repo&&c.token?c:null}catch(e){return null}};
 let R={};try{R=JSON.parse(localStorage.getItem(REM_KEY))||{}}catch(e){}
@@ -710,7 +895,7 @@ function serMonth(m){
   const tb=S.tomb.filter(t=>t.date.startsWith(m)).map(t=>({id:t.id,date:t.date,u:t.u||0})).sort((a,b)=>a.id.localeCompare(b.id));
   return `{\n "tx": [${jlines(tx)}],\n "tomb": [${jlines(tb)}]\n}\n`;
 }
-const serSettings=()=>JSON.stringify({u:S.su||0,catsV:S.catsV||0,cats:S.cats,rules:S.rules,access:S.access||null},null,1)+'\n';
+const serSettings=()=>JSON.stringify({u:S.su||0,catsV:S.catsV||0,cats:S.cats,rules:S.rules,access:S.access||null,ai:S.ai||null},null,1)+'\n';
 const b64d=s=>new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\s/g,'')),c=>c.charCodeAt(0)));
 function b64e(s){const b=new TextEncoder().encode(s);let o='';for(let i=0;i<b.length;i+=8192)o+=String.fromCharCode(...b.subarray(i,i+8192));return btoa(o)}
 
@@ -746,7 +931,7 @@ function mergeIn(txs,tombs){
 function mergeFile(name,content){
   let d;try{d=JSON.parse(content)}catch(e){return false}
   if(name==='settings.json'){
-    if((d.u||0)>(S.su||0)&&Array.isArray(d.cats)&&Array.isArray(d.rules)){S.cats=d.cats;S.rules=d.rules;S.access=d.access||S.access;S.su=d.u;ssig=JSON.stringify([S.cats,S.rules,S.access]);S.catsV=d.catsV||0;if(S.catsV<CATS_V){S.su=d.u;migrateCats()}return true}
+    if((d.u||0)>(S.su||0)&&Array.isArray(d.cats)&&Array.isArray(d.rules)){S.cats=d.cats;S.rules=d.rules;S.access=d.access||S.access;S.ai=d.ai===undefined?S.ai:d.ai;S.su=d.u;ssig=JSON.stringify([S.cats,S.rules,S.access,S.ai]);S.catsV=d.catsV||0;if(S.catsV<CATS_V){S.su=d.u;migrateCats()}return true}
     return false;
   }
   return mergeIn(d.tx||[],d.tomb||[]);
@@ -963,6 +1148,10 @@ function openData(){
     <li>Token kopieren und oben mit dem Repo-Namen einfügen.</li>
   </ol></details>
   ${c?devicesHTML():''}
+  <h4>Claude – Screenshots &amp; PDFs auswerten</h4>
+  <p class="muted">Mit deinem eigenen <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Anthropic-API-Schlüssel</a> liest Claude Screenshots, PDFs und Kontoauszüge und ordnet jede Buchung deinen Kategorien zu. Die Kosten laufen über dein Anthropic-Konto (meist wenige Cent pro Auszug). ${S.ai&&S.ai.key?'Der Schlüssel liegt in deinen synchronisierten Einstellungen, also auf allen verbundenen Geräten.':''}</p>
+  <div class="row"><input id="ai_key" type="password" class="grow" autocomplete="off" placeholder="${aiKey()?'gespeichert – zum Ändern neuen Schlüssel eingeben':'sk-ant-…'}"><button id="ai_save" class="primary">Speichern &amp; testen</button>${aiKey()?'<button id="ai_del" class="danger">Entfernen</button>':''}</div>
+  <div id="ai_msg" class="muted" style="margin:8px 0">${aiKey()?'✓ Claude ist eingerichtet.':''}</div>
   <h4>Backup</h4>
   <div class="row">
     <button id="d_exp">Als JSON exportieren</button>
@@ -992,6 +1181,14 @@ function openData(){
     on('#ac_link2',async()=>copyText(await pairLink(false),'Link ohne Code kopiert'));
     on('#ac_qr',showQr);
   }
+  $('#ai_save').onclick=async()=>{
+    const k=$('#ai_key').value.trim(),m=$('#ai_msg');
+    if(!k){m.textContent=aiKey()?'✓ Claude ist eingerichtet.':'Bitte einen API-Schlüssel eingeben.';return}
+    m.textContent='Prüfe Schlüssel…';const err=await testAiKey(k);
+    if(err){m.textContent='⚠ '+err;return}
+    S.ai={key:k,t:Date.now()};aiModel=null;save();m.textContent='✓ Gespeichert – Claude wertet ab jetzt Importe aus.';$('#ai_key').value='';
+  };
+  if($('#ai_del'))$('#ai_del').onclick=()=>{if(confirm('Claude-Schlüssel entfernen? Er wird auch auf deinen anderen Geräten entfernt.')){S.ai=null;save();openData()}};
   $('#d_exp').onclick=()=>download('1percent-daten.json',JSON.stringify({tx:S.tx.map(normTx),cats:S.cats,rules:S.rules},null,2),'application/json');
   $('#d_csv').onclick=()=>download('1percent.csv','Datum;Beschreibung;Betrag;Kategorie;Notiz\n'+[...S.tx].sort((a,b)=>a.date.localeCompare(b.date)).map(t=>[dateDE(t.date),`"${t.desc.replace(/"/g,'""')}"`,t.amount.toFixed(2).replace('.',','),t.category,`"${(t.note||'').replace(/"/g,'""')}"`].join(';')).join('\n'),'text/csv;charset=utf-8');
   $('#d_imp').onclick=()=>$('#d_file').click();

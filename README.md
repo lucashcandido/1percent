@@ -3,7 +3,7 @@
 Einnahmen und Ausgaben tracken – als einzelne HTML-Datei (`index.html`), ohne Server und ohne Build-Schritt.
 
 - Monats- und Jahresübersicht, Kategorien, automatische Zuordnung per Stichwort-Regeln
-- Import von Kontoauszügen (**CSV**, **PDF**) und **Screenshots** (Texterkennung läuft im Browser, nichts wird hochgeladen)
+- Import von Kontoauszügen (**CSV**, **PDF**) und **Screenshots** – mit **Claude**: liest die Dateien und ordnet jede Buchung deinen Kategorien zu (ohne Claude: Texterkennung im Browser)
 - Duplikat-Erkennung beim Import, Vorschau zum Korrigieren vor dem Übernehmen
 - **Geräteübergreifender Sync** über ein *privates* GitHub-Repo (eine JSON-Datei pro Monat)
 
@@ -51,7 +51,18 @@ Jede Person nutzt dieselbe App-Adresse, aber ihr **eigenes** Daten-Repo mit **ei
 - Offline funktioniert die App weiter (localStorage); synchronisiert wird nachgeholt.
 - Jede Änderung ist ein Commit im Daten-Repo – du hast also automatisch eine Versionshistorie.
 
+## Claude: Auswertung und Kategorien
+
+Unter *Sync & Daten → Claude* trägst du einen eigenen [Anthropic-API-Schlüssel](https://console.anthropic.com/settings/keys) ein. Danach gilt beim Import:
+
+- **Screenshots und PDFs** gehen direkt aus dem Browser an Claude. Claude liest alle Buchungen (Datum, Beschreibung, Betrag mit Vorzeichen) und ordnet jede einer deiner Kategorien zu – Ausgaben nur Ausgaben-, Einnahmen nur Einnahmen-Kategorien.
+- **CSV** wird lokal gelesen; die Stichwort-Regeln gelten zuerst, nur was übrig bleibt, ordnet Claude zu.
+- Claude bekommt dafür deine Kategorien, deine Regeln und als Beispiele, wie du bisher zugeordnet hast. Passt keine Kategorie eindeutig, bleibt die Buchung „Ohne Kategorie“ (in der Vorschau gelb markiert).
+- Alles landet zuerst in der Vorschau – dort korrigieren, dann übernehmen. Pro Import lässt sich Claude abschalten.
+- Kosten laufen über dein Anthropic-Konto. Der Schlüssel liegt in den synchronisierten Einstellungen (privates Daten-Repo), damit alle deine Geräte ihn haben.
+
 ## Datenschutz
 
 - Der Token liegt nur im `localStorage` des jeweiligen Browsers und ist durch die Fine-grained-Berechtigung auf das Daten-Repo beschränkt.
-- Für PDF-/Screenshot-Import werden bei Bedarf `pdf.js` und `tesseract.js` von einem CDN nachgeladen (die Dateien selbst bleiben lokal).
+- Mit Claude: Screenshots, PDFs und die zu kategorisierenden Buchungstexte werden an die Anthropic-API geschickt (direkt aus deinem Browser, mit deinem Schlüssel).
+- Ohne Claude: Für PDF-/Screenshot-Import werden bei Bedarf `pdf.js` und `tesseract.js` von einem CDN nachgeladen (die Dateien selbst bleiben lokal).
