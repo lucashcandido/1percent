@@ -93,6 +93,7 @@ input[type=color]{padding:2px;width:38px;height:34px}
 select option{background:#0b0e15;color:var(--tx)}
 .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .grow{flex:1}
+.catrow{flex-wrap:nowrap;gap:8px;margin-bottom:8px}.catrow .grow{min-width:0}.catrow select{flex:none;width:auto;padding:6px 4px 6px 9px;font-size:13px}.catrow button{flex:none;padding:6px 11px}
 
 /* --- Kennzahlen --- */
 .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin:18px 0 8px}
@@ -216,34 +217,58 @@ th{text-transform:uppercase;letter-spacing:.08em;font-size:11px}
 <script>
 /* ============ Konstanten & State ============ */
 const KEY='1percent-v1',CFG_KEY='1percent-cfg',REM_KEY='1percent-remote';
+const CATS_V=2;          /* Version der Kategorienliste – bei Änderung wird einmalig migriert */
+const EXP='expense',INC='income';
 const DEFAULT_CATS=[
- {name:'Gehalt',color:'#16a34a'},{name:'Sonstige Einnahmen',color:'#65a30d'},
- {name:'Miete & Wohnen',color:'#7c3aed'},{name:'Lebensmittel',color:'#f59e0b'},
- {name:'Restaurant & Café',color:'#ef4444'},{name:'Mobilität',color:'#0ea5e9'},
- {name:'Abos',color:'#ec4899'},{name:'Freizeit',color:'#14b8a6'},
- {name:'Shopping',color:'#f97316'},{name:'Gesundheit',color:'#06b6d4'},
- {name:'Versicherung',color:'#6366f1'},{name:'Bildung',color:'#8b5cf6'},
- {name:'Sonstiges',color:'#9ca3af'}];
+ ['Miete','#8b5cf6'],['Nahrung & Pflege','#f59e0b'],['Transport','#0ea5e9'],['Freizeit & Vergnügen','#14b8a6'],
+ ['Freundin','#ec4899'],['Schenkung (aktiv)','#f472b6'],['Finanzierung','#6366f1'],['Internet & Telefon','#22d3ee'],
+ ['Abo','#d946ef'],['Strom','#facc15'],['Verbindlichkeiten','#ef4444'],['Leihgabe','#fb923c'],
+ ['Rundfunk','#a3a3a3'],['Webdarstellung','#38bdf8'],['Spende','#4ade80'],['Krankenkasse','#2dd4bf'],
+ ['Medizin','#f87171'],['Steuern','#94a3b8'],['Kontogebühren','#78716c'],['Tank','#eab308'],
+].map(([name,color])=>({name,color,type:EXP}));
 const DEFAULT_RULES=[
- ['rewe','Lebensmittel'],['aldi','Lebensmittel'],['lidl','Lebensmittel'],['edeka','Lebensmittel'],['kaufland','Lebensmittel'],['penny','Lebensmittel'],['netto','Lebensmittel'],['spar','Lebensmittel'],
- ['mcdonald','Restaurant & Café'],['burger king','Restaurant & Café'],['starbucks','Restaurant & Café'],['lieferando','Restaurant & Café'],
- ['netflix','Abos'],['spotify','Abos'],['disney','Abos'],['icloud','Abos'],['apple.com/bill','Abos'],
- ['db vertrieb','Mobilität'],['deutsche bahn','Mobilität'],['bvg','Mobilität'],['mvv','Mobilität'],['uber','Mobilität'],['shell','Mobilität'],['aral','Mobilität'],
- ['miete','Miete & Wohnen'],['stadtwerke','Miete & Wohnen'],['strom','Miete & Wohnen'],
- ['gehalt','Gehalt'],['lohn','Gehalt'],
- ['amazon','Shopping'],['zalando','Shopping'],['apotheke','Gesundheit'],['versicherung','Versicherung'],['allianz','Versicherung'],
+ ['miete','Miete'],
+ ['rewe','Nahrung & Pflege'],['aldi','Nahrung & Pflege'],['lidl','Nahrung & Pflege'],['edeka','Nahrung & Pflege'],['kaufland','Nahrung & Pflege'],['penny','Nahrung & Pflege'],['netto','Nahrung & Pflege'],['dm-drogerie','Nahrung & Pflege'],['dm drogerie','Nahrung & Pflege'],['rossmann','Nahrung & Pflege'],['müller','Nahrung & Pflege'],
+ ['db vertrieb','Transport'],['deutsche bahn','Transport'],['bvg','Transport'],['mvv','Transport'],['hvv','Transport'],['rmv','Transport'],['vrr','Transport'],['flixbus','Transport'],['uber','Transport'],['bolt','Transport'],
+ ['shell','Tank'],['aral','Tank'],['esso','Tank'],['jet tankstelle','Tank'],['totalenergies','Tank'],['tankstelle','Tank'],
+ ['netflix','Abo'],['spotify','Abo'],['disney','Abo'],['icloud','Abo'],['apple.com/bill','Abo'],['amazon prime','Abo'],['youtube','Abo'],
+ ['telekom','Internet & Telefon'],['vodafone','Internet & Telefon'],['o2 ','Internet & Telefon'],['telefonica','Internet & Telefon'],['1&1','Internet & Telefon'],['congstar','Internet & Telefon'],
+ ['stadtwerke','Strom'],['vattenfall','Strom'],['e.on','Strom'],['eon energie','Strom'],['enbw','Strom'],['strom','Strom'],
+ ['rundfunk','Rundfunk'],['beitragsservice','Rundfunk'],
+ ['techniker krankenkasse','Krankenkasse'],['aok','Krankenkasse'],['barmer','Krankenkasse'],['dak','Krankenkasse'],['krankenkasse','Krankenkasse'],
+ ['apotheke','Medizin'],
+ ['finanzamt','Steuern'],
+ ['kontoführung','Kontogebühren'],['entgelt','Kontogebühren'],['kontogebühr','Kontogebühren'],
+ ['spende','Spende'],
 ].map(([k,c])=>({kw:k,cat:c}));
+/* alte Kategorienamen → neue (einmalige Migration bestehender Buchungen) */
+const CAT_MIGRATE={'Miete & Wohnen':'Miete','Lebensmittel':'Nahrung & Pflege','Mobilität':'Transport','Abos':'Abo','Freizeit':'Freizeit & Vergnügen','Restaurant & Café':'Freizeit & Vergnügen','Gesundheit':'Medizin'};
+const NO_CAT='Ohne Kategorie';
+const catLabel=n=>n||NO_CAT;
+const catType=c=>c.type===INC?INC:EXP;
+/* <option>-Liste: Ausgaben- und Einnahmen-Kategorien getrennt, dazu „Ohne Kategorie“ */
+function catOptions(sel){
+  const grp=(t,label)=>{const l=S.cats.filter(c=>catType(c)===t);return l.length?`<optgroup label="${label}">${l.map(c=>`<option value="${esc(c.name)}" ${c.name===sel?'selected':''}>${esc(c.name)}</option>`).join('')}</optgroup>`:''};
+  return `<option value="" ${!sel?'selected':''}>${NO_CAT}</option>`+grp(EXP,'Ausgaben')+grp(INC,'Einnahmen');
+}
 
 let sigs={},ssig='';
-let S=load();initSigs();
+let S=load();initSigs();migrateCats();
 let view='month';
 let curMonth=new Date().toISOString().slice(0,7);
 let curYear=new Date().getFullYear();
-let filter={q:'',cat:''};
+let filter={q:'',cat:'*'};
 
 function load(){
   let s=null;try{s=JSON.parse(localStorage.getItem(KEY))}catch(e){}
-  return {tx:(s&&s.tx)||[],tomb:(s&&s.tomb)||[],cats:(s&&s.cats)||DEFAULT_CATS,rules:(s&&s.rules)||DEFAULT_RULES,su:(s&&s.su)||0,access:(s&&s.access)||null};
+  return {tx:(s&&s.tx)||[],tomb:(s&&s.tomb)||[],cats:(s&&s.cats)||DEFAULT_CATS,rules:(s&&s.rules)||DEFAULT_RULES,su:(s&&s.su)||0,access:(s&&s.access)||null,catsV:(s&&s.catsV)||0};
+}
+function migrateCats(){
+  if(S.catsV>=CATS_V)return;
+  if(!S.su&&!S.tx.length&&!S.tomb.length){S.catsV=CATS_V;return}   /* neues Gerät: Standardliste, Einstellungen kommen per Sync */
+  const names=new Set(DEFAULT_CATS.map(c=>c.name));
+  S.tx.forEach(t=>{const m=CAT_MIGRATE[t.category];t.category=m||(names.has(t.category)?t.category:'')});
+  S.cats=DEFAULT_CATS.map(c=>({...c}));S.rules=DEFAULT_RULES.map(r=>({...r}));S.catsV=CATS_V;
 }
 /* Änderungen werden automatisch mit Zeitstempel (u) versehen, gelöschte Buchungen werden zu Tombstones.
    So lassen sich Änderungen von mehreren Geräten sauber zusammenführen. */
@@ -297,8 +322,9 @@ function parseDate(raw,fallbackYear){
 }
 function autoCat(desc,amount){
   const d=desc.toLowerCase();
-  for(const r of S.rules)if(r.kw&&d.includes(r.kw.toLowerCase())&&S.cats.some(c=>c.name===r.cat))return r.cat;
-  return amount>0?'Sonstige Einnahmen':'Sonstiges';
+  const want=amount>0?INC:EXP;
+  for(const r of S.rules){if(!r.kw||!d.includes(r.kw.toLowerCase()))continue;const c=S.cats.find(c=>c.name===r.cat);if(c&&catType(c)===want)return r.cat}
+  return '';
 }
 
 /* ============ Rendering ============ */
@@ -325,12 +351,12 @@ function catBars(list){
   const arr=Object.entries(by).sort((a,b)=>b[1]-a[1]);
   if(!arr.length)return '<p class="muted">Keine Ausgaben.</p>';
   const max=arr[0][1];
-  return arr.map(([n,v])=>`<div class="bar"><div class="name"><span class="dot" style="background:${catColor(n)}"></span>${esc(n)}</div><div class="track"><div class="fill" style="width:${v/max*100}%;background:${catColor(n)}"></div></div><div class="amt">${fmt(v)}</div></div>`).join('');
+  return arr.map(([n,v])=>`<div class="bar"><div class="name"><span class="dot" style="background:${catColor(n)}"></span>${esc(catLabel(n))}</div><div class="track"><div class="fill" style="width:${v/max*100}%;background:${catColor(n)}"></div></div><div class="amt">${fmt(v)}</div></div>`).join('');
 }
 function monthView(){
   const all=S.tx.filter(t=>t.date.startsWith(curMonth));
   const sm=sums(all);
-  let list=all.filter(t=>(!filter.cat||t.category===filter.cat)&&(!filter.q||norm(t.desc+' '+(t.note||'')).includes(norm(filter.q))));
+  let list=all.filter(t=>(filter.cat==='*'||(t.category||'')===filter.cat)&&(!filter.q||norm(t.desc+' '+(t.note||'')).includes(norm(filter.q))));
   list.sort((a,b)=>b.date.localeCompare(a.date)||0);
   return `
   <div class="row">
@@ -350,10 +376,10 @@ function monthView(){
   <h2>Buchungen (${list.length})</h2>
   <div class="row" style="margin-bottom:10px">
     <input id="fq" placeholder="Suchen…" value="${esc(filter.q)}" class="grow">
-    <select id="fc"><option value="">Alle Kategorien</option>${S.cats.map(c=>`<option ${filter.cat===c.name?'selected':''}>${esc(c.name)}</option>`).join('')}</select>
+    <select id="fc"><option value="*">Alle Kategorien</option>${catOptions(filter.cat==='*'?'\u0000':filter.cat)}</select>
   </div>
   <div class="tablewrap"><table><thead><tr><th>Datum</th><th>Beschreibung</th><th class="hide-s">Kategorie</th><th class="n">Betrag</th></tr></thead><tbody>
-  ${list.map(t=>`<tr class="click" data-id="${t.id}"><td>${dateDE(t.date)}</td><td>${esc(t.desc)}${t.note?`<div class="muted">${esc(t.note)}</div>`:''}</td><td class="hide-s"><span class="dot" style="background:${catColor(t.category)}"></span>${esc(t.category)}</td><td class="n ${t.amount>=0?'pos':'neg'}">${fmt(t.amount)}</td></tr>`).join('')||'<tr><td colspan="4" class="muted">Noch keine Buchungen in diesem Monat. Nutze „Import“ oder „+ Buchung“.</td></tr>'}
+  ${list.map(t=>`<tr class="click" data-id="${t.id}"><td>${dateDE(t.date)}</td><td>${esc(t.desc)}${t.note?`<div class="muted">${esc(t.note)}</div>`:''}</td><td class="hide-s"><span class="dot" style="background:${catColor(t.category)}"></span>${esc(catLabel(t.category))}</td><td class="n ${t.amount>=0?'pos':'neg'}">${fmt(t.amount)}</td></tr>`).join('')||'<tr><td colspan="4" class="muted">Noch keine Buchungen in diesem Monat. Nutze „Import“ oder „+ Buchung“.</td></tr>'}
   </tbody></table></div>`;
 }
 function yearView(){
@@ -377,16 +403,17 @@ function yearView(){
   <h2>Ausgaben nach Kategorie (Jahr)</h2><div class="card">${catBars(all)}</div>`;
 }
 function settingsView(){
+  const row=(c,i)=>`<div class="row catrow"><input type="color" data-ci="${i}" value="${c.color}" style="padding:0;width:36px;height:32px"><input data-cn="${i}" value="${esc(c.name)}" class="grow"><select data-ct="${i}"><option value="expense" ${catType(c)===EXP?'selected':''}>Ausgabe</option><option value="income" ${catType(c)===INC?'selected':''}>Einnahme</option></select><button class="danger" data-cd="${i}">✕</button></div>`;
+  const list=t=>S.cats.map((c,i)=>[c,i]).filter(([c])=>catType(c)===t).map(([c,i])=>row(c,i)).join('')||'<p class="muted">Noch keine.</p>';
   return `
-  <h2>Kategorien</h2>
-  <div class="card">
-    ${S.cats.map((c,i)=>`<div class="row" style="margin-bottom:6px"><input type="color" data-ci="${i}" value="${c.color}" style="padding:0;width:36px;height:32px"><input data-cn="${i}" value="${esc(c.name)}" class="grow"><button class="danger" data-cd="${i}">✕</button></div>`).join('')}
-    <button id="addCat">+ Kategorie</button>
-  </div>
+  <h2>Ausgaben-Kategorien</h2>
+  <div class="card">${list(EXP)}<button id="addCat" data-t="expense">+ Ausgaben-Kategorie</button></div>
+  <h2>Einnahmen-Kategorien</h2>
+  <div class="card">${list(INC)}<button id="addCatI" data-t="income">+ Einnahmen-Kategorie</button></div>
   <h2>Automatische Zuordnung</h2>
   <p class="muted">Enthält die Beschreibung den Suchbegriff (Groß-/Kleinschreibung egal), wird die Kategorie gesetzt. Die erste passende Regel gewinnt. Gilt beim Import.</p>
   <div class="card">
-    ${S.rules.map((r,i)=>`<div class="row" style="margin-bottom:6px"><input data-rk="${i}" value="${esc(r.kw)}" class="grow"><select data-rc="${i}">${S.cats.map(c=>`<option ${c.name===r.cat?'selected':''}>${esc(c.name)}</option>`).join('')}</select><button class="danger" data-rd="${i}">✕</button></div>`).join('')}
+    ${S.rules.map((r,i)=>`<div class="row" style="margin-bottom:6px"><input data-rk="${i}" value="${esc(r.kw)}" class="grow"><select data-rc="${i}">${catOptions(r.cat)}</select><button class="danger" data-rd="${i}">✕</button></div>`).join('')}
     <button id="addRule">+ Regel</button>
     <button id="reapply">Regeln auf alle Buchungen anwenden</button>
   </div>`;
@@ -405,18 +432,19 @@ function bindView(){
   // Einstellungen
   document.querySelectorAll('[data-ci]').forEach(e=>e.onchange=()=>{S.cats[e.dataset.ci].color=e.value;save()});
   document.querySelectorAll('[data-cn]').forEach(e=>e.onchange=()=>{
-    const i=e.dataset.cn,old=S.cats[i].name,nw=e.value.trim();if(!nw)return;
+    const i=e.dataset.cn,old=S.cats[i].name,nw=e.value.trim();if(!nw||S.cats.some((c,j)=>j!=i&&c.name===nw)){e.value=old;if(nw)toast('Diese Kategorie gibt es schon');return}
     S.tx.forEach(t=>{if(t.category===old)t.category=nw});S.rules.forEach(r=>{if(r.cat===old)r.cat=nw});S.cats[i].name=nw;save();render()});
   document.querySelectorAll('[data-cd]').forEach(e=>e.onclick=()=>{
-    const c=S.cats[e.dataset.cd];if(!confirm(`Kategorie „${c.name}“ löschen? Buchungen werden zu „Sonstiges“.`))return;
-    if(!S.cats.some(x=>x.name==='Sonstiges'&&x!==c))S.cats.push({name:'Sonstiges',color:'#9ca3af'});
-    S.tx.forEach(t=>{if(t.category===c.name)t.category='Sonstiges'});S.rules=S.rules.filter(r=>r.cat!==c.name);
+    const c=S.cats[e.dataset.cd];if(!confirm(`Kategorie „${c.name}“ löschen? Ihre Buchungen sind danach „${NO_CAT}“.`))return;
+    S.tx.forEach(t=>{if(t.category===c.name)t.category=''});S.rules=S.rules.filter(r=>r.cat!==c.name);
     S.cats.splice(e.dataset.cd,1);save();render()});
-  on('#addCat','click',()=>{S.cats.push({name:'Neu',color:'#'+Math.floor(Math.random()*0xffffff).toString(16).padStart(6,'0')});save();render()});
+  const addCat=t=>()=>{let n='Neue Kategorie',k=2;while(S.cats.some(c=>c.name===n))n='Neue Kategorie '+k++;S.cats.push({name:n,color:'#'+Math.floor(Math.random()*0xffffff).toString(16).padStart(6,'0'),type:t});save();render()};
+  on('#addCat','click',addCat(EXP));on('#addCatI','click',addCat(INC));
+  document.querySelectorAll('[data-ct]').forEach(e=>e.onchange=()=>{S.cats[e.dataset.ct].type=e.value;save();render()});
   document.querySelectorAll('[data-rk]').forEach(e=>e.onchange=()=>{S.rules[e.dataset.rk].kw=e.value;save()});
   document.querySelectorAll('[data-rc]').forEach(e=>e.onchange=()=>{S.rules[e.dataset.rc].cat=e.value;save()});
   document.querySelectorAll('[data-rd]').forEach(e=>e.onclick=()=>{S.rules.splice(e.dataset.rd,1);save();render()});
-  on('#addRule','click',()=>{S.rules.unshift({kw:'',cat:S.cats[0].name});save();render()});
+  on('#addRule','click',()=>{S.rules.unshift({kw:'',cat:(S.cats[0]||{}).name||''});save();render()});
   on('#reapply','click',()=>{if(!confirm('Alle Buchungen neu kategorisieren? Manuelle Zuordnungen werden überschrieben.'))return;
     S.tx.forEach(t=>t.category=autoCat(t.desc,t.amount));save();toast('Kategorien aktualisiert');render()});
 }
@@ -434,14 +462,14 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
 
 /* ============ Buchung hinzufügen / bearbeiten ============ */
 function editTx(id){
-  const t=id?S.tx.find(x=>x.id===id):{date:new Date().toISOString().slice(0,10).replace(/^\d{4}-\d{2}/,curMonth),desc:'',amount:-1,category:'Sonstiges',note:''};
+  const t=id?S.tx.find(x=>x.id===id):{date:new Date().toISOString().slice(0,10).replace(/^\d{4}-\d{2}/,curMonth),desc:'',amount:-1,category:'',note:''};
   if(!id)t.date=(curMonth+'-'+new Date().toISOString().slice(8,10));
   const bg=modal(`<h3>${id?'Buchung bearbeiten':'Neue Buchung'}</h3>
     <div class="field"><label>Datum</label><input type="date" id="e_date" value="${t.date}"></div>
     <div class="field"><label>Beschreibung</label><input id="e_desc" value="${esc(t.desc)}"></div>
     <div class="row"><div class="field grow"><label>Art</label><select id="e_type"><option value="-1" ${t.amount<0?'selected':''}>Ausgabe</option><option value="1" ${t.amount>=0?'selected':''}>Einnahme</option></select></div>
     <div class="field grow"><label>Betrag (€)</label><input id="e_amt" inputmode="decimal" value="${id?Math.abs(t.amount).toFixed(2).replace('.',','):''}" placeholder="0,00"></div></div>
-    <div class="field"><label>Kategorie</label><select id="e_cat">${S.cats.map(c=>`<option ${c.name===t.category?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div>
+    <div class="field"><label>Kategorie</label><select id="e_cat">${catOptions(t.category)}</select></div>
     <div class="field"><label>Notiz</label><input id="e_note" value="${esc(t.note||'')}"></div>
     <div class="row"><button class="primary" id="e_save">Speichern</button><button id="e_cancel">Abbrechen</button><span class="grow"></span>${id?'<button class="danger" id="e_del">Löschen</button>':''}</div>`,'sm');
   $('#e_cancel').onclick=closeModal;
@@ -620,7 +648,7 @@ function previewUI(){
    <td><input type="date" data-i="${i}" data-f="date" value="${r.date}"></td>
    <td><input data-i="${i}" data-f="desc" value="${esc(r.desc)}"></td>
    <td><input data-i="${i}" data-f="amount" value="${r.amount.toFixed(2).replace('.',',')}" style="min-width:80px;text-align:right"></td>
-   <td><select data-i="${i}" data-f="category">${S.cats.map(c=>`<option ${c.name===r.category?'selected':''}>${esc(c.name)}</option>`).join('')}</select></td></tr>`).join('')}
+   <td><select data-i="${i}" data-f="category">${catOptions(r.category)}</select></td></tr>`).join('')}
   </tbody></table></div></div>`;
 }
 function bindPreview(){
@@ -657,7 +685,7 @@ function serMonth(m){
   const tb=S.tomb.filter(t=>t.date.startsWith(m)).map(t=>({id:t.id,date:t.date,u:t.u||0})).sort((a,b)=>a.id.localeCompare(b.id));
   return `{\n "tx": [${jlines(tx)}],\n "tomb": [${jlines(tb)}]\n}\n`;
 }
-const serSettings=()=>JSON.stringify({u:S.su||0,cats:S.cats,rules:S.rules,access:S.access||null},null,1)+'\n';
+const serSettings=()=>JSON.stringify({u:S.su||0,catsV:S.catsV||0,cats:S.cats,rules:S.rules,access:S.access||null},null,1)+'\n';
 const b64d=s=>new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\s/g,'')),c=>c.charCodeAt(0)));
 function b64e(s){const b=new TextEncoder().encode(s);let o='';for(let i=0;i<b.length;i+=8192)o+=String.fromCharCode(...b.subarray(i,i+8192));return btoa(o)}
 
@@ -693,7 +721,7 @@ function mergeIn(txs,tombs){
 function mergeFile(name,content){
   let d;try{d=JSON.parse(content)}catch(e){return false}
   if(name==='settings.json'){
-    if((d.u||0)>(S.su||0)&&Array.isArray(d.cats)&&Array.isArray(d.rules)){S.cats=d.cats;S.rules=d.rules;S.access=d.access||S.access;S.su=d.u;ssig=JSON.stringify([S.cats,S.rules,S.access]);return true}
+    if((d.u||0)>(S.su||0)&&Array.isArray(d.cats)&&Array.isArray(d.rules)){S.cats=d.cats;S.rules=d.rules;S.access=d.access||S.access;S.su=d.u;ssig=JSON.stringify([S.cats,S.rules,S.access]);S.catsV=d.catsV||0;if(S.catsV<CATS_V){S.su=d.u;migrateCats()}return true}
     return false;
   }
   return mergeIn(d.tx||[],d.tomb||[]);
@@ -947,7 +975,7 @@ function openData(){
 }
 function applyData(d){
   if(!d||!Array.isArray(d.tx))throw new Error('format');
-  const items=d.tx.filter(t=>t&&t.date&&typeof t.amount==='number').map(t=>({...t,id:t.id||uid(),category:t.category||'Sonstiges'}));
+  const items=d.tx.filter(t=>t&&t.date&&typeof t.amount==='number').map(t=>({...t,id:t.id||uid(),category:t.category||''}));
   const ids=new Set(items.map(t=>t.id));
   S.tomb=S.tomb.filter(t=>!ids.has(t.id));
   const map=new Map(S.tx.map(t=>[t.id,t]));items.forEach(t=>map.set(t.id,t));
