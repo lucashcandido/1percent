@@ -176,7 +176,7 @@ body.locked header nav,body.locked header .row{display:none}
   nav{flex:1}nav button{flex:1;padding:6px 8px}
   main{padding:18px 14px 50px}
   .cards{grid-template-columns:repeat(2,1fr);gap:10px}.card{padding:14px 15px;border-radius:18px}.card .v{font-size:21px}
-  .bar .name{width:96px}.bar .amt{width:84px}.hide-s{display:none}th,td{padding:11px 12px}
+  .bar .name{width:132px}.bar .amt{width:80px}.bar{gap:10px}.hide-s{display:none}th,td{padding:11px 12px}
 }
 /* --- Sport-Typo: kursiv, kondensiert, Versalien --- */
 header h1,.modal h3,.login h2,main>.row strong,.card .v,h2,button,.codebig{font-family:var(--serif)!important;font-style:italic}
@@ -217,7 +217,7 @@ th{text-transform:uppercase;letter-spacing:.08em;font-size:11px}
 <script>
 /* ============ Konstanten & State ============ */
 const KEY='1percent-v1',CFG_KEY='1percent-cfg',REM_KEY='1percent-remote';
-const CATS_V=2;          /* Version der Kategorienliste – bei Änderung wird einmalig migriert */
+const CATS_V=3;          /* Version der Kategorienliste – bei Änderung wird einmalig migriert */
 const EXP='expense',INC='income';
 const DEFAULT_CATS=[
  ['Miete','#8b5cf6'],['Nahrung & Pflege','#f59e0b'],['Transport','#0ea5e9'],['Freizeit & Vergnügen','#14b8a6'],
@@ -225,7 +225,11 @@ const DEFAULT_CATS=[
  ['Abo','#d946ef'],['Strom','#facc15'],['Verbindlichkeiten','#ef4444'],['Leihgabe','#fb923c'],
  ['Rundfunk','#a3a3a3'],['Webdarstellung','#38bdf8'],['Spende','#4ade80'],['Krankenkasse','#2dd4bf'],
  ['Medizin','#f87171'],['Steuern','#94a3b8'],['Kontogebühren','#78716c'],['Tank','#eab308'],
-].map(([name,color])=>({name,color,type:EXP}));
+].map(([name,color])=>({name,color,type:EXP})).concat([
+ ['Modeln','#c084fc'],['Gehalt','#22c55e'],['Forderungen','#0ea5e9'],['Taschengeld','#facc15'],
+ ['Kindergeld','#fb923c'],['Schenkung (passiv)','#f472b6'],['Verletztengeld','#2dd4bf'],['Gutschrift','#a3e635'],
+ ['Leihgabe','#fdba74'],['Freundin','#f9a8d4'],
+].map(([name,color])=>({name,color,type:INC})));
 const DEFAULT_RULES=[
  ['miete','Miete'],
  ['rewe','Nahrung & Pflege'],['aldi','Nahrung & Pflege'],['lidl','Nahrung & Pflege'],['edeka','Nahrung & Pflege'],['kaufland','Nahrung & Pflege'],['penny','Nahrung & Pflege'],['netto','Nahrung & Pflege'],['dm-drogerie','Nahrung & Pflege'],['dm drogerie','Nahrung & Pflege'],['rossmann','Nahrung & Pflege'],['müller','Nahrung & Pflege'],
@@ -240,16 +244,26 @@ const DEFAULT_RULES=[
  ['finanzamt','Steuern'],
  ['kontoführung','Kontogebühren'],['entgelt','Kontogebühren'],['kontogebühr','Kontogebühren'],
  ['spende','Spende'],
+ ['gehalt','Gehalt'],['lohn','Gehalt'],['bezüge','Gehalt'],
+ ['kindergeld','Kindergeld'],['familienkasse','Kindergeld'],
+ ['verletztengeld','Verletztengeld'],['berufsgenossenschaft','Verletztengeld'],
+ ['taschengeld','Taschengeld'],
 ].map(([k,c])=>({kw:k,cat:c}));
 /* alte Kategorienamen → neue (einmalige Migration bestehender Buchungen) */
-const CAT_MIGRATE={'Miete & Wohnen':'Miete','Lebensmittel':'Nahrung & Pflege','Mobilität':'Transport','Abos':'Abo','Freizeit':'Freizeit & Vergnügen','Restaurant & Café':'Freizeit & Vergnügen','Gesundheit':'Medizin'};
+const CAT_MIGRATE={'Gehalt':'Gehalt','Miete & Wohnen':'Miete','Lebensmittel':'Nahrung & Pflege','Mobilität':'Transport','Abos':'Abo','Freizeit':'Freizeit & Vergnügen','Restaurant & Café':'Freizeit & Vergnügen','Gesundheit':'Medizin'};
 const NO_CAT='Ohne Kategorie';
 const catLabel=n=>n||NO_CAT;
 const catType=c=>c.type===INC?INC:EXP;
 /* <option>-Liste: Ausgaben- und Einnahmen-Kategorien getrennt, dazu „Ohne Kategorie“ */
-function catOptions(sel){
-  const grp=(t,label)=>{const l=S.cats.filter(c=>catType(c)===t);return l.length?`<optgroup label="${label}">${l.map(c=>`<option value="${esc(c.name)}" ${c.name===sel?'selected':''}>${esc(c.name)}</option>`).join('')}</optgroup>`:''};
-  return `<option value="" ${!sel?'selected':''}>${NO_CAT}</option>`+grp(EXP,'Ausgaben')+grp(INC,'Einnahmen');
+const typeOf=amount=>amount>0?INC:EXP;
+const findCat=(n,type)=>S.cats.find(c=>c.name===n&&(!type||catType(c)===type))||S.cats.find(c=>c.name===n);
+/* <option>-Liste. Mit type nur die passenden Kategorien, sonst beide Gruppen (Namen doppelt → einmal) */
+function catOptions(sel,type){
+  let picked=false;
+  const opt=n=>{const on=!picked&&n===sel;if(on)picked=true;return `<option value="${esc(n)}" ${on?'selected':''}>${esc(n)}</option>`};
+  const grp=(t,label)=>{const l=S.cats.filter(c=>catType(c)===t);return l.length?`<optgroup label="${label}">${l.map(c=>opt(c.name)).join('')}</optgroup>`:''};
+  const body=type?S.cats.filter(c=>catType(c)===type).map(c=>opt(c.name)).join(''):grp(EXP,'Ausgaben')+grp(INC,'Einnahmen');
+  return `<option value="" ${!sel?'selected':''}>${NO_CAT}</option>`+body;
 }
 
 let sigs={},ssig='';
@@ -266,6 +280,11 @@ function load(){
 function migrateCats(){
   if(S.catsV>=CATS_V)return;
   if(!S.su&&!S.tx.length&&!S.tomb.length){S.catsV=CATS_V;return}   /* neues Gerät: Standardliste, Einstellungen kommen per Sync */
+  if(S.catsV===2){
+    DEFAULT_CATS.filter(c=>c.type===INC&&!S.cats.some(x=>x.name===c.name&&catType(x)===INC)).forEach(c=>S.cats.push({...c}));
+    DEFAULT_RULES.filter(r=>!S.rules.some(x=>x.kw===r.kw)).forEach(r=>S.rules.push({...r}));
+    S.catsV=CATS_V;return;
+  }
   const names=new Set(DEFAULT_CATS.map(c=>c.name));
   S.tx.forEach(t=>{const m=CAT_MIGRATE[t.category];t.category=m||(names.has(t.category)?t.category:'')});
   S.cats=DEFAULT_CATS.map(c=>({...c}));S.rules=DEFAULT_RULES.map(r=>({...r}));S.catsV=CATS_V;
@@ -289,7 +308,7 @@ const $=(s,r=document)=>r.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt=n=>new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR'}).format(n);
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
-const catColor=n=>(S.cats.find(c=>c.name===n)||{color:'#9ca3af'}).color;
+const catColor=(n,type)=>(findCat(n,type)||{color:'#6b7280'}).color;
 const monthLabel=m=>new Date(m+'-01T12:00').toLocaleDateString('de-DE',{month:'long',year:'numeric'});
 const dateDE=d=>d.split('-').reverse().join('.');
 function toast(t){const e=document.createElement('div');e.className='toast';e.textContent=t;document.body.appendChild(e);setTimeout(()=>e.remove(),2500)}
@@ -323,7 +342,7 @@ function parseDate(raw,fallbackYear){
 function autoCat(desc,amount){
   const d=desc.toLowerCase();
   const want=amount>0?INC:EXP;
-  for(const r of S.rules){if(!r.kw||!d.includes(r.kw.toLowerCase()))continue;const c=S.cats.find(c=>c.name===r.cat);if(c&&catType(c)===want)return r.cat}
+  for(const r of S.rules){if(!r.kw||!d.includes(r.kw.toLowerCase()))continue;if(S.cats.some(c=>c.name===r.cat&&catType(c)===want))return r.cat}
   return '';
 }
 
@@ -346,12 +365,12 @@ function sums(list){
   const exp=list.filter(t=>t.amount<0).reduce((a,t)=>a+t.amount,0);
   return {inc,exp,net:inc+exp};
 }
-function catBars(list){
-  const by={};list.filter(t=>t.amount<0).forEach(t=>by[t.category]=(by[t.category]||0)+Math.abs(t.amount));
+function catBars(list,type=EXP){
+  const by={};list.filter(t=>typeOf(t.amount)===type&&t.amount!==0).forEach(t=>by[t.category]=(by[t.category]||0)+Math.abs(t.amount));
   const arr=Object.entries(by).sort((a,b)=>b[1]-a[1]);
-  if(!arr.length)return '<p class="muted">Keine Ausgaben.</p>';
+  if(!arr.length)return `<p class="muted">Keine ${type===INC?'Einnahmen':'Ausgaben'}.</p>`;
   const max=arr[0][1];
-  return arr.map(([n,v])=>`<div class="bar"><div class="name"><span class="dot" style="background:${catColor(n)}"></span>${esc(catLabel(n))}</div><div class="track"><div class="fill" style="width:${v/max*100}%;background:${catColor(n)}"></div></div><div class="amt">${fmt(v)}</div></div>`).join('');
+  return arr.map(([n,v])=>`<div class="bar"><div class="name"><span class="dot" style="background:${catColor(n,type)}"></span>${esc(catLabel(n))}</div><div class="track"><div class="fill" style="width:${v/max*100}%;background:${catColor(n,type)}"></div></div><div class="amt">${fmt(v)}</div></div>`).join('');
 }
 function monthView(){
   const all=S.tx.filter(t=>t.date.startsWith(curMonth));
@@ -373,13 +392,15 @@ function monthView(){
   </div>
   <h2>Ausgaben nach Kategorie</h2>
   <div class="card">${catBars(all)}</div>
+  <h2>Einnahmen nach Kategorie</h2>
+  <div class="card">${catBars(all,INC)}</div>
   <h2>Buchungen (${list.length})</h2>
   <div class="row" style="margin-bottom:10px">
     <input id="fq" placeholder="Suchen…" value="${esc(filter.q)}" class="grow">
     <select id="fc"><option value="*">Alle Kategorien</option>${catOptions(filter.cat==='*'?'\u0000':filter.cat)}</select>
   </div>
   <div class="tablewrap"><table><thead><tr><th>Datum</th><th>Beschreibung</th><th class="hide-s">Kategorie</th><th class="n">Betrag</th></tr></thead><tbody>
-  ${list.map(t=>`<tr class="click" data-id="${t.id}"><td>${dateDE(t.date)}</td><td>${esc(t.desc)}${t.note?`<div class="muted">${esc(t.note)}</div>`:''}</td><td class="hide-s"><span class="dot" style="background:${catColor(t.category)}"></span>${esc(catLabel(t.category))}</td><td class="n ${t.amount>=0?'pos':'neg'}">${fmt(t.amount)}</td></tr>`).join('')||'<tr><td colspan="4" class="muted">Noch keine Buchungen in diesem Monat. Nutze „Import“ oder „+ Buchung“.</td></tr>'}
+  ${list.map(t=>`<tr class="click" data-id="${t.id}"><td>${dateDE(t.date)}</td><td>${esc(t.desc)}${t.note?`<div class="muted">${esc(t.note)}</div>`:''}</td><td class="hide-s"><span class="dot" style="background:${catColor(t.category,typeOf(t.amount))}"></span>${esc(catLabel(t.category))}</td><td class="n ${t.amount>=0?'pos':'neg'}">${fmt(t.amount)}</td></tr>`).join('')||'<tr><td colspan="4" class="muted">Noch keine Buchungen in diesem Monat. Nutze „Import“ oder „+ Buchung“.</td></tr>'}
   </tbody></table></div>`;
 }
 function yearView(){
@@ -400,7 +421,8 @@ function yearView(){
    <td style="width:35%"><div style="height:8px;border-radius:4px;background:var(--pos);width:${x.inc/max*100}%;margin-bottom:3px"></div><div style="height:8px;border-radius:4px;background:var(--neg);width:${-x.exp/max*100}%"></div></td>
    <td class="n pos">${fmt(x.inc)}</td><td class="n neg">${fmt(x.exp)}</td><td class="n ${x.net>=0?'pos':'neg'}">${fmt(x.net)}</td></tr>`).join('')}
   </tbody></table></div>
-  <h2>Ausgaben nach Kategorie (Jahr)</h2><div class="card">${catBars(all)}</div>`;
+  <h2>Ausgaben nach Kategorie (Jahr)</h2><div class="card">${catBars(all)}</div>
+  <h2>Einnahmen nach Kategorie (Jahr)</h2><div class="card">${catBars(all,INC)}</div>`;
 }
 function settingsView(){
   const row=(c,i)=>`<div class="row catrow"><input type="color" data-ci="${i}" value="${c.color}" style="padding:0;width:36px;height:32px"><input data-cn="${i}" value="${esc(c.name)}" class="grow"><select data-ct="${i}"><option value="expense" ${catType(c)===EXP?'selected':''}>Ausgabe</option><option value="income" ${catType(c)===INC?'selected':''}>Einnahme</option></select><button class="danger" data-cd="${i}">✕</button></div>`;
@@ -432,15 +454,17 @@ function bindView(){
   // Einstellungen
   document.querySelectorAll('[data-ci]').forEach(e=>e.onchange=()=>{S.cats[e.dataset.ci].color=e.value;save()});
   document.querySelectorAll('[data-cn]').forEach(e=>e.onchange=()=>{
-    const i=e.dataset.cn,old=S.cats[i].name,nw=e.value.trim();if(!nw||S.cats.some((c,j)=>j!=i&&c.name===nw)){e.value=old;if(nw)toast('Diese Kategorie gibt es schon');return}
-    S.tx.forEach(t=>{if(t.category===old)t.category=nw});S.rules.forEach(r=>{if(r.cat===old)r.cat=nw});S.cats[i].name=nw;save();render()});
+    const i=e.dataset.cn,c0=S.cats[i],ty=catType(c0),old=c0.name,nw=e.value.trim();if(!nw||S.cats.some((c,j)=>j!=i&&c.name===nw&&catType(c)===ty)){e.value=old;if(nw)toast('Diese Kategorie gibt es schon');return}
+    const shared=S.cats.some((c,j)=>j!=i&&c.name===old);
+    S.tx.forEach(t=>{if(t.category===old&&typeOf(t.amount)===ty)t.category=nw});if(!shared)S.rules.forEach(r=>{if(r.cat===old)r.cat=nw});c0.name=nw;save();render()});
   document.querySelectorAll('[data-cd]').forEach(e=>e.onclick=()=>{
     const c=S.cats[e.dataset.cd];if(!confirm(`Kategorie „${c.name}“ löschen? Ihre Buchungen sind danach „${NO_CAT}“.`))return;
-    S.tx.forEach(t=>{if(t.category===c.name)t.category=''});S.rules=S.rules.filter(r=>r.cat!==c.name);
+    const ty=catType(c),shared=S.cats.some(x=>x!==c&&x.name===c.name);
+    S.tx.forEach(t=>{if(t.category===c.name&&typeOf(t.amount)===ty)t.category=''});if(!shared)S.rules=S.rules.filter(r=>r.cat!==c.name);
     S.cats.splice(e.dataset.cd,1);save();render()});
-  const addCat=t=>()=>{let n='Neue Kategorie',k=2;while(S.cats.some(c=>c.name===n))n='Neue Kategorie '+k++;S.cats.push({name:n,color:'#'+Math.floor(Math.random()*0xffffff).toString(16).padStart(6,'0'),type:t});save();render()};
+  const addCat=t=>()=>{let n='Neue Kategorie',k=2;while(S.cats.some(c=>c.name===n&&catType(c)===t))n='Neue Kategorie '+k++;S.cats.push({name:n,color:'#'+Math.floor(Math.random()*0xffffff).toString(16).padStart(6,'0'),type:t});save();render()};
   on('#addCat','click',addCat(EXP));on('#addCatI','click',addCat(INC));
-  document.querySelectorAll('[data-ct]').forEach(e=>e.onchange=()=>{S.cats[e.dataset.ct].type=e.value;save();render()});
+  document.querySelectorAll('[data-ct]').forEach(e=>e.onchange=()=>{const c=S.cats[e.dataset.ct];if(S.cats.some(x=>x!==c&&x.name===c.name&&catType(x)===e.value)){toast('Diese Kategorie gibt es dort schon');render();return}c.type=e.value;save();render()});
   document.querySelectorAll('[data-rk]').forEach(e=>e.onchange=()=>{S.rules[e.dataset.rk].kw=e.value;save()});
   document.querySelectorAll('[data-rc]').forEach(e=>e.onchange=()=>{S.rules[e.dataset.rc].cat=e.value;save()});
   document.querySelectorAll('[data-rd]').forEach(e=>e.onclick=()=>{S.rules.splice(e.dataset.rd,1);save();render()});
@@ -469,10 +493,11 @@ function editTx(id){
     <div class="field"><label>Beschreibung</label><input id="e_desc" value="${esc(t.desc)}"></div>
     <div class="row"><div class="field grow"><label>Art</label><select id="e_type"><option value="-1" ${t.amount<0?'selected':''}>Ausgabe</option><option value="1" ${t.amount>=0?'selected':''}>Einnahme</option></select></div>
     <div class="field grow"><label>Betrag (€)</label><input id="e_amt" inputmode="decimal" value="${id?Math.abs(t.amount).toFixed(2).replace('.',','):''}" placeholder="0,00"></div></div>
-    <div class="field"><label>Kategorie</label><select id="e_cat">${catOptions(t.category)}</select></div>
+    <div class="field"><label>Kategorie</label><select id="e_cat">${catOptions(t.category,t.amount>=0?INC:EXP)}</select></div>
     <div class="field"><label>Notiz</label><input id="e_note" value="${esc(t.note||'')}"></div>
     <div class="row"><button class="primary" id="e_save">Speichern</button><button id="e_cancel">Abbrechen</button><span class="grow"></span>${id?'<button class="danger" id="e_del">Löschen</button>':''}</div>`,'sm');
   $('#e_cancel').onclick=closeModal;
+  $('#e_type').onchange=()=>{const cur=$('#e_cat').value;$('#e_cat').innerHTML=catOptions(cur,$('#e_type').value==='1'?INC:EXP)};
   $('#e_save').onclick=()=>{
     const amt=parseAmount($('#e_amt').value);
     if(isNaN(amt)||!$('#e_date').value)return toast('Datum und Betrag prüfen');
@@ -648,7 +673,7 @@ function previewUI(){
    <td><input type="date" data-i="${i}" data-f="date" value="${r.date}"></td>
    <td><input data-i="${i}" data-f="desc" value="${esc(r.desc)}"></td>
    <td><input data-i="${i}" data-f="amount" value="${r.amount.toFixed(2).replace('.',',')}" style="min-width:80px;text-align:right"></td>
-   <td><select data-i="${i}" data-f="category">${catOptions(r.category)}</select></td></tr>`).join('')}
+   <td><select data-i="${i}" data-f="category">${catOptions(r.category,typeOf(r.amount))}</select></td></tr>`).join('')}
   </tbody></table></div></div>`;
 }
 function bindPreview(){
