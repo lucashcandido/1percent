@@ -46,7 +46,8 @@ Jede Person nutzt dieselbe App-Adresse, aber ihr **eigenes** Daten-Repo mit **ei
 ## Wie der Sync funktioniert
 
 - Jede Buchung hat eine ID und einen Änderungs-Zeitstempel; gelöschte Buchungen werden als „Tombstone“ gespeichert.
-- Beim Start, nach jeder Änderung, beim Zurückkehren in den Tab und alle 2 Minuten wird abgeglichen: neuere Version gewinnt pro Buchung, Änderungen von mehreren Geräten gehen nicht verloren.
+- Abgeglichen wird ca. 1 Sekunde nach jeder Änderung, beim Zurückkehren in den Tab und **alle 5 Sekunden, solange der Tab sichtbar ist**. Änderungen von einem anderen Gerät erscheinen so nach wenigen Sekunden. Pro Buchung gewinnt die neuere Version, Änderungen von mehreren Geräten gehen nicht verloren.
+- Die Abfrage nutzt GitHubs ETag („If-None-Match“): Sind die Daten unverändert, antwortet GitHub mit 304 – das kostet kein API-Kontingent. Bei Fehlern (offline, Rate-Limit) pausiert die App kurz und versucht es danach wieder.
 - Offline funktioniert die App weiter (localStorage); synchronisiert wird nachgeholt.
 - Jede Änderung ist ein Commit im Daten-Repo – du hast also automatisch eine Versionshistorie.
 
