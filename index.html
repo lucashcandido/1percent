@@ -195,6 +195,8 @@ th{text-transform:uppercase;letter-spacing:.08em;font-size:11px}
 @media(max-width:600px){.card .v{font-size:29px}header h1{font-size:21px}main>.row strong{font-size:26px!important}header button{font-size:14px}}
 .acc{display:inline-block;font-size:11px;font-weight:600;letter-spacing:.03em;padding:1px 7px;margin-left:6px;border-radius:6px;background:rgba(255,255,255,.07);border:1px solid var(--line);color:#c9ccd3;vertical-align:1px}
 .accsel{flex:none}
+td.xfer{color:var(--mut)}
+.xfernote{margin:-2px 0 6px}
 select.nocat{border-color:rgba(250,204,21,.55);color:#fde68a}
 @media(max-width:600px){
   .scroll thead{display:none}
@@ -234,7 +236,7 @@ select.nocat{border-color:rgba(250,204,21,.55);color:#fde68a}
 /* ============ Konstanten & State ============ */
 const KEY='1percent-v1',CFG_KEY='1percent-cfg',REM_KEY='1percent-remote';
 const DEFAULT_ACCOUNTS=['Commerzbank','N26'];
-const CATS_V=4;          /* Version der Kategorienliste – bei Änderung wird einmalig migriert */
+const CATS_V=5;          /* Version der Kategorienliste – bei Änderung wird einmalig migriert */
 const EXP='expense',INC='income';
 const DEFAULT_CATS=[
  ['Miete','#8b5cf6'],['Nahrung & Pflege','#f59e0b'],['Transport','#0ea5e9'],['Freizeit & Vergnügen','#14b8a6'],
@@ -242,11 +244,13 @@ const DEFAULT_CATS=[
  ['Abo','#d946ef'],['Strom','#facc15'],['Verbindlichkeiten','#ef4444'],['Leihgabe','#fb923c'],
  ['Rundfunk','#a3a3a3'],['Webdarstellung','#38bdf8'],['Spende','#4ade80'],['Krankenkasse','#2dd4bf'],
  ['Medizin','#f87171'],['Steuern','#94a3b8'],['Kontogebühren','#78716c'],['Tank','#eab308'],
-].map(([name,color])=>({name,color,type:EXP})).concat([
+ ['Umbuchung','#6b7280',true],
+].map(([name,color,transfer])=>({name,color,type:EXP,...(transfer?{transfer:true}:{})})).concat([
  ['Modeln','#c084fc'],['Gehalt','#22c55e'],['Forderungen','#0ea5e9'],['Taschengeld','#facc15'],
  ['Kindergeld','#fb923c'],['Schenkung (passiv)','#f472b6'],['Verletztengeld','#2dd4bf'],['Gutschrift','#a3e635'],
  ['Leihgabe','#fdba74'],['Freundin','#f9a8d4'],
-].map(([name,color])=>({name,color,type:INC})));
+ ['Umbuchung','#6b7280',true],
+].map(([name,color,transfer])=>({name,color,type:INC,...(transfer?{transfer:true}:{})})));
 const DEFAULT_RULES=[
  ['miete','Miete'],
  ['rewe','Nahrung & Pflege'],['aldi','Nahrung & Pflege'],['lidl','Nahrung & Pflege'],['edeka','Nahrung & Pflege'],['kaufland','Nahrung & Pflege'],['penny','Nahrung & Pflege'],['netto marken','Nahrung & Pflege'],['netto filiale','Nahrung & Pflege'],['dm-drogerie','Nahrung & Pflege'],['dm drogerie','Nahrung & Pflege'],['rossmann','Nahrung & Pflege'],['müller handels','Nahrung & Pflege'],['mueller handels','Nahrung & Pflege'],
@@ -261,6 +265,7 @@ const DEFAULT_RULES=[
  ['finanzamt','Steuern'],
  ['kontoführung','Kontogebühren'],['entgelt','Kontogebühren'],['kontogebühr','Kontogebühren'],
  ['spende','Spende'],
+ ['umbuchung','Umbuchung'],['übertrag','Umbuchung'],['eigenes konto','Umbuchung'],
  ['gehalt','Gehalt'],['lohn','Gehalt'],['bezüge','Gehalt'],
  ['kindergeld','Kindergeld'],['familienkasse','Kindergeld'],
  ['verletztengeld','Verletztengeld'],['berufsgenossenschaft','Verletztengeld'],
@@ -310,7 +315,12 @@ function migrateCats(){
   if(S.catsV===3){         /* zu breite Stichwörter ersetzen („netto“ traf „Nettogehalt“, „müller“ jeden Herrn Müller) */
     const FIX={'netto':['netto marken','netto filiale'],'müller':['müller handels','mueller handels'],'dak':['dak-gesundheit','dak gesundheit']};
     S.rules=S.rules.flatMap(r=>FIX[r.kw]?FIX[r.kw].filter(k=>!S.rules.some(x=>x.kw===k)).map(k=>({kw:k,cat:r.cat})):[r]);
-    S.catsV=4;return;
+    S.catsV=4;
+  }
+  if(S.catsV===4){         /* Umbuchung zwischen eigenen Konten */
+    for(const t of [EXP,INC])if(!S.cats.some(c=>c.transfer&&catType(c)===t))S.cats.push({name:'Umbuchung',color:'#6b7280',type:t,transfer:true});
+    DEFAULT_RULES.filter(r=>r.cat==='Umbuchung'&&!S.rules.some(x=>x.kw===r.kw)).forEach(r=>S.rules.push({...r}));
+    S.catsV=5;return;
   }
   const names=new Set(DEFAULT_CATS.map(c=>c.name));
   S.tx.forEach(t=>{const m=CAT_MIGRATE[t.category];t.category=m||(names.has(t.category)?t.category:'')});
@@ -387,13 +397,16 @@ function render(){
   const bs=$('#bannerSync');if(bs)bs.onclick=openData;
   updateSyncStatus();
 }
+const xferName=type=>(S.cats.find(c=>c.transfer&&catType(c)===type)||{}).name||'';
+const isXfer=t=>!!t.category&&S.cats.some(c=>c.transfer&&c.name===t.category&&catType(c)===typeOf(t.amount));
 function sums(list){
+  list=list.filter(t=>!isXfer(t));
   const inc=list.filter(t=>t.amount>0).reduce((a,t)=>a+t.amount,0);
   const exp=list.filter(t=>t.amount<0).reduce((a,t)=>a+t.amount,0);
   return {inc,exp,net:inc+exp};
 }
 function catBars(list,type=EXP){
-  const by={};list.filter(t=>typeOf(t.amount)===type&&t.amount!==0).forEach(t=>by[t.category]=(by[t.category]||0)+Math.abs(t.amount));
+  const by={};list.filter(t=>typeOf(t.amount)===type&&t.amount!==0&&!isXfer(t)).forEach(t=>by[t.category]=(by[t.category]||0)+Math.abs(t.amount));
   const arr=Object.entries(by).sort((a,b)=>b[1]-a[1]);
   if(!arr.length)return `<p class="muted">Keine ${type===INC?'Einnahmen':'Ausgaben'}.</p>`;
   const max=arr[0][1];
@@ -418,6 +431,8 @@ function monthView(){
     <div class="card"><div class="l">Saldo</div><div class="v ${sm.net>=0?'pos':'neg'}">${fmt(sm.net)}</div></div>
     <div class="card"><div class="l">Sparquote</div><div class="v">${sm.inc>0?Math.round(sm.net/sm.inc*100)+' %':'–'}</div></div>
   </div>
+  ${(()=>{const x=all.filter(isXfer);if(!x.length)return '';const net=x.reduce((a,t)=>a+t.amount,0);
+    return `<p class="muted xfernote">↔ ${x.length} Umbuchung${x.length===1?'':'en'} zwischen deinen Konten${filter.acc!=='*'?` (netto ${net>=0?'+':''}${fmt(net)} für ${esc(filter.acc||NO_ACC)})`:''} – nicht in den Summen enthalten.</p>`})()}
   <h2>Ausgaben nach Kategorie</h2>
   <div class="card">${catBars(all)}</div>
   <h2>Einnahmen nach Kategorie</h2>
@@ -428,7 +443,7 @@ function monthView(){
     <select id="fc"><option value="*">Alle Kategorien</option>${catOptions(filter.cat==='*'?'\u0000':filter.cat)}</select>
   </div>
   <div class="tablewrap"><table><thead><tr><th>Datum</th><th>Beschreibung</th><th class="hide-s">Kategorie</th><th class="n">Betrag</th></tr></thead><tbody>
-  ${list.map(t=>`<tr class="click" data-id="${t.id}"><td>${dateDE(t.date)}</td><td>${esc(t.desc)}${t.account?` <span class="acc">${esc(t.account)}</span>`:''}${t.note?`<div class="muted">${esc(t.note)}</div>`:''}</td><td class="hide-s"><span class="dot" style="background:${catColor(t.category,typeOf(t.amount))}"></span>${esc(catLabel(t.category))}</td><td class="n ${t.amount>=0?'pos':'neg'}">${fmt(t.amount)}</td></tr>`).join('')||'<tr><td colspan="4" class="muted">Noch keine Buchungen in diesem Monat. Nutze „Import“ oder „+ Buchung“.</td></tr>'}
+  ${list.map(t=>`<tr class="click" data-id="${t.id}"><td>${dateDE(t.date)}</td><td>${esc(t.desc)}${t.account?` <span class="acc">${esc(t.account)}</span>`:''}${t.note?`<div class="muted">${esc(t.note)}</div>`:''}</td><td class="hide-s"><span class="dot" style="background:${catColor(t.category,typeOf(t.amount))}"></span>${esc(catLabel(t.category))}</td><td class="n ${isXfer(t)?'xfer':t.amount>=0?'pos':'neg'}">${fmt(t.amount)}</td></tr>`).join('')||'<tr><td colspan="4" class="muted">Noch keine Buchungen in diesem Monat. Nutze „Import“ oder „+ Buchung“.</td></tr>'}
   </tbody></table></div>`;
 }
 function yearView(){
@@ -453,7 +468,7 @@ function yearView(){
   <h2>Einnahmen nach Kategorie (Jahr)</h2><div class="card">${catBars(all,INC)}</div>`;
 }
 function settingsView(){
-  const row=(c,i)=>`<div class="row catrow"><input type="color" data-ci="${i}" value="${c.color}" style="padding:0;width:36px;height:32px"><input data-cn="${i}" value="${esc(c.name)}" class="grow"><select data-ct="${i}"><option value="expense" ${catType(c)===EXP?'selected':''}>Ausgabe</option><option value="income" ${catType(c)===INC?'selected':''}>Einnahme</option></select><button class="danger" data-cd="${i}">✕</button></div>`;
+  const row=(c,i)=>`<div class="row catrow"><input type="color" data-ci="${i}" value="${c.color}" style="padding:0;width:36px;height:32px"><input data-cn="${i}" value="${esc(c.name)}" class="grow">${c.transfer?'<span class="muted" style="flex:none;font-size:12px">zählt nicht mit</span>':`<select data-ct="${i}"><option value="expense" ${catType(c)===EXP?'selected':''}>Ausgabe</option><option value="income" ${catType(c)===INC?'selected':''}>Einnahme</option></select><button class="danger" data-cd="${i}">✕</button>`}</div>`;
   const list=t=>S.cats.map((c,i)=>[c,i]).filter(([c])=>catType(c)===t).map(([c,i])=>row(c,i)).join('')||'<p class="muted">Noch keine.</p>';
   return `
   <h2>Ausgaben-Kategorien</h2>
@@ -609,6 +624,7 @@ async function handleFiles(files){
       else await importCsv(f);
     }catch(err){console.error(err);log(`✗ ${f.name}: ${err.message||err}`)}
   }
+  const nx=pairTransfers();if(nx)log(`↔ ${nx} Umbuchung${nx===1?'':'en'} zwischen deinen Konten erkannt.`);
   await aiFillOpen();
   renderImport();
 }
@@ -696,6 +712,21 @@ function guessAccount(fileName,headText){
 function mkRow(date,desc,amount,src,uncertain){
   return {date,desc,amount,category:autoCat(desc,amount),include:true,src,uncertain:!!uncertain};
 }
+/* Gleicher Betrag mit umgekehrtem Vorzeichen auf einem anderen eigenen Konto, höchstens 4 Tage auseinander → Umbuchung.
+   Gesucht wird in den neuen Zeilen und in den vorhandenen Buchungen. Bereits anders kategorisierte Buchungen bleiben unangetastet. */
+function pairTransfers(){
+  const free=x=>!x.category||isXfer(x),days=(a,b)=>Math.abs((new Date(a)-new Date(b))/864e5);
+  const pool=[...stage.rows.filter(r=>!r.dup).map(r=>({r})),...S.tx.map(t=>({t}))],used=new Set();let n=0;
+  for(const a of stage.rows){
+    if(a.dup||!a.account||!free(a)||a.pairTx||a.pairRow)continue;
+    const m=pool.find(o=>{const x=o.r||o.t;return x!==a&&!used.has(x)&&x.account&&x.account!==a.account&&Math.abs(x.amount+a.amount)<0.005&&days(x.date,a.date)<=4&&free(x)});
+    if(!m)continue;const x=m.r||m.t;used.add(a);used.add(x);
+    a.category=xferName(typeOf(a.amount));a.aiTried=true;
+    if(m.r){x.category=xferName(typeOf(x.amount));x.aiTried=true;x.pairRow=true;a.pairRow=true}else a.pairTx=x.id;
+    n++;
+  }
+  return n;
+}
 function markDups(){
   const ex=new Set(S.tx.map(keyOf));const seen=new Set();
   stage.rows.forEach(r=>{const k=keyOf(r);r.dup=ex.has(k)||seen.has(k)&&false;if(r.dup)r.include=false;seen.add(k)});
@@ -770,10 +801,11 @@ function bindPreview(){
       const t={id:uid(),date:r.date,desc:r.desc,amount:r.amount,category:r.category,account:r.account||'',note:''};
       if(ex.has(keyOf(t))&&r.dup){skipped++;return}
       S.tx.push(t);ex.add(keyOf(t));added++;
+      if(r.pairTx&&isXfer(t)){const o=S.tx.find(x=>x.id===r.pairTx);if(o&&!o.category)o.category=xferName(typeOf(o.amount))}     /* Gegenbuchung ebenfalls als Umbuchung */
     });
     const last=stage.rows.filter(r=>r.include).map(r=>r.date).sort().pop();
     if(last)curMonth=last.slice(0,7);
-    save();closeModal();view='month';render();toast(`${added} Buchungen importiert`);
+    save();closeModal();view='month';render();toast(`${added} Buchung${added===1?'':'en'} importiert`);
   };
 }
 
@@ -880,6 +912,7 @@ function aiCategoryContext(){
   return `AUSGABEN-Kategorien (nur für Beträge < 0):\n${list(EXP)}\n\nEINNAHMEN-Kategorien (nur für Beträge > 0):\n${list(INC)}\n\n`+
     (rules?`Stichwort-Regeln des Nutzers (Beschreibung enthält Stichwort → Kategorie): ${rules}\n\n`:'')+
     (ex.length?`So hat der Nutzer bisher zugeordnet (daran orientieren):\n${ex.join('\n')}\n\n`:'')+
+    `„${xferName(EXP)||'Umbuchung'}“ ist für Überweisungen zwischen den EIGENEN Konten des Nutzers (${S.accounts.join(', ')||'–'}), z. B. Commerzbank → N26 oder Aufladen/Übertrag aufs eigene Konto – nicht für Zahlungen an andere Personen.\n`+
     `Wähle für jede Buchung genau eine Kategorie aus der passenden Liste, Name exakt wie angegeben. Wenn keine eindeutig passt, gib "" zurück – nicht raten.`;
 }
 const AI_TX_TOOL={name:'report_transactions',description:'Gibt alle gefundenen Buchungen mit Kategorie zurück.',
