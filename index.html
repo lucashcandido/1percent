@@ -5,7 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>1Percent</title>
 <meta name="theme-color" content="#000000">
-<meta name="color-scheme" content="dark">
+<meta name="color-scheme" content="dark light">
+<script>(function(){var t='dark';try{t=localStorage.getItem('1percent-theme')||'dark'}catch(e){}
+  var l=t==='light'||(t==='system'&&matchMedia('(prefers-color-scheme: light)').matches);
+  document.documentElement.dataset.theme=l?'light':'dark';var m=document.querySelector('meta[name=theme-color]');if(m)m.content=l?'#f4f5f7':'#000000'})()</script>
 <meta name="robots" content="noindex">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="1Percent">
@@ -355,6 +358,74 @@ button.micbtn.rec{background:#ef4444;color:#fff;animation:micpulse 1.2s ease-in-
 .worow{padding:10px 0;border-top:1px solid var(--line);cursor:pointer}.worow:first-child{border-top:0}
 .wotop{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
 .woex{font-size:13px}
+/* ===== Light Mode ===== */
+:root[data-theme="light"]{color-scheme:light;
+  --bg:#f4f5f7;--tx:#0d1016;--mut:#5d6676;--dim:#8a93a3;--line:rgba(10,15,30,.09);
+  --acc:#2457d6;--pos:#15a046;--neg:#dc2626;--hov:rgba(10,20,50,.035);
+  --glass:rgba(255,255,255,.9);--rim:linear-gradient(155deg,rgba(10,15,30,.10),rgba(10,15,30,.05));
+  --sel:#15181e;--seltx:#fff}
+:root[data-theme="light"] *{scrollbar-color:rgba(0,0,0,.2) transparent}
+:root[data-theme="light"] ::selection{background:rgba(36,87,214,.18)}
+:root[data-theme="light"] html,:root[data-theme="light"] body,html[data-theme="light"],html[data-theme="light"] body{background:var(--bg)}
+:root[data-theme="light"] .card,:root[data-theme="light"] .modal,:root[data-theme="light"] .login,:root[data-theme="light"] table,:root[data-theme="light"] header .seg{
+  background:var(--glass);box-shadow:0 1px 2px rgba(10,15,30,.05),0 10px 30px -14px rgba(10,15,30,.18)}
+:root[data-theme="light"] .modal{background:#fff}
+:root[data-theme="light"] .modal-bg{background:rgba(20,25,40,.28)}
+:root[data-theme="light"] header{background:rgba(244,245,247,.86)}
+:root[data-theme="light"] header h1,:root[data-theme="light"] .modal h3,:root[data-theme="light"] .login h2,:root[data-theme="light"] main>.row strong{color:var(--tx)!important;-webkit-text-fill-color:var(--tx)}
+:root[data-theme="light"] .logo{box-shadow:0 0 0 1px rgba(0,0,0,.08),0 4px 12px rgba(0,0,0,.15)}
+:root[data-theme="light"] .card .v,:root[data-theme="light"] .codebig,:root[data-theme="light"] .ptitle,:root[data-theme="light"] button.navarrow,:root[data-theme="light"] .ovnav #ovSub{color:var(--tx)}
+:root[data-theme="light"] .card .v.pos{color:var(--pos)}:root[data-theme="light"] .card .v.neg{color:var(--neg)}
+:root[data-theme="light"] h2{color:#3b4250}
+:root[data-theme="light"] button{background:rgba(10,15,30,.04);border-color:rgba(10,15,30,.12)}
+:root[data-theme="light"] button:hover{background:rgba(10,15,30,.08);border-color:rgba(10,15,30,.2)}
+:root[data-theme="light"] button.navarrow{background:none}
+:root[data-theme="light"] button.navarrow:hover,:root[data-theme="light"] button.icon-btn:hover,:root[data-theme="light"] button.icon-btn.active{background:rgba(10,15,30,.07);color:var(--tx)}
+:root[data-theme="light"] button.icon-btn{background:transparent}
+:root[data-theme="light"] .linkbtn{background:none}
+/* ausgewählt / Haupt-Buttons: im hellen Modus dunkel */
+:root[data-theme="light"] nav button.active,:root[data-theme="light"] button.primary,:root[data-theme="light"] .seg button.on,:root[data-theme="light"] button.ovbtn,:root[data-theme="light"] .fab,
+:root[data-theme="light"] #asstLog .msg.user,:root[data-theme="light"] .mchips.pick .mchip.on,:root[data-theme="light"] button.micbtn{background:var(--sel);color:var(--seltx);border-color:var(--sel);box-shadow:none}
+:root[data-theme="light"] button.primary:hover,:root[data-theme="light"] button.ovbtn:hover,:root[data-theme="light"] .fab:hover{background:#2a2e36}
+:root[data-theme="light"] .fab{box-shadow:0 8px 24px rgba(10,15,30,.25)}
+:root[data-theme="light"] button.micbtn.rec{background:#ef4444;border-color:#ef4444}
+:root[data-theme="light"] .seg{background:rgba(10,15,30,.04)}
+:root[data-theme="light"] input,:root[data-theme="light"] select,:root[data-theme="light"] textarea{background:#fff;border-color:rgba(10,15,30,.15)}
+:root[data-theme="light"] input:focus,:root[data-theme="light"] select:focus,:root[data-theme="light"] textarea:focus{border-color:rgba(36,87,214,.6);box-shadow:0 0 0 3px rgba(36,87,214,.12)}
+:root[data-theme="light"] input[type=checkbox]{accent-color:#15181e}
+:root[data-theme="light"] select option{background:#fff;color:var(--tx)}
+:root[data-theme="light"] select.nocat{border-color:#d4a106;color:#8a6100}
+:root[data-theme="light"] .bar .track,:root[data-theme="light"] .fixbar{background:rgba(10,15,30,.07)}
+:root[data-theme="light"] .bar .fill{box-shadow:none}
+:root[data-theme="light"] .bar .amt{color:#2b313c}
+:root[data-theme="light"] .pill,:root[data-theme="light"] button.pill,:root[data-theme="light"] .acc,:root[data-theme="light"] code{background:rgba(10,15,30,.05);color:#3b4250}
+:root[data-theme="light"] button.pill:hover{color:var(--tx)}
+:root[data-theme="light"] .pill.busy .dot{background:#6b7280}
+:root[data-theme="light"] .drop{border-color:rgba(10,15,30,.2);background:rgba(10,15,30,.02)}
+:root[data-theme="light"] .warn{background:#fff;border-color:rgba(10,15,30,.12);color:#3b4250}
+:root[data-theme="light"] .scroll{background:rgba(10,15,30,.02)}
+:root[data-theme="light"] .toast,:root[data-theme="light"] .updbar,:root[data-theme="light"] .ovtip{background:rgba(255,255,255,.97);border-color:rgba(10,15,30,.12);box-shadow:0 12px 30px rgba(10,15,30,.18)}
+:root[data-theme="light"] #asst{background:rgba(255,255,255,.97);border-color:rgba(10,15,30,.12);box-shadow:0 30px 80px rgba(10,15,30,.25)}
+:root[data-theme="light"] #asstLog .msg.bot{background:rgba(10,15,30,.04)}
+:root[data-theme="light"] .ovwrap .gr{stroke:rgba(10,15,30,.08)}:root[data-theme="light"] .ovwrap .ax,:root[data-theme="light"] .ovwrap .cross{stroke:rgba(10,15,30,.3)}
+:root[data-theme="light"] .ovwrap .line{stroke:#2b313c}:root[data-theme="light"] .ovwrap .area,:root[data-theme="light"] .ovwrap .pt,:root[data-theme="light"] .k.bal{fill:#2b313c;background:#2b313c}
+:root[data-theme="light"] .ovwrap .pt{stroke:#fff}:root[data-theme="light"] .ovwrap .lb{fill:var(--tx)}
+:root[data-theme="light"] .fixchk span{border-color:rgba(10,15,30,.3);background:#fff}
+:root[data-theme="light"] .fixchk input:checked+span{background:var(--pos);border-color:var(--pos)}
+:root[data-theme="light"] .fixchk input:checked+span::after{border-color:#fff}
+:root[data-theme="light"] .fixrow.done .fixname{text-decoration-color:rgba(10,15,30,.35)}
+:root[data-theme="light"] .fixrow.late .fixchk span{border-color:var(--neg)}
+:root[data-theme="light"] .bodymap image{filter:invert(1) brightness(.55)}
+:root[data-theme="light"] .bodymap .mz:hover{fill:rgba(10,15,30,.05)}
+:root[data-theme="light"] .bodylbl{fill:#8a93a3}
+:root[data-theme="light"] .lvllegend i.none{border-color:rgba(10,15,30,.3)}
+:root[data-theme="light"] .mchip,:root[data-theme="light"] .woprev .woex{color:#3b4250}
+:root[data-theme="light"] .mchip{background:rgba(10,15,30,.04)}
+:root[data-theme="light"] .woprev{background:rgba(10,15,30,.025)}
+:root[data-theme="light"] .mchip.l-red{background:rgba(239,68,68,.12);color:#b91c1c}:root[data-theme="light"] .mchip.l-orange{background:rgba(245,158,11,.14);color:#a35c00}:root[data-theme="light"] .mchip.l-green{background:rgba(34,197,94,.14);color:#15803d}
+:root[data-theme="light"] .seg button:not(.on){background:transparent;border:0}
+:root[data-theme="light"] .seg button:not(.on):hover{color:var(--tx)}
+.themeseg{max-width:360px;margin:0}
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.card,.modal,.login,table,header{background:rgba(10,13,21,.96)}}
 </style>
 </head>
@@ -373,7 +444,7 @@ button.micbtn.rec{background:#ef4444;color:#fff;animation:micpulse 1.2s ease-in-
 
 <script>
 /* ============ Konstanten & State ============ */
-const APP_VERSION='2026-10-21.10';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
+const APP_VERSION='2026-10-21.11';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
 const KEY='1percent-v1',CFG_KEY='1percent-cfg',REM_KEY='1percent-remote';
 const DEFAULT_ACCOUNTS=['Commerzbank','N26'];
 const CATS_V=5;          /* Version der Kategorienliste – bei Änderung wird einmalig migriert */
@@ -901,10 +972,18 @@ function settingsHead(){
   return `<div class="period"><button id="setBack" class="navarrow" aria-label="Zurück zur Übersicht">&lt;</button><span class="ptitle">Einstellungen</span><span class="navarrow-sp"></span></div>
   <div class="periodsub"><button id="setSync">Sync &amp; Daten · Claude</button></div>`;
 }
+function getTheme(){try{return localStorage.getItem('1percent-theme')||'dark'}catch(e){return 'dark'}}
+function applyTheme(){const t=getTheme(),l=t==='light'||(t==='system'&&matchMedia('(prefers-color-scheme: light)').matches);
+  document.documentElement.dataset.theme=l?'light':'dark';const m=document.querySelector('meta[name=theme-color]');if(m)m.content=l?'#f4f5f7':'#000000'}
+function setTheme(t){try{localStorage.setItem('1percent-theme',t)}catch(e){}applyTheme();const y=scrollY;render();scrollTo(0,y)}
+try{matchMedia('(prefers-color-scheme: light)').addEventListener('change',()=>{if(getTheme()==='system')applyTheme()})}catch(e){}
 function settingsView(){
   const row=(c,i)=>`<div class="row catrow"><input type="color" data-ci="${i}" value="${c.color}" style="padding:0;width:36px;height:32px"><input data-cn="${i}" value="${esc(c.name)}" class="grow">${c.transfer?'<span class="muted" style="flex:none;font-size:12px">zählt nicht mit</span>':`<select data-ct="${i}"><option value="expense" ${catType(c)===EXP?'selected':''}>Ausgabe</option><option value="income" ${catType(c)===INC?'selected':''}>Einnahme</option></select><button class="danger" data-cd="${i}">✕</button>`}</div>`;
   const list=t=>S.cats.map((c,i)=>[c,i]).filter(([c])=>catType(c)===t).map(([c,i])=>row(c,i)).join('')||'<p class="muted">Noch keine.</p>';
   return settingsHead()+`
+  <h2>Darstellung</h2>
+  <div class="card"><div class="seg seg3 themeseg" role="radiogroup" aria-label="Darstellung">${[['dark','Dunkel'],['light','Hell'],['system','System']].map(([k,l])=>`<button type="button" role="radio" aria-checked="${getTheme()===k}" class="${getTheme()===k?'on':''}" data-theme-set="${k}">${l}</button>`).join('')}</div>
+    <p class="muted" style="margin:8px 0 0">Gilt für dieses Gerät. „System“ folgt der Einstellung deines Handys/Computers.</p></div>
   <h2>Ausgaben-Kategorien</h2>
   <div class="card">${list(EXP)}<button id="addCat" data-t="expense">+ Ausgaben-Kategorie</button></div>
   <h2>Einnahmen-Kategorien</h2>
@@ -930,6 +1009,7 @@ function bindView(){
   on('#fp','change',e=>setPeriod(e.target.value));
   on('#ovBtn','click',openOverview);
   on('#fixAdd','click',()=>editFixed(null));
+  document.querySelectorAll('[data-theme-set]').forEach(b=>b.onclick=()=>setTheme(b.dataset.themeSet));
   bindDebts();
   document.querySelectorAll('[data-fx]').forEach(e=>e.onchange=()=>{
     const m=view==='day'?curDay.slice(0,7):curMonth;S.fixDone[m]=S.fixDone[m]||{};S.fixDone[m][e.dataset.fx]=e.checked;
