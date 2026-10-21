@@ -243,6 +243,8 @@ button.navarrow:hover{background:rgba(255,255,255,.06);color:#d4d7dd}
 .periodsub{display:flex;justify-content:center;margin:8px 0 4px}
 .periodsub select{font-size:13px;padding:5px 10px}
 @media(max-width:600px){.ptitle,button.navarrow{font-size:32px!important}button.navarrow{min-width:44px;padding:2px 10px 5px}}
+.updbar{position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:70;display:flex;gap:12px;align-items:center;padding:8px 8px 8px 16px;border-radius:14px;background:rgba(14,18,28,.95);border:1px solid rgba(255,255,255,.16);box-shadow:0 20px 40px rgba(0,0,0,.6);font-size:14px;white-space:nowrap}
+.updbar button{padding:6px 12px}
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.card,.modal,.login,table,header{background:rgba(10,13,21,.96)}}
 </style>
 </head>
@@ -266,6 +268,7 @@ button.navarrow:hover{background:rgba(255,255,255,.06);color:#d4d7dd}
 
 <script>
 /* ============ Konstanten & State ============ */
+const APP_VERSION='2026-10-21.2';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
 const KEY='1percent-v1',CFG_KEY='1percent-cfg',REM_KEY='1percent-remote';
 const DEFAULT_ACCOUNTS=['Commerzbank','N26'];
 const CATS_V=5;          /* Version der Kategorienliste – bei Änderung wird einmalig migriert */
@@ -525,7 +528,8 @@ function settingsView(){
     ${S.rules.map((r,i)=>`<div class="row" style="margin-bottom:6px"><input data-rk="${i}" value="${esc(r.kw)}" class="grow"><select data-rc="${i}">${catOptions(r.cat)}</select><button class="danger" data-rd="${i}">✕</button></div>`).join('')}
     <button id="addRule">+ Regel</button>
     <button id="reapply">Regeln auf alle Buchungen anwenden</button>
-  </div>`;
+  </div>
+  <p class="muted" style="text-align:center;margin-top:28px">1Percent · Version ${APP_VERSION}</p>`;
 }
 function bindView(){
   const on=(id,ev,fn)=>{const e=$(id);if(e)e.addEventListener(ev,fn)};
@@ -1520,6 +1524,20 @@ function applyData(d){
 }
 function download(name,text,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 
+/* ============ Neue Version erkennen ============
+   GitHub Pages und Browser halten die Seite gern im Cache (besonders die App auf dem Home-Bildschirm).
+   Die App lädt deshalb ab und zu die aktuelle index.html, vergleicht APP_VERSION und bietet das Neuladen an. */
+let updShown=false,updLast=0;
+async function checkUpdate(){
+  if(updShown||location.protocol==='file:'||Date.now()-updLast<60000)return;updLast=Date.now();
+  try{
+    const r=await fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'});if(!r.ok)return;
+    const m=/const APP_VERSION='([^']+)'/.exec(await r.text());
+    if(m&&m[1]!==APP_VERSION){updShown=true;const b=document.createElement('div');b.className='updbar';
+      b.innerHTML='Neue Version von 1Percent verfügbar <button class="primary">Jetzt laden</button>';
+      b.querySelector('button').onclick=()=>location.replace(location.pathname+'?v='+encodeURIComponent(m[1])+location.hash);document.body.appendChild(b)}
+  }catch(e){}
+}
 /* ============ Start ============ */
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{view=b.dataset.v;render()});
 $('#btnAdd').onclick=()=>editTx(null);
@@ -1529,7 +1547,8 @@ asstInit();
 render();
 startAccess();
 if(cfg())syncNow();
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncNow()});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){syncNow();checkUpdate()}});
+checkUpdate();setInterval(checkUpdate,10*60000);
 addEventListener('online',syncNow);
 const POLL_MS=5000;
 function pollTick(){if(cfg()&&!document.hidden&&!syncing&&Date.now()>=backoffUntil)syncNow(true)}
