@@ -240,9 +240,10 @@ body.asst-open .toast{bottom:96px;z-index:60}
 .ptitle input{position:absolute;inset:0;width:100%;height:100%;opacity:0;pointer-events:none;border:0;padding:0}
 button.navarrow{background:none;border:0;box-shadow:none;border-radius:10px;font:800 italic 40px/1 var(--serif)!important;color:#fff;padding:2px 14px 6px;min-width:52px}
 button.navarrow:hover{background:rgba(255,255,255,.06);color:#d4d7dd}
-.periodsub{display:flex;justify-content:center;margin:8px 0 4px}
+.periodsub{display:flex;justify-content:center;gap:8px;margin:8px 0 4px;flex-wrap:wrap}
 .periodsub select{font-size:13px;padding:5px 10px}
-@media(max-width:600px){.ptitle,button.navarrow{font-size:32px!important}button.navarrow{min-width:44px;padding:2px 10px 5px}}
+.ptitle.day{font-size:32px}
+@media(max-width:600px){.ptitle,button.navarrow{font-size:32px!important}.ptitle.day{font-size:23px!important}button.navarrow{min-width:44px;padding:2px 10px 5px}}
 .updbar{position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:70;display:flex;gap:12px;align-items:center;padding:8px 8px 8px 16px;border-radius:14px;background:rgba(14,18,28,.95);border:1px solid rgba(255,255,255,.16);box-shadow:0 20px 40px rgba(0,0,0,.6);font-size:14px;white-space:nowrap}
 .updbar button{padding:6px 12px}
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.card,.modal,.login,table,header{background:rgba(10,13,21,.96)}}
@@ -253,8 +254,7 @@ button.navarrow:hover{background:rgba(255,255,255,.06);color:#d4d7dd}
 <header>
   <h1><img class="logo" src="logo-128.png" alt="">1Percent</h1>
   <nav>
-    <button data-v="month">Monat</button>
-    <button data-v="year">Jahr</button>
+    <button data-v="overview">Übersicht</button>
     <button data-v="settings">Einstellungen</button>
   </nav>
   <div class="row">
@@ -268,7 +268,7 @@ button.navarrow:hover{background:rgba(255,255,255,.06);color:#d4d7dd}
 
 <script>
 /* ============ Konstanten & State ============ */
-const APP_VERSION='2026-10-21.2';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
+const APP_VERSION='2026-10-21.3';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
 const KEY='1percent-v1',CFG_KEY='1percent-cfg',REM_KEY='1percent-remote';
 const DEFAULT_ACCOUNTS=['Commerzbank','N26'];
 const CATS_V=5;          /* Version der Kategorienliste – bei Änderung wird einmalig migriert */
@@ -325,8 +325,11 @@ function catOptions(sel,type){
 
 let sigs={},ssig='';
 let S=load();initSigs();migrateCats();
-let view='month';
-let curMonth=new Date().toISOString().slice(0,7);
+const todayISO=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+let period='month';try{const p=localStorage.getItem('1percent-period');if(['day','month','year'].includes(p))period=p}catch(e){}
+let view=period;
+let curDay=todayISO();
+let curMonth=todayISO().slice(0,7);
 let curYear=new Date().getFullYear();
 let filter={q:'',cat:'*',acc:'*'};
 const NO_ACC='Kein Konto';
@@ -428,12 +431,12 @@ function autoCat(desc,amount,party){
 
 /* ============ Rendering ============ */
 function render(){
-  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.v===view));
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.v==='settings'?view==='settings':view!=='settings'));
   const app=$('#app');
   const locked=isLocked();document.body.classList.toggle('locked',locked);
   if(locked){app.innerHTML=loginHTML();bindLogin();updateSyncStatus();return}
   const banner=cfg()?'':'<div class="warn">Sync ist noch nicht eingerichtet – deine Daten liegen nur in diesem Browser. <button id="bannerSync">Jetzt einrichten</button></div>';
-  if(view==='month')app.innerHTML=banner+monthView();
+  if(view==='month'||view==='day')app.innerHTML=banner+monthView();
   else if(view==='year')app.innerHTML=banner+yearView();
   else app.innerHTML=banner+settingsView();
   bindView();
@@ -455,18 +458,30 @@ function catBars(list,type=EXP){
   const max=arr[0][1];
   return arr.map(([n,v])=>`<div class="bar"><div class="name"><span class="dot" style="background:${catColor(n,type)}"></span>${esc(catLabel(n))}</div><div class="track"><div class="fill" style="width:${v/max*100}%;background:${catColor(n,type)}"></div></div><div class="amt">${fmt(v)}</div></div>`).join('');
 }
+const PERIOD_LABEL={day:'Tag',month:'Monat',year:'Jahr'};
+const periodSelect=()=>`<select id="fp" class="accsel" aria-label="Zeitraum">${['day','month','year'].map(p=>`<option value="${p}" ${view===p?'selected':''}>${PERIOD_LABEL[p]}</option>`).join('')}</select>`;
+function setPeriod(p){
+  if(p==='day'){const t=todayISO();if(view==='year')curDay=String(curYear)===t.slice(0,4)?t:curYear+'-01-01';else if(view==='month')curDay=t.startsWith(curMonth)?t:curMonth+'-01'}
+  else if(p==='month'){if(view==='day')curMonth=curDay.slice(0,7);else if(view==='year'&&!curMonth.startsWith(String(curYear)))curMonth=curYear+(String(curYear)===todayISO().slice(0,4)?todayISO().slice(4,7):'-01')}
+  else if(p==='year'){curYear=Number((view==='day'?curDay:curMonth).slice(0,4))}
+  period=p;view=p;try{localStorage.setItem('1percent-period',p)}catch(e){}render();
+}
+const WD=['SO','MO','DI','MI','DO','FR','SA'];
+const dayLabel=d=>{const x=new Date(d+'T12:00');return WD[x.getDay()]+' '+x.getDate()+'. '+x.toLocaleDateString('de-DE',{month:'long',year:'numeric'})};
+const shiftDay=(d,n)=>{const x=new Date(d+'T12:00');x.setDate(x.getDate()+n);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')};
 function monthView(){
-  const all=S.tx.filter(t=>t.date.startsWith(curMonth)&&accOk(t));
+  const isDay=view==='day',key=isDay?curDay:curMonth;
+  const all=S.tx.filter(t=>t.date.startsWith(key)&&accOk(t));
   const sm=sums(all);
   let list=all.filter(t=>(filter.cat==='*'||(t.category||'')===filter.cat)&&(!filter.q||norm(t.desc+' '+(t.note||'')).includes(norm(filter.q))));
   list.sort((a,b)=>b.date.localeCompare(a.date)||0);
   return `
   <div class="period">
-    <button id="pm" class="navarrow" aria-label="Vorheriger Monat">&lt;</button>
-    <span class="ptitle" id="ptitle" role="button" tabindex="0" title="Monat wählen">${monthLabel(curMonth)}<input type="month" id="mp" value="${curMonth}" tabindex="-1" aria-label="Monat wählen"></span>
-    <button id="nm" class="navarrow" aria-label="Nächster Monat">&gt;</button>
+    <button id="pm" class="navarrow" aria-label="${isDay?'Vorheriger Tag':'Vorheriger Monat'}">&lt;</button>
+    <span class="ptitle${isDay?' day':''}" id="ptitle" role="button" tabindex="0" title="${isDay?'Tag':'Monat'} wählen">${isDay?dayLabel(curDay):monthLabel(curMonth)}<input type="${isDay?'date':'month'}" id="mp" value="${key}" tabindex="-1" aria-label="${isDay?'Tag':'Monat'} wählen"></span>
+    <button id="nm" class="navarrow" aria-label="${isDay?'Nächster Tag':'Nächster Monat'}">&gt;</button>
   </div>
-  <div class="periodsub"><select id="fa" class="accsel">${accOptions(filter.acc,true)}</select></div>
+  <div class="periodsub">${periodSelect()}<select id="fa" class="accsel">${accOptions(filter.acc,true)}</select></div>
   <div class="cards">
     <div class="card"><div class="l">Einnahmen</div><div class="v pos">${fmt(sm.inc)}</div></div>
     <div class="card"><div class="l">Ausgaben</div><div class="v neg">${fmt(sm.exp)}</div></div>
@@ -485,7 +500,7 @@ function monthView(){
     <select id="fc"><option value="*">Alle Kategorien</option>${catOptions(filter.cat==='*'?'\u0000':filter.cat)}</select>
   </div>
   <div class="tablewrap"><table><thead><tr><th>Datum</th><th>Beschreibung</th><th class="hide-s">Kategorie</th><th class="n">Betrag</th></tr></thead><tbody>
-  ${list.map(t=>`<tr class="click" data-id="${t.id}"><td>${dateDE(t.date)}</td><td>${esc(t.desc)}${t.account?` <span class="acc">${esc(t.account)}</span>`:''}${t.note?`<div class="muted">${esc(t.note)}</div>`:''}</td><td class="hide-s"><span class="dot" style="background:${catColor(t.category,typeOf(t.amount))}"></span>${esc(catLabel(t.category))}</td><td class="n ${isXfer(t)?'xfer':t.amount>=0?'pos':'neg'}">${fmt(t.amount)}</td></tr>`).join('')||'<tr><td colspan="4" class="muted">Noch keine Buchungen in diesem Monat. Nutze „Import“ oder „+ Buchung“.</td></tr>'}
+  ${list.map(t=>`<tr class="click" data-id="${t.id}"><td>${dateDE(t.date)}</td><td>${esc(t.desc)}${t.account?` <span class="acc">${esc(t.account)}</span>`:''}${t.note?`<div class="muted">${esc(t.note)}</div>`:''}</td><td class="hide-s"><span class="dot" style="background:${catColor(t.category,typeOf(t.amount))}"></span>${esc(catLabel(t.category))}</td><td class="n ${isXfer(t)?'xfer':t.amount>=0?'pos':'neg'}">${fmt(t.amount)}</td></tr>`).join('')||'<tr><td colspan="4" class="muted">Noch keine Buchungen '+(isDay?'an diesem Tag':'in diesem Monat')+'. Nutze „Import“ oder „+ Buchung“.</td></tr>'}
   </tbody></table></div>`;
 }
 function yearView(){
@@ -495,7 +510,7 @@ function yearView(){
   const tot=sums(all);
   return `
   <div class="period"><button id="py" class="navarrow" aria-label="Vorheriges Jahr">&lt;</button><span class="ptitle">${curYear}</span><button id="ny" class="navarrow" aria-label="Nächstes Jahr">&gt;</button></div>
-  <div class="periodsub"><select id="fa" class="accsel">${accOptions(filter.acc,true)}</select></div>
+  <div class="periodsub">${periodSelect()}<select id="fa" class="accsel">${accOptions(filter.acc,true)}</select></div>
   <div class="cards">
     <div class="card"><div class="l">Einnahmen</div><div class="v pos">${fmt(tot.inc)}</div></div>
     <div class="card"><div class="l">Ausgaben</div><div class="v neg">${fmt(tot.exp)}</div></div>
@@ -533,9 +548,10 @@ function settingsView(){
 }
 function bindView(){
   const on=(id,ev,fn)=>{const e=$(id);if(e)e.addEventListener(ev,fn)};
-  on('#pm','click',()=>{curMonth=shiftMonth(curMonth,-1);render()});
-  on('#nm','click',()=>{curMonth=shiftMonth(curMonth,1);render()});
-  on('#mp','change',e=>{if(e.target.value){curMonth=e.target.value;render()}});
+  on('#pm','click',()=>{if(view==='day')curDay=shiftDay(curDay,-1);else curMonth=shiftMonth(curMonth,-1);render()});
+  on('#nm','click',()=>{if(view==='day')curDay=shiftDay(curDay,1);else curMonth=shiftMonth(curMonth,1);render()});
+  on('#mp','change',e=>{if(e.target.value){if(view==='day')curDay=e.target.value;else curMonth=e.target.value;render()}});
+  on('#fp','change',e=>setPeriod(e.target.value));
   const pickMonth=()=>{const m=$('#mp');try{m.showPicker()}catch(e){m.focus();m.click()}};
   on('#ptitle','click',pickMonth);on('#ptitle','keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();pickMonth()}});
   on('#py','click',()=>{curYear--;render()});
@@ -544,7 +560,7 @@ function bindView(){
   on('#fc','change',e=>{filter.cat=e.target.value;render()});
   on('#fa','change',e=>{filter.acc=e.target.value;render()});
   document.querySelectorAll('tr[data-id]').forEach(r=>r.onclick=()=>editTx(r.dataset.id));
-  document.querySelectorAll('tr[data-m]').forEach(r=>r.onclick=()=>{curMonth=r.dataset.m;view='month';render()});
+  document.querySelectorAll('tr[data-m]').forEach(r=>r.onclick=()=>{curMonth=r.dataset.m;view='year';setPeriod('month')});
   // Einstellungen
   document.querySelectorAll('[data-ci]').forEach(e=>e.onchange=()=>{S.cats[e.dataset.ci].color=e.value;save()});
   document.querySelectorAll('[data-cn]').forEach(e=>e.onchange=()=>{
@@ -594,7 +610,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
 /* ============ Buchung hinzufügen / bearbeiten ============ */
 function editTx(id){
   const t=id?S.tx.find(x=>x.id===id):{date:new Date().toISOString().slice(0,10).replace(/^\d{4}-\d{2}/,curMonth),desc:'',amount:-1,category:'',account:filter.acc!=='*'?filter.acc:(S.accounts[0]||''),note:''};
-  if(!id)t.date=(curMonth+'-'+new Date().toISOString().slice(8,10));
+  if(!id)t.date=view==='day'?curDay:(todayISO().startsWith(curMonth)?todayISO():curMonth+'-01');
   const bg=modal(`<h3>${id?'Buchung bearbeiten':'Neue Buchung'}</h3>
     <div class="field"><label>Datum</label><input type="date" id="e_date" value="${t.date}"></div>
     <div class="field"><label>Beschreibung</label><input id="e_desc" value="${esc(t.desc)}"></div>
@@ -611,7 +627,7 @@ function editTx(id){
     if(isNaN(amt)||!$('#e_date').value)return toast('Datum und Betrag prüfen');
     const o={id:id||uid(),date:$('#e_date').value,desc:$('#e_desc').value.trim()||'(ohne Beschreibung)',amount:Math.abs(amt)*Number($('#e_type').value),category:$('#e_cat').value,account:$('#e_acc').value,note:$('#e_note').value.trim()};
     if(id)Object.assign(t,o);else S.tx.push(o);
-    curMonth=o.date.slice(0,7);save();closeModal();render();
+    curMonth=o.date.slice(0,7);curDay=o.date;curYear=Number(o.date.slice(0,4));save();closeModal();render();
   };
   if(id)$('#e_del').onclick=()=>{if(confirm('Buchung löschen?')){S.tx=S.tx.filter(x=>x.id!==id);save();closeModal();render()}};
 }
@@ -858,8 +874,8 @@ function bindPreview(){
       if(r.pairTx&&isXfer(t)){const o=S.tx.find(x=>x.id===r.pairTx);if(o&&!o.category)o.category=xferName(typeOf(o.amount))}     /* Gegenbuchung ebenfalls als Umbuchung */
     });
     const last=stage.rows.filter(r=>r.include).map(r=>r.date).sort().pop();
-    if(last)curMonth=last.slice(0,7);
-    save();closeModal();view='month';render();toast(`${added} Buchung${added===1?'':'en'} importiert`);
+    if(last){curMonth=last.slice(0,7);curDay=last;curYear=Number(last.slice(0,4))}
+    save();closeModal();view=period;render();toast(`${added} Buchung${added===1?'':'en'} importiert`);
   };
 }
 
@@ -1094,7 +1110,7 @@ function asstRun(name,a){
 }
 function asstSystem(){
   const dates=S.tx.map(t=>t.date).sort();
-  return `Du bist der Assistent in „1Percent“, der Finanz-App des Nutzers (Deutsch, Euro). Du verwaltest seine Buchungen mit den Werkzeugen. Heute ist ${new Date().toISOString().slice(0,10)}; in der App ist gerade ${view==='year'?'das Jahr '+curYear:'der Monat '+curMonth} geöffnet${filter.acc!=='*'?` (Konto-Filter: ${filter.acc||NO_ACC})`:''}.
+  return `Du bist der Assistent in „1Percent“, der Finanz-App des Nutzers (Deutsch, Euro). Du verwaltest seine Buchungen mit den Werkzeugen. Heute ist ${new Date().toISOString().slice(0,10)}; in der App ist gerade ${view==='year'?'das Jahr '+curYear:view==='day'?'der Tag '+curDay:'der Monat '+curMonth} geöffnet${filter.acc!=='*'?` (Konto-Filter: ${filter.acc||NO_ACC})`:''}.
 Es gibt ${S.tx.length} Buchungen${dates.length?` von ${dates[0]} bis ${dates[dates.length-1]}`:''}.
 Ausgaben-Kategorien: ${S.cats.filter(c=>catType(c)===EXP).map(c=>c.name).join(', ')}.
 Einnahmen-Kategorien: ${S.cats.filter(c=>catType(c)===INC).map(c=>c.name).join(', ')}.
@@ -1539,7 +1555,7 @@ async function checkUpdate(){
   }catch(e){}
 }
 /* ============ Start ============ */
-document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{view=b.dataset.v;render()});
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{view=b.dataset.v==='settings'?'settings':period;render()});
 $('#btnAdd').onclick=()=>editTx(null);
 $('#btnImport').onclick=openImport;
 $('#syncBtn').onclick=openData;
