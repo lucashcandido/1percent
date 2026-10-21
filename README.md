@@ -11,13 +11,14 @@ Einnahmen und Ausgaben tracken – als einzelne HTML-Datei (`index.html`), ohne 
 - **Umbuchungen** zwischen deinen eigenen Konten (z. B. Commerzbank → N26) bekommen die Kategorie „Umbuchung“ und zählen nicht in Einnahmen, Ausgaben, Saldo und Sparquote. Beim Import werden Gegenbuchungen automatisch erkannt (gleicher Betrag, umgekehrtes Vorzeichen, anderes Konto, max. 4 Tage auseinander) und an deinem Namen: Ist in den Einstellungen der **Kontoinhaber** eingetragen, wird jede Überweisung von oder an diesen Namen zur Umbuchung (geprüft wird die Gegenpartei, nicht der Verwendungszweck)
 - Duplikat-Erkennung beim Import, Vorschau zum Korrigieren vor dem Übernehmen
 - **Geräteübergreifender Sync** über ein *privates* GitHub-Repo (eine JSON-Datei pro Monat)
+- **Workout-Tracker** (Hantel-Symbol oben): Körperkarte vorne/hinten mit 14 Muskelgruppen
 
 ## Aufbau
 
 | Repo | Sichtbarkeit | Inhalt |
 |---|---|---|
 | `1percent` (dieses Repo) | öffentlich | nur die App – **keine** Finanzdaten, **keine** Zugangsdaten |
-| Daten-Repo (jede Person ein eigenes, z. B. `1percent-data`) | **privat** | `data/YYYY-MM.json` + `data/settings.json` |
+| Daten-Repo (jede Person ein eigenes, z. B. `1percent-data`) | **privat** | `data/YYYY-MM.json`, `data/settings.json`, `data/workouts.json` |
 
 ## Einrichtung (pro Person, einmalig)
 
@@ -75,8 +76,26 @@ Unten rechts öffnet **✦ Assistent** einen Chat, in dem du deine Buchungen nac
 - Nach jeder Antwort mit Änderungen gibt es **„Änderungen rückgängig machen“** (für die letzte Runde).
 - Braucht denselben Claude-API-Schlüssel wie der Import.
 
+## Training
+
+Über das **Hantel-Symbol** in der Kopfzeile öffnest du den Workout-Tracker. Die Körperkarte färbt jede Muskelgruppe nach der Zeit seit ihrem letzten Training:
+
+| seit dem Training | Farbe |
+|---|---|
+| unter 24 h | rot |
+| 24–36 h | orange |
+| 36–48 h | grün |
+| ab 48 h | farblos (erholt) |
+
+- **Per Sprache eintragen:** Mikrofon antippen, Training einsprechen (z. B. „Heute Bankdrücken 4 mal 8 mit 70 Kilo und 20 Minuten Laufen“), nochmal antippen. Claude erkennt Übungen, Sätze, Wiederholungen, Gewicht, Zeitpunkt („gestern Abend“) und die beanspruchten Muskelgruppen. In der Vorschau kannst du die Muskelgruppen noch an- und abwählen, dann speichern.
+- Wo der Browser keine Spracherkennung hat (z. B. Firefox), sprichst du über das Mikrofon der Handy-Tastatur ins Textfeld.
+- **Manuell eintragen:** „Manuell eintragen“ oder „+“ in der Kopfzeile. Übungen schreibst du eine pro Zeile („Curls 3x12 15 kg“).
+- Antippen eines Trainings in der Liste: bearbeiten oder löschen. Antippen einer Muskelgruppe auf der Karte: wann sie zuletzt trainiert wurde.
+- Synchronisiert über `data/workouts.json` (gleiche Logik wie bei den Buchungen); braucht für die Auswertung denselben Claude-Schlüssel.
+
 ## Datenschutz
 
 - Der Token liegt nur im `localStorage` des jeweiligen Browsers und ist durch die Fine-grained-Berechtigung auf das Daten-Repo beschränkt.
 - Mit Claude: Screenshots, PDFs, die zu kategorisierenden Buchungstexte und – beim Assistenten – die Buchungen, die er für deine Anfrage sucht, werden an die Anthropic-API geschickt (direkt aus deinem Browser, mit deinem Schlüssel).
+- Beim Training geht der gesprochene bzw. getippte Text an Claude. Die Spracherkennung selbst übernimmt der Browser (bei Chrome/Safari über den Dienst des Browser-Herstellers).
 - Ohne Claude: Für PDF-/Screenshot-Import werden bei Bedarf `pdf.js` und `tesseract.js` von einem CDN nachgeladen (die Dateien selbst bleiben lokal).
