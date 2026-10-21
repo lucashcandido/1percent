@@ -259,6 +259,7 @@ button.pill:hover{color:var(--tx)}
 .pill.error{color:var(--neg);border-color:rgba(248,113,113,.4)}
 button.icon-btn{flex:none;width:40px;height:40px;padding:0;display:grid;place-items:center;border:0;border-radius:10px;background:transparent;color:var(--tx);box-shadow:none}
 button.icon-btn:hover,button.icon-btn.active{background:rgba(255,255,255,.07)}
+button.icon-btn .dollar{font:600 22px/1 var(--sans);font-style:normal}
 .icon-btn svg{width:22px;height:22px}
 .navarrow-sp{display:inline-block;min-width:52px}
 #setSync{font:500 13.5px var(--sans)!important;font-style:normal!important;text-transform:none;letter-spacing:0}
@@ -364,6 +365,7 @@ button.micbtn.rec{background:#ef4444;color:#fff;animation:micpulse 1.2s ease-in-
   <button id="syncBtn" class="pill" type="button"><span class="dot"></span><span class="txt"></span></button>
   <button id="btnAdd" class="icon-btn" type="button" aria-label="Neue Buchung" title="Neue Buchung"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
   <button id="btnImport" class="icon-btn" type="button" aria-label="Import" title="Import (Kontoauszug, Screenshot, PDF)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg></button>
+  <button id="btnFinance" class="icon-btn" type="button" aria-label="Finanzen" title="Finanzen"><span class="dollar" aria-hidden="true">$</span></button>
   <button id="btnWorkout" class="icon-btn" type="button" aria-label="Training" title="Training"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11"/></svg></button>
   <button id="btnSettings" class="icon-btn" type="button" aria-label="Einstellungen" title="Einstellungen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
 </header>
@@ -371,7 +373,7 @@ button.micbtn.rec{background:#ef4444;color:#fff;animation:micpulse 1.2s ease-in-
 
 <script>
 /* ============ Konstanten & State ============ */
-const APP_VERSION='2026-10-21.9';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
+const APP_VERSION='2026-10-21.10';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
 const KEY='1percent-v1',CFG_KEY='1percent-cfg',REM_KEY='1percent-remote';
 const DEFAULT_ACCOUNTS=['Commerzbank','N26'];
 const CATS_V=5;          /* Version der Kategorienliste – bei Änderung wird einmalig migriert */
@@ -538,6 +540,7 @@ function autoCat(desc,amount,party){
 /* ============ Rendering ============ */
 function render(){
   const gs=$('#btnSettings');if(gs)gs.classList.toggle('active',view==='settings');
+  const gf=$('#btnFinance');if(gf)gf.classList.toggle('active',view==='month'||view==='day'||view==='year');
   const app=$('#app');
   const locked=isLocked();document.body.classList.toggle('locked',locked);
   if(locked){app.innerHTML=loginHTML();bindLogin();updateSyncStatus();return}
@@ -2088,6 +2091,7 @@ async function checkUpdate(){
 /* ============ Start ============ */
 $('#btnSettings').onclick=()=>{view=view==='settings'?period:'settings';render();scrollTo(0,0)};
 $('#btnWorkout').onclick=()=>{view=view==='workout'?period:'workout';render();scrollTo(0,0)};
+$('#btnFinance').onclick=()=>{view=period;render();scrollTo(0,0)};
 const goHome=()=>{if(view==='settings'||view==='workout'){view=period;render()}scrollTo(0,0)};
 $('#home').onclick=goHome;$('#home').onkeydown=e=>{if(e.key==='Enter')goHome()};
 $('#btnAdd').onclick=()=>view==='workout'?editWorkout(null):editTx(null);

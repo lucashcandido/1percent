@@ -11,7 +11,7 @@ Einnahmen und Ausgaben tracken – als einzelne HTML-Datei (`index.html`), ohne 
 - **Umbuchungen** zwischen deinen eigenen Konten (z. B. Commerzbank → N26) bekommen die Kategorie „Umbuchung“ und zählen nicht in Einnahmen, Ausgaben, Saldo und Sparquote. Beim Import werden Gegenbuchungen automatisch erkannt (gleicher Betrag, umgekehrtes Vorzeichen, anderes Konto, max. 4 Tage auseinander) und an deinem Namen: Ist in den Einstellungen der **Kontoinhaber** eingetragen, wird jede Überweisung von oder an diesen Namen zur Umbuchung (geprüft wird die Gegenpartei, nicht der Verwendungszweck)
 - Duplikat-Erkennung beim Import, Vorschau zum Korrigieren vor dem Übernehmen
 - **Geräteübergreifender Sync** über ein *privates* GitHub-Repo (eine JSON-Datei pro Monat)
-- **Workout-Tracker** (Hantel-Symbol oben): Körperkarte vorne/hinten mit 14 Muskelgruppen
+- **Workout-Tracker** (Hantel-Symbol oben, zurück zu den Finanzen mit dem $ daneben): Körperkarte vorne/hinten mit 14 Muskelgruppen
 
 ## Aufbau
 
