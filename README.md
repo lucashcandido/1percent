@@ -3,7 +3,7 @@
 Einnahmen und Ausgaben tracken – als einzelne HTML-Datei (`index.html`), ohne Server und ohne Build-Schritt.
 
 - Übersicht pro **Tag, Monat oder Jahr** (Auswahl neben dem Kontofilter), Kategorien, automatische Zuordnung per Stichwort-Regeln
-- **Overview** (wie „Resumen“ in Castcomercial): Diagramme für die Tage des Monats oder die letzten 12 Monate – Einnahmen ↑ / Ausgaben ↓ als Säulen, Saldo als Linie, Ausgaben nach Kategorie gestapelt; Antippen zeigt die Zahlen, alles auch als Tabelle
+- **Overview** (wie „Resumen“ in Castcomercial): Diagramme für die Tage des Monats, die letzten 12 Monate oder ein Kalenderjahr (mit < > zum Blättern) – Einnahmen ↑ / Ausgaben ↓ als Säulen, Saldo als Linie, Ausgaben nach Kategorie gestapelt; Antippen zeigt die Zahlen, alles auch als Tabelle
 - **Fixkosten-Checkliste** unter jeder Monats-/Tagesansicht: Fixkosten selbst eintragen (Betrag, Fälligkeitstag, Kategorie, Konto) und jeden Monat abhaken; passende Buchungen haken automatisch ab (Stichwort + Betrag ±10 %), offene nach dem Fälligkeitstag sind als „überfällig“ markiert
 - **Forderungen** (Schuldner, Betrag, Fälligkeit, Leistungsdatum) und **offene Verbindlichkeiten** (du → Gläubiger, Betrag, Fälligkeit) als fortlaufende Listen darunter: nach Fälligkeit sortiert, Überfälliges markiert, abhaken = bezahlt; passende Zahlungen in deinen Buchungen werden zum Abhaken vorgeschlagen
 - Import von Kontoauszügen (**CSV**, **PDF**) und **Screenshots** – mit **Claude**: liest die Dateien und ordnet jede Buchung deinen Kategorien zu (ohne Claude: Texterkennung im Browser)

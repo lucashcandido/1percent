@@ -275,6 +275,11 @@ button.ovbtn:hover{background:#e1e4e9}
 .seg{display:grid;grid-template-columns:1fr 1fr;gap:3px;padding:3px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid var(--line);margin-bottom:14px}
 .seg button{border:0;background:transparent;color:var(--mut);font:600 14px var(--sans)!important;font-style:normal!important;text-transform:none;letter-spacing:0;border-radius:9px;padding:7px}
 .seg button.on{background:#d4d7dd;color:#0b0d12}
+.seg.seg3{grid-template-columns:repeat(3,1fr)}
+.ovnav{display:flex;align-items:center;justify-content:center;gap:4px;margin:-4px 0 10px}
+.ovnav #ovSub{font:800 italic 22px/1 var(--serif);text-transform:uppercase;color:#fff;text-align:center;min-width:0}
+.ovnav button.navarrow{font-size:26px!important;min-width:44px;padding:2px 10px 4px}
+@media(max-width:600px){.seg button{font-size:13px!important;padding:7px 4px}.ovnav #ovSub{font-size:17px}}
 .ovkpi{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:4px}
 .ovkpi span{display:block;font-size:12px;color:var(--mut)}.ovkpi b{display:block;font:800 italic 22px/1.2 var(--serif);white-space:nowrap}
 .ovwrap{position:relative;touch-action:pan-y;outline-offset:4px;border-radius:8px}
@@ -338,7 +343,7 @@ main{padding-bottom:96px!important}
 
 <script>
 /* ============ Konstanten & State ============ */
-const APP_VERSION='2026-10-21.7';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
+const APP_VERSION='2026-10-21.8';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
 const KEY='1percent-v1',CFG_KEY='1percent-cfg',REM_KEY='1percent-remote';
 const DEFAULT_ACCOUNTS=['Commerzbank','N26'];
 const CATS_V=5;          /* Version der Kategorienliste – bei Änderung wird einmalig migriert */
@@ -1455,8 +1460,8 @@ function ovBase(){
   return {month:view==='day'?curDay.slice(0,7):curMonth,year:null};
 }
 function ovConfig(){
-  const b=ovBase();
-  if(ov.mode==='months'){
+  const b={month:ov.month,year:ov.mode==='year'?ov.year:null};
+  if(ov.mode==='months'||ov.mode==='year'){
     const keys=b.year?Array.from({length:12},(_,i)=>b.year+'-'+String(i+1).padStart(2,'0')):Array.from({length:12},(_,i)=>shiftMonth(b.month,i-11));
     const pts=ovMonths(keys),first=Math.max(0,pts.findIndex(p=>p.any)),last=pts.reduce((a,p,i)=>p.any?i:a,-1);
     return {pts,from:first,to:b.year?Math.max(first,last)+1:pts.length,startZero:false,dots:true,val:p=>p.net,cats:true,
@@ -1472,13 +1477,17 @@ function ovConfig(){
     name:p=>dayLabel(p.key),head:['Tag','Einnahmen','Ausgaben','Saldo','kumuliert'],row:p=>[dateDE(p.key),fmt(p.in),fmt(-p.out),fmtSigned(p.net),fmtSigned(p.cum)],empty:'In diesem Monat gibt es noch keine Buchungen.'};
 }
 function openOverview(){
-  ov.mode=view==='year'?'months':'days';
-  modal(`<div class="ovhead"><h3>Overview</h3><span class="muted" id="ovSub"></span></div>
-    <div class="seg" id="ovMode"><button data-m="days">Tage des Monats</button><button data-m="months">Monate</button></div>
+  const b=ovBase();ov.month=b.month;ov.year=b.year||Number(b.month.slice(0,4));
+  ov.mode=view==='year'?'year':'days';
+  modal(`<div class="ovhead"><h3>Overview</h3></div>
+    <div class="seg seg3" id="ovMode"><button data-m="days">Tage des Monats</button><button data-m="months">Monate</button><button data-m="year">Jahr</button></div>
+    <div class="ovnav"><button id="ovPrev" class="navarrow" aria-label="Zurück">&lt;</button><span id="ovSub"></span><button id="ovNext" class="navarrow" aria-label="Weiter">&gt;</button></div>
     <div id="ovBody"></div>
     <div class="row" style="margin-top:16px"><span class="grow"></span><button class="primary" id="ovClose">Fertig</button></div>`,'md ovmodal');
   $('#ovClose').onclick=closeModal;
   document.querySelectorAll('#ovMode button').forEach(b=>b.onclick=()=>{ov.mode=b.dataset.m;ovRender()});
+  const step=d=>{if(ov.mode==='year'){ov.year+=d;ov.month=ov.year+ov.month.slice(4)}else{ov.month=shiftMonth(ov.month,d);ov.year=Number(ov.month.slice(0,4))}ovRender()};
+  $('#ovPrev').onclick=()=>step(-1);$('#ovNext').onclick=()=>step(1);
   ovRender();
 }
 function ovRender(){
