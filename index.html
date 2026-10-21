@@ -168,7 +168,7 @@ code{background:rgba(255,255,255,.07);border-radius:6px;padding:1px 5px;font-siz
 .codebig{font:500 22px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.1em;user-select:all;color:#fff}
 .qrbox{display:inline-block;background:#fff;padding:12px;border-radius:18px}
 .qrbox svg{display:block;width:min(80vw,380px);height:auto}
-body.locked header nav,body.locked header .row{display:none}
+body.locked header .pill,body.locked header .icon-btn{display:none}
 
 @media(max-width:600px){
   header{padding:10px 14px;gap:10px}header h1{font-size:19px}.logo{width:30px;height:30px}
@@ -246,29 +246,44 @@ button.navarrow:hover{background:rgba(255,255,255,.06);color:#d4d7dd}
 @media(max-width:600px){.ptitle,button.navarrow{font-size:32px!important}.ptitle.day{font-size:23px!important}button.navarrow{min-width:44px;padding:2px 10px 5px}}
 .updbar{position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:70;display:flex;gap:12px;align-items:center;padding:8px 8px 8px 16px;border-radius:14px;background:rgba(14,18,28,.95);border:1px solid rgba(255,255,255,.16);box-shadow:0 20px 40px rgba(0,0,0,.6);font-size:14px;white-space:nowrap}
 .updbar button{padding:6px 12px}
+/* --- Kopfzeile wie Castcomercial: eine Zeile, Logo | Sync-Pille | Symbole --- */
+header{flex-wrap:nowrap!important;gap:6px!important;padding:10px 20px!important;padding-top:max(10px,env(safe-area-inset-top))!important}
+header h1{flex:1;min-width:0;cursor:pointer;font-size:20px!important}
+header h1 span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+header .logo{width:30px;height:30px;border-radius:8px;flex:none}
+button.pill{display:flex;align-items:center;gap:6px;flex:none;white-space:nowrap;padding:6px 11px;border-radius:999px;font:500 13px/1.2 var(--sans)!important;font-style:normal!important;text-transform:none;letter-spacing:0;color:var(--mut);background:rgba(255,255,255,.04);border:1px solid var(--line)}
+button.pill:hover{color:var(--tx)}
+.pill .dot{width:8px;height:8px;border-radius:50%;margin:0;background:var(--mut);flex:none}
+.pill.ok .dot{background:var(--pos)}.pill.error .dot{background:var(--neg)}.pill.local .dot{background:#facc15}
+.pill.busy .dot{background:#d4d7dd;animation:pulse 1s ease-in-out infinite}
+.pill.error{color:var(--neg);border-color:rgba(248,113,113,.4)}
+button.icon-btn{flex:none;width:40px;height:40px;padding:0;display:grid;place-items:center;border:0;border-radius:10px;background:transparent;color:var(--tx);box-shadow:none}
+button.icon-btn:hover,button.icon-btn.active{background:rgba(255,255,255,.07)}
+.icon-btn svg{width:22px;height:22px}
+.navarrow-sp{display:inline-block;min-width:52px}
+#setSync{font:500 13.5px var(--sans)!important;font-style:normal!important;text-transform:none;letter-spacing:0}
+@media(max-width:600px){
+  header{padding:8px 12px!important;gap:2px!important}header h1{font-size:18px!important;gap:8px}
+  button.pill{padding:9px;margin-right:4px}button.pill:not(.error) .txt{display:none}
+  .navarrow-sp{min-width:44px}
+}
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.card,.modal,.login,table,header{background:rgba(10,13,21,.96)}}
 </style>
 </head>
 <body>
 <div class="liquid" aria-hidden="true"><i></i><i></i><i></i></div>
 <header>
-  <h1><img class="logo" src="logo-128.png" alt="">1Percent</h1>
-  <nav>
-    <button data-v="overview">Übersicht</button>
-    <button data-v="settings">Einstellungen</button>
-  </nav>
-  <div class="row">
-    <button id="syncBtn" class="syncbtn"></button>
-    <button id="btnAdd">+ Buchung</button>
-    <button id="btnImport" class="primary">Import</button>
-    
-  </div>
+  <h1 id="home" role="button" tabindex="0" title="Übersicht"><img class="logo" src="logo-128.png" alt=""><span>1Percent</span></h1>
+  <button id="syncBtn" class="pill" type="button"><span class="dot"></span><span class="txt"></span></button>
+  <button id="btnAdd" class="icon-btn" type="button" aria-label="Neue Buchung" title="Neue Buchung"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+  <button id="btnImport" class="icon-btn" type="button" aria-label="Import" title="Import (Kontoauszug, Screenshot, PDF)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg></button>
+  <button id="btnSettings" class="icon-btn" type="button" aria-label="Einstellungen" title="Einstellungen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
 </header>
 <main id="app"></main>
 
 <script>
 /* ============ Konstanten & State ============ */
-const APP_VERSION='2026-10-21.3';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
+const APP_VERSION='2026-10-21.4';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
 const KEY='1percent-v1',CFG_KEY='1percent-cfg',REM_KEY='1percent-remote';
 const DEFAULT_ACCOUNTS=['Commerzbank','N26'];
 const CATS_V=5;          /* Version der Kategorienliste – bei Änderung wird einmalig migriert */
@@ -431,7 +446,7 @@ function autoCat(desc,amount,party){
 
 /* ============ Rendering ============ */
 function render(){
-  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.v==='settings'?view==='settings':view!=='settings'));
+  const gs=$('#btnSettings');if(gs)gs.classList.toggle('active',view==='settings');
   const app=$('#app');
   const locked=isLocked();document.body.classList.toggle('locked',locked);
   if(locked){app.innerHTML=loginHTML();bindLogin();updateSyncStatus();return}
@@ -525,10 +540,14 @@ function yearView(){
   <h2>Ausgaben nach Kategorie (Jahr)</h2><div class="card">${catBars(all)}</div>
   <h2>Einnahmen nach Kategorie (Jahr)</h2><div class="card">${catBars(all,INC)}</div>`;
 }
+function settingsHead(){
+  return `<div class="period"><button id="setBack" class="navarrow" aria-label="Zurück zur Übersicht">&lt;</button><span class="ptitle">Einstellungen</span><span class="navarrow-sp"></span></div>
+  <div class="periodsub"><button id="setSync">Sync &amp; Daten · Claude</button></div>`;
+}
 function settingsView(){
   const row=(c,i)=>`<div class="row catrow"><input type="color" data-ci="${i}" value="${c.color}" style="padding:0;width:36px;height:32px"><input data-cn="${i}" value="${esc(c.name)}" class="grow">${c.transfer?'<span class="muted" style="flex:none;font-size:12px">zählt nicht mit</span>':`<select data-ct="${i}"><option value="expense" ${catType(c)===EXP?'selected':''}>Ausgabe</option><option value="income" ${catType(c)===INC?'selected':''}>Einnahme</option></select><button class="danger" data-cd="${i}">✕</button>`}</div>`;
   const list=t=>S.cats.map((c,i)=>[c,i]).filter(([c])=>catType(c)===t).map(([c,i])=>row(c,i)).join('')||'<p class="muted">Noch keine.</p>';
-  return `
+  return settingsHead()+`
   <h2>Ausgaben-Kategorien</h2>
   <div class="card">${list(EXP)}<button id="addCat" data-t="expense">+ Ausgaben-Kategorie</button></div>
   <h2>Einnahmen-Kategorien</h2>
@@ -590,6 +609,8 @@ function bindView(){
     if(S.owner)S.tx.forEach(t=>{if(!t.category&&isOwner(t.desc)&&xferName(typeOf(t.amount))){t.category=xferName(typeOf(t.amount));n++}});
     save();render();toast(n?`Gespeichert – ${n} Buchung${n===1?'':'en'} ohne Kategorie als Umbuchung erkannt`:'Gespeichert');
   });
+  on('#setBack','click',()=>{view=period;render();scrollTo(0,0)});
+  on('#setSync','click',()=>openData());
   on('#addAcc','click',()=>{let n='Neues Konto',k=2;while(S.accounts.includes(n))n='Neues Konto '+k++;S.accounts.push(n);save();render()});
   on('#addRule','click',()=>{S.rules.unshift({kw:'',cat:(S.cats[0]||{}).name||''});save();render()});
   on('#reapply','click',()=>{if(!confirm('Alle Buchungen neu kategorisieren? Manuelle Zuordnungen werden überschrieben.'))return;
@@ -1325,11 +1346,11 @@ async function syncNow(quiet){
 function setSync(s,msg){syncState={s,msg:msg||'',at:s==='ok'?new Date():syncState.at};updateSyncStatus()}
 function updateSyncStatus(){
   const b=$('#syncBtn');if(!b)return;
-  b.classList.toggle('err',syncState.s==='err');b.title=syncState.msg||'';
-  if(!cfg())b.textContent='☁ Sync einrichten';
-  else if(syncState.s==='busy')b.textContent='⟳ synchronisiere…';
-  else if(syncState.s==='err')b.textContent='⚠ Sync-Problem';
-  else b.textContent='☁ synchronisiert'+(syncState.at?' '+syncState.at.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}):'');
+  const st=!cfg()?'local':syncState.s==='busy'?'busy':syncState.s==='err'?'error':'ok';
+  const at=syncState.at?syncState.at.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}):'';
+  const txt={local:'Nur lokal',busy:'Sync …',error:'Sync-Problem',ok:'Synchron'+(at?' '+at:'')}[st];
+  b.className='pill '+st;b.title=(st==='local'?'Sync einrichten':st==='error'?syncState.msg:'Synchronisiert'+(at?' um '+at:''))||'';
+  b.setAttribute('aria-label',b.title||txt);b.querySelector('.txt').textContent=txt;
 }
 
 /* ============ Gerätezugang per Link / QR-Code ============
@@ -1555,7 +1576,9 @@ async function checkUpdate(){
   }catch(e){}
 }
 /* ============ Start ============ */
-document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{view=b.dataset.v==='settings'?'settings':period;render()});
+$('#btnSettings').onclick=()=>{view=view==='settings'?period:'settings';render();scrollTo(0,0)};
+const goHome=()=>{if(view==='settings'){view=period;render()}scrollTo(0,0)};
+$('#home').onclick=goHome;$('#home').onkeydown=e=>{if(e.key==='Enter')goHome()};
 $('#btnAdd').onclick=()=>editTx(null);
 $('#btnImport').onclick=openImport;
 $('#syncBtn').onclick=openData;
