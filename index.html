@@ -317,6 +317,10 @@ main{padding-bottom:96px!important}
 .fixname{font-weight:500}
 .fixamt{flex:none;font-variant-numeric:tabular-nums;color:var(--neg)}
 .fixrow.late .fixchk span{border-color:var(--neg)}
+.debtrow .fixmain .muted{white-space:normal}
+.debtdone{margin-top:8px}.debtdone summary{padding:8px 0;font-size:13.5px}
+.dmatch{display:block;width:auto!important;text-align:left;font-size:12.5px!important;padding:3px 0 0!important}
+.fixamt.pos{color:var(--pos)}
 .fixlate{font-size:11px;font-weight:600;color:var(--neg);border:1px solid rgba(248,113,113,.45);border-radius:6px;padding:0 5px;margin-left:6px;vertical-align:1px}
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.card,.modal,.login,table,header{background:rgba(10,13,21,.96)}}
 </style>
@@ -334,7 +338,7 @@ main{padding-bottom:96px!important}
 
 <script>
 /* ============ Konstanten & State ============ */
-const APP_VERSION='2026-10-21.6';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
+const APP_VERSION='2026-10-21.7';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
 const KEY='1percent-v1',CFG_KEY='1percent-cfg',REM_KEY='1percent-remote';
 const DEFAULT_ACCOUNTS=['Commerzbank','N26'];
 const CATS_V=5;          /* Version der Kategorienliste – bei Änderung wird einmalig migriert */
@@ -406,7 +410,7 @@ const accOk=t=>filter.acc==='*'||(t.account||'')===filter.acc;
 
 function load(){
   let s=null;try{s=JSON.parse(localStorage.getItem(KEY))}catch(e){}
-  return {tx:(s&&s.tx)||[],tomb:(s&&s.tomb)||[],cats:(s&&s.cats)||DEFAULT_CATS,rules:(s&&s.rules)||DEFAULT_RULES,su:(s&&s.su)||0,access:(s&&s.access)||null,ai:(s&&s.ai)||null,accounts:(s&&Array.isArray(s.accounts)&&s.accounts)||DEFAULT_ACCOUNTS.slice(),owner:(s&&s.owner)||'',fixed:(s&&Array.isArray(s.fixed)&&s.fixed)||[],fixDone:(s&&s.fixDone&&typeof s.fixDone==='object'&&s.fixDone)||{},catsV:(s&&s.catsV)||0};
+  return {tx:(s&&s.tx)||[],tomb:(s&&s.tomb)||[],cats:(s&&s.cats)||DEFAULT_CATS,rules:(s&&s.rules)||DEFAULT_RULES,su:(s&&s.su)||0,access:(s&&s.access)||null,ai:(s&&s.ai)||null,accounts:(s&&Array.isArray(s.accounts)&&s.accounts)||DEFAULT_ACCOUNTS.slice(),owner:(s&&s.owner)||'',fixed:(s&&Array.isArray(s.fixed)&&s.fixed)||[],fixDone:(s&&s.fixDone&&typeof s.fixDone==='object'&&s.fixDone)||{},recv:(s&&Array.isArray(s.recv)&&s.recv)||[],pay:(s&&Array.isArray(s.pay)&&s.pay)||[],catsV:(s&&s.catsV)||0};
 }
 function migrateCats(){
   if(S.catsV>=CATS_V)return;
@@ -433,12 +437,12 @@ function migrateCats(){
 /* Änderungen werden automatisch mit Zeitstempel (u) versehen, gelöschte Buchungen werden zu Tombstones.
    So lassen sich Änderungen von mehreren Geräten sauber zusammenführen. */
 function sig(t){return JSON.stringify([t.date,t.desc,t.amount,t.category,t.note||'',t.account||''])}
-function initSigs(){sigs={};S.tx.forEach(t=>sigs[t.id]=sig(t));ssig=JSON.stringify([S.cats,S.rules,S.access,S.ai,S.accounts,S.owner,S.fixed,S.fixDone])}
+function initSigs(){sigs={};S.tx.forEach(t=>sigs[t.id]=sig(t));ssig=JSON.stringify([S.cats,S.rules,S.access,S.ai,S.accounts,S.owner,S.fixed,S.fixDone,S.recv,S.pay])}
 function stamp(){
   const now=Date.now(),ids=new Set();
   for(const t of S.tx){ids.add(t.id);const j=sig(t);if(sigs[t.id]!==j){t.u=now;sigs[t.id]=j}}
   for(const id of Object.keys(sigs))if(!ids.has(id)){S.tomb.push({id,date:JSON.parse(sigs[id])[0],u:now});delete sigs[id]}
-  const ss=JSON.stringify([S.cats,S.rules,S.access,S.ai,S.accounts,S.owner,S.fixed,S.fixDone]);if(ss!==ssig){S.su=now;ssig=ss}
+  const ss=JSON.stringify([S.cats,S.rules,S.access,S.ai,S.accounts,S.owner,S.fixed,S.fixDone,S.recv,S.pay]);if(ss!==ssig){S.su=now;ssig=ss}
 }
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 let saveTimer;
@@ -595,6 +599,70 @@ function editFixed(id){
   if(id)$('#f_del').onclick=()=>{if(!confirm(`„${f.name}“ aus den Fixkosten löschen? (Für vergangene Monate reicht auch „Endet nach Monat“.)`))return;
     S.fixed=S.fixed.filter(x=>x.id!==id);for(const m in S.fixDone)delete S.fixDone[m][id];save();closeModal();render()};
 }
+/* ============ Forderungen & offene Verbindlichkeiten ============
+   Fortlaufende Listen (nicht pro Monat). recv: jemand schuldet dir Geld; pay: du schuldest jemandem Geld.
+   Findet die App eine passende Zahlung (Name der Gegenpartei in der Buchung, Betrag ±1 %, nach der Leistung/Anlage),
+   schlägt sie vor, den Posten als bezahlt zu markieren. */
+const DEBT={
+  recv:{title:'Forderungen',party:'Schuldner',partyPh:'z. B. Max Mustermann',flow:p=>`${esc(p)} → dich`,sign:1,empty:'Keine offenen Forderungen. Trag ein, wer dir noch Geld schuldet.',add:'+ Forderung',paidWord:'bezahlt erhalten',service:true},
+  pay:{title:'Offene Verbindlichkeiten',party:'Gläubiger',partyPh:'z. B. Vermieter, Anna',flow:p=>`Du → ${esc(p)}`,sign:-1,empty:'Keine offenen Verbindlichkeiten.',add:'+ Verbindlichkeit',paidWord:'bezahlt',service:false},
+};
+function debtMatch(kind,x){
+  const want=DEBT[kind].sign>0?INC:EXP,toks=nameTokens(x.party).filter(w=>w.length>=3);if(!toks.length)return null;
+  const after=x.service||x.created||'';
+  return S.tx.filter(t=>typeOf(t.amount)===want&&Math.abs(Math.abs(t.amount)-x.amount)<=Math.max(.5,x.amount*.01)&&(!after||t.date>=after)&&(()=>{const d=new Set(nameTokens(t.desc));return toks.some(w=>d.has(w))})())
+    .sort((a,b)=>a.date.localeCompare(b.date))[0]||null;
+}
+function debtSection(kind){
+  const c=DEBT[kind],all=S[kind],today=todayISO();
+  const open=all.filter(x=>!x.paid).sort((a,b)=>(a.due||'9999').localeCompare(b.due||'9999')),done=all.filter(x=>x.paid).sort((a,b)=>b.paid.localeCompare(a.paid));
+  const sum=open.reduce((a,x)=>a+x.amount,0),late=open.filter(x=>x.due&&x.due<today).length;
+  const days=d=>{const n=Math.round((new Date(d+'T12:00')-new Date(today+'T12:00'))/864e5);return n===0?'heute':n===1?'morgen':n===-1?'seit gestern':n<0?`seit ${-n} Tagen`:`in ${n} Tagen`};
+  const row=(x,isDone)=>{
+    const isLate=!isDone&&x.due&&x.due<today,m=!isDone?debtMatch(kind,x):null;
+    const info=[x.due?`fällig ${dateDE(x.due)}${isDone?'':' ('+days(x.due)+')'}`:'ohne Fälligkeit',c.service&&x.service?`Leistung ${dateDE(x.service)}`:'',isDone?`${c.paidWord} ${dateDE(x.paid)}`:'',x.note||''].filter(Boolean).join(' · ');
+    return `<div class="fixrow debtrow${isDone?' done':''}${isLate?' late':''}">
+      <label class="fixchk" title="${isDone?'Wieder als offen markieren':'Als '+c.paidWord+' markieren'}"><input type="checkbox" data-dk="${kind}" data-di="${x.id}" ${isDone?'checked':''} aria-label="${esc(x.party)} ${c.paidWord}"><span></span></label>
+      <div class="fixmain" data-dek="${kind}" data-dei="${x.id}" role="button" tabindex="0"><div class="fixname">${c.flow(x.party)}${isLate?' <span class="fixlate">überfällig</span>':''}</div>
+        <div class="muted">${esc(info)}</div>
+        ${m?`<button class="linkbtn dmatch" type="button" data-dmk="${kind}" data-dmi="${x.id}" data-dmd="${m.date}">↳ Zahlung gefunden: ${dateDE(m.date)} · ${esc(m.desc.slice(0,30))} – als ${c.paidWord} markieren</button>`:''}</div>
+      <div class="fixamt ${c.sign>0?'pos':'neg'}">${fmt(c.sign*x.amount)}</div></div>`;
+  };
+  return `<h2>${c.title} ${open.length?`(${open.length})`:''}</h2>
+  <div class="card fixcard">
+    ${open.length?`<div class="fixsum"><span>Offen: <b>${open.length}</b> · <b class="${c.sign>0?'pos':'neg'}">${fmt(c.sign*sum)}</b></span>${late?`<span class="neg">${late} überfällig</span>`:''}</div>${open.map(x=>row(x,false)).join('')}`:`<p class="muted">${c.empty}</p>`}
+    ${done.length?`<details class="debtdone"><summary>Erledigt (${done.length})</summary>${done.map(x=>row(x,true)).join('')}</details>`:''}
+    <div class="row" style="margin-top:10px"><button type="button" data-dadd="${kind}">${c.add}</button></div>
+  </div>`;
+}
+function editDebt(kind,id){
+  const c=DEBT[kind],x=id?S[kind].find(v=>v.id===id):{party:'',amount:0,due:'',service:'',note:'',paid:''};
+  modal(`<h3>${id?c.title.replace(/^Offene /,'')+' bearbeiten':c.add.replace('+ ','Neue ')}</h3>
+    <p class="muted" style="margin:-6px 0 14px">${kind==='recv'?'Jemand schuldet dir Geld.':'Du schuldest jemandem Geld.'}</p>
+    <div class="field"><label>${c.party}</label><input id="d_party" value="${esc(x.party)}" placeholder="${c.partyPh}"></div>
+    <div class="row"><div class="field grow"><label>Betrag (€)</label><input id="d_amt" inputmode="decimal" value="${x.amount?x.amount.toFixed(2).replace('.',','):''}" placeholder="0,00"></div>
+      <div class="field grow"><label>Fällig am</label><input id="d_due" type="date" value="${x.due||''}"></div></div>
+    ${c.service?`<div class="field"><label>Leistung erbracht am</label><input id="d_svc" type="date" value="${x.service||''}"></div>`:''}
+    <div class="field"><label>Notiz (wofür?)</label><input id="d_note" value="${esc(x.note||'')}" placeholder="${kind==='recv'?'z. B. Fotoshooting, ausgelegtes Konzertticket':'z. B. Rechnung Nr. 123, geliehen für …'}"></div>
+    ${id?`<div class="field"><label>${c.paidWord[0].toUpperCase()+c.paidWord.slice(1)} am (leer = offen)</label><input id="d_paid" type="date" value="${x.paid||''}"></div>`:''}
+    <div class="row"><button class="primary" id="d_save">Speichern</button><button id="d_cancel">Abbrechen</button><span class="grow"></span>${id?'<button class="danger" id="d_del">Löschen</button>':''}</div>`,'sm');
+  $('#d_cancel').onclick=closeModal;
+  $('#d_save').onclick=()=>{
+    const party=$('#d_party').value.trim(),amount=Math.abs(parseAmount($('#d_amt').value));
+    if(!party||!amount)return toast(`Bitte ${c.party} und Betrag angeben`);
+    const o={id:id||uid(),party,amount:round2(amount),due:$('#d_due').value||'',service:c.service?($('#d_svc').value||''):'',note:$('#d_note').value.trim(),paid:id?($('#d_paid').value||''):'',created:x.created||todayISO()};
+    if(id)Object.assign(x,o);else S[kind].push(o);
+    save();closeModal();const y=scrollY;render();scrollTo(0,y);
+  };
+  if(id)$('#d_del').onclick=()=>{if(confirm(`„${x.party}“ (${fmt(x.amount)}) löschen?`)){S[kind]=S[kind].filter(v=>v.id!==id);save();closeModal();render()}};
+}
+function bindDebts(){
+  const keep=fn=>()=>{const y=scrollY;fn();save();render();scrollTo(0,y)};
+  document.querySelectorAll('[data-dadd]').forEach(b=>b.onclick=()=>editDebt(b.dataset.dadd,null));
+  document.querySelectorAll('[data-di]').forEach(e=>e.onchange=keep(()=>{const x=S[e.dataset.dk].find(v=>v.id===e.dataset.di);if(x){const m=e.checked?debtMatch(e.dataset.dk,x):null;x.paid=e.checked?(m?m.date:todayISO()):''}}));
+  document.querySelectorAll('[data-dei]').forEach(e=>{const go=()=>editDebt(e.dataset.dek,e.dataset.dei);e.onclick=ev=>{if(!ev.target.closest('.dmatch'))go()};e.onkeydown=ev=>{if(ev.key==='Enter')go()}});
+  document.querySelectorAll('.dmatch').forEach(b=>b.onclick=keep(()=>{const x=S[b.dataset.dmk].find(v=>v.id===b.dataset.dmi);if(x)x.paid=b.dataset.dmd}));
+}
 function monthView(){
   const isDay=view==='day',key=isDay?curDay:curMonth;
   const all=S.tx.filter(t=>t.date.startsWith(key)&&accOk(t));
@@ -628,7 +696,9 @@ function monthView(){
   <div class="tablewrap"><table><thead><tr><th>Datum</th><th>Beschreibung</th><th class="hide-s">Kategorie</th><th class="n">Betrag</th></tr></thead><tbody>
   ${list.map(t=>`<tr class="click" data-id="${t.id}"><td>${dateDE(t.date)}</td><td>${esc(t.desc)}${t.account?` <span class="acc">${esc(t.account)}</span>`:''}${t.note?`<div class="muted">${esc(t.note)}</div>`:''}</td><td class="hide-s"><span class="dot" style="background:${catColor(t.category,typeOf(t.amount))}"></span>${esc(catLabel(t.category))}</td><td class="n ${isXfer(t)?'xfer':t.amount>=0?'pos':'neg'}">${fmt(t.amount)}</td></tr>`).join('')||'<tr><td colspan="4" class="muted">Noch keine Buchungen '+(isDay?'an diesem Tag':'in diesem Monat')+'. Nutze „Import“ oder „+ Buchung“.</td></tr>'}
   </tbody></table></div>
-  ${fixedSection(key.slice(0,7))}`;
+  ${fixedSection(key.slice(0,7))}
+  ${debtSection('recv')}
+  ${debtSection('pay')}`;
 }
 function yearView(){
   const all=S.tx.filter(t=>t.date.startsWith(curYear+'-')&&accOk(t));
@@ -685,6 +755,7 @@ function bindView(){
   on('#fp','change',e=>setPeriod(e.target.value));
   on('#ovBtn','click',openOverview);
   on('#fixAdd','click',()=>editFixed(null));
+  bindDebts();
   document.querySelectorAll('[data-fx]').forEach(e=>e.onchange=()=>{
     const m=view==='day'?curDay.slice(0,7):curMonth;S.fixDone[m]=S.fixDone[m]||{};S.fixDone[m][e.dataset.fx]=e.checked;
     save();const y=scrollY;render();scrollTo(0,y);
@@ -1501,7 +1572,7 @@ function serMonth(m){
   const tb=S.tomb.filter(t=>t.date.startsWith(m)).map(t=>({id:t.id,date:t.date,u:t.u||0})).sort((a,b)=>a.id.localeCompare(b.id));
   return `{\n "tx": [${jlines(tx)}],\n "tomb": [${jlines(tb)}]\n}\n`;
 }
-const serSettings=()=>JSON.stringify({u:S.su||0,catsV:S.catsV||0,cats:S.cats,rules:S.rules,access:S.access||null,ai:S.ai||null,accounts:S.accounts,owner:S.owner||'',fixed:S.fixed||[],fixDone:S.fixDone||{}},null,1)+'\n';
+const serSettings=()=>JSON.stringify({u:S.su||0,catsV:S.catsV||0,cats:S.cats,rules:S.rules,access:S.access||null,ai:S.ai||null,accounts:S.accounts,owner:S.owner||'',fixed:S.fixed||[],fixDone:S.fixDone||{},recv:S.recv||[],pay:S.pay||[]},null,1)+'\n';
 const b64d=s=>new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\s/g,'')),c=>c.charCodeAt(0)));
 function b64e(s){const b=new TextEncoder().encode(s);let o='';for(let i=0;i<b.length;i+=8192)o+=String.fromCharCode(...b.subarray(i,i+8192));return btoa(o)}
 
@@ -1537,7 +1608,7 @@ function mergeIn(txs,tombs){
 function mergeFile(name,content){
   let d;try{d=JSON.parse(content)}catch(e){return false}
   if(name==='settings.json'){
-    if((d.u||0)>(S.su||0)&&Array.isArray(d.cats)&&Array.isArray(d.rules)){S.cats=d.cats;S.rules=d.rules;S.access=d.access||S.access;S.ai=d.ai===undefined?S.ai:d.ai;if(Array.isArray(d.accounts))S.accounts=d.accounts;if(typeof d.owner==='string')S.owner=d.owner;if(Array.isArray(d.fixed))S.fixed=d.fixed;if(d.fixDone&&typeof d.fixDone==='object')S.fixDone=d.fixDone;S.su=d.u;ssig=JSON.stringify([S.cats,S.rules,S.access,S.ai,S.accounts,S.owner,S.fixed,S.fixDone]);S.catsV=d.catsV||0;if(S.catsV<CATS_V){S.su=d.u;migrateCats()}return true}
+    if((d.u||0)>(S.su||0)&&Array.isArray(d.cats)&&Array.isArray(d.rules)){S.cats=d.cats;S.rules=d.rules;S.access=d.access||S.access;S.ai=d.ai===undefined?S.ai:d.ai;if(Array.isArray(d.accounts))S.accounts=d.accounts;if(typeof d.owner==='string')S.owner=d.owner;if(Array.isArray(d.fixed))S.fixed=d.fixed;if(d.fixDone&&typeof d.fixDone==='object')S.fixDone=d.fixDone;if(Array.isArray(d.recv))S.recv=d.recv;if(Array.isArray(d.pay))S.pay=d.pay;S.su=d.u;ssig=JSON.stringify([S.cats,S.rules,S.access,S.ai,S.accounts,S.owner,S.fixed,S.fixDone,S.recv,S.pay]);S.catsV=d.catsV||0;if(S.catsV<CATS_V){S.su=d.u;migrateCats()}return true}
     return false;
   }
   return mergeIn(d.tx||[],d.tomb||[]);
