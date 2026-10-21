@@ -298,6 +298,26 @@ button.ovbtn:hover{background:#e1e4e9}
 .ovtable{overflow-x:auto;margin-top:8px}.ovtable table{font-size:13px;border-radius:12px}.ovtable th,.ovtable td{text-align:right;padding:6px 8px;white-space:nowrap;font-variant-numeric:tabular-nums}
 .ovtable th:first-child,.ovtable td:first-child{text-align:left}
 @media(max-width:600px){.modal.ovmodal{padding:16px}.ovkpi b{font-size:17px}}
+/* --- Fixkosten-Checkliste --- */
+.fixcard{padding:14px 16px}
+main{padding-bottom:96px!important}
+.fixbar{height:6px;border-radius:999px;background:rgba(255,255,255,.06);overflow:hidden;margin:2px 0 10px}
+.fixbar div{height:100%;background:var(--pos);border-radius:999px;transition:width .3s}
+.fixsum{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:13.5px;margin-bottom:6px}
+.fixrow{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line)}
+.fixrow.done .fixname{text-decoration:line-through;text-decoration-color:rgba(255,255,255,.35);color:var(--mut)}
+.fixrow.done .fixamt{color:var(--mut)}
+.fixchk{position:relative;flex:none;width:26px;height:26px;cursor:pointer}
+.fixchk input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer}
+.fixchk span{position:absolute;inset:0;border-radius:8px;border:1.5px solid rgba(255,255,255,.3);background:rgba(255,255,255,.03);transition:all .15s}
+.fixchk input:checked+span{background:var(--pos);border-color:var(--pos)}
+.fixchk input:checked+span::after{content:"";position:absolute;left:8px;top:3px;width:6px;height:12px;border:solid #06280f;border-width:0 2.5px 2.5px 0;transform:rotate(45deg)}
+.fixchk input:focus-visible+span{outline:2px solid var(--acc);outline-offset:2px}
+.fixmain{flex:1;min-width:0;cursor:pointer}.fixmain .muted{font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fixname{font-weight:500}
+.fixamt{flex:none;font-variant-numeric:tabular-nums;color:var(--neg)}
+.fixrow.late .fixchk span{border-color:var(--neg)}
+.fixlate{font-size:11px;font-weight:600;color:var(--neg);border:1px solid rgba(248,113,113,.45);border-radius:6px;padding:0 5px;margin-left:6px;vertical-align:1px}
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.card,.modal,.login,table,header{background:rgba(10,13,21,.96)}}
 </style>
 </head>
@@ -314,7 +334,7 @@ button.ovbtn:hover{background:#e1e4e9}
 
 <script>
 /* ============ Konstanten & State ============ */
-const APP_VERSION='2026-10-21.5';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
+const APP_VERSION='2026-10-21.6';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
 const KEY='1percent-v1',CFG_KEY='1percent-cfg',REM_KEY='1percent-remote';
 const DEFAULT_ACCOUNTS=['Commerzbank','N26'];
 const CATS_V=5;          /* Version der Kategorienliste – bei Änderung wird einmalig migriert */
@@ -386,7 +406,7 @@ const accOk=t=>filter.acc==='*'||(t.account||'')===filter.acc;
 
 function load(){
   let s=null;try{s=JSON.parse(localStorage.getItem(KEY))}catch(e){}
-  return {tx:(s&&s.tx)||[],tomb:(s&&s.tomb)||[],cats:(s&&s.cats)||DEFAULT_CATS,rules:(s&&s.rules)||DEFAULT_RULES,su:(s&&s.su)||0,access:(s&&s.access)||null,ai:(s&&s.ai)||null,accounts:(s&&Array.isArray(s.accounts)&&s.accounts)||DEFAULT_ACCOUNTS.slice(),owner:(s&&s.owner)||'',catsV:(s&&s.catsV)||0};
+  return {tx:(s&&s.tx)||[],tomb:(s&&s.tomb)||[],cats:(s&&s.cats)||DEFAULT_CATS,rules:(s&&s.rules)||DEFAULT_RULES,su:(s&&s.su)||0,access:(s&&s.access)||null,ai:(s&&s.ai)||null,accounts:(s&&Array.isArray(s.accounts)&&s.accounts)||DEFAULT_ACCOUNTS.slice(),owner:(s&&s.owner)||'',fixed:(s&&Array.isArray(s.fixed)&&s.fixed)||[],fixDone:(s&&s.fixDone&&typeof s.fixDone==='object'&&s.fixDone)||{},catsV:(s&&s.catsV)||0};
 }
 function migrateCats(){
   if(S.catsV>=CATS_V)return;
@@ -413,12 +433,12 @@ function migrateCats(){
 /* Änderungen werden automatisch mit Zeitstempel (u) versehen, gelöschte Buchungen werden zu Tombstones.
    So lassen sich Änderungen von mehreren Geräten sauber zusammenführen. */
 function sig(t){return JSON.stringify([t.date,t.desc,t.amount,t.category,t.note||'',t.account||''])}
-function initSigs(){sigs={};S.tx.forEach(t=>sigs[t.id]=sig(t));ssig=JSON.stringify([S.cats,S.rules,S.access,S.ai,S.accounts,S.owner])}
+function initSigs(){sigs={};S.tx.forEach(t=>sigs[t.id]=sig(t));ssig=JSON.stringify([S.cats,S.rules,S.access,S.ai,S.accounts,S.owner,S.fixed,S.fixDone])}
 function stamp(){
   const now=Date.now(),ids=new Set();
   for(const t of S.tx){ids.add(t.id);const j=sig(t);if(sigs[t.id]!==j){t.u=now;sigs[t.id]=j}}
   for(const id of Object.keys(sigs))if(!ids.has(id)){S.tomb.push({id,date:JSON.parse(sigs[id])[0],u:now});delete sigs[id]}
-  const ss=JSON.stringify([S.cats,S.rules,S.access,S.ai,S.accounts,S.owner]);if(ss!==ssig){S.su=now;ssig=ss}
+  const ss=JSON.stringify([S.cats,S.rules,S.access,S.ai,S.accounts,S.owner,S.fixed,S.fixDone]);if(ss!==ssig){S.su=now;ssig=ss}
 }
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 let saveTimer;
@@ -515,6 +535,66 @@ function setPeriod(p){
 const WD=['SO','MO','DI','MI','DO','FR','SA'];
 const dayLabel=d=>{const x=new Date(d+'T12:00');return WD[x.getDay()]+' '+x.getDate()+'. '+x.toLocaleDateString('de-DE',{month:'long',year:'numeric'})};
 const shiftDay=(d,n)=>{const x=new Date(d+'T12:00');x.setDate(x.getDate()+n);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')};
+/* ============ Fixkosten: Checkliste pro Monat ============
+   Ein Posten gilt als erledigt, wenn du ihn abhakst – oder automatisch, wenn im Monat eine passende Ausgabe gebucht ist
+   (Stichwort in der Beschreibung und Betrag ±10 %). Ein eigenes Häkchen/Nicht-Häkchen hat immer Vorrang. */
+function fixMatch(f,month){
+  const kw=norm(f.kw||f.name||'');if(!kw)return null;
+  return S.tx.filter(t=>t.date.startsWith(month)&&t.amount<0&&norm(t.desc).includes(kw)&&Math.abs(Math.abs(t.amount)-f.amount)<=Math.max(1,f.amount*.1)&&(!f.account||!t.account||t.account===f.account)).sort((a,b)=>a.date.localeCompare(b.date))[0]||null;
+}
+function fixState(f,month){
+  const o=(S.fixDone[month]||{})[f.id];
+  if(o===true||o===false)return {done:o,manual:true,match:o?fixMatch(f,month):null};
+  const m=fixMatch(f,month);return {done:!!m,auto:!!m,match:m};
+}
+function fixActive(f,month){return (!f.from||month>=f.from)&&(!f.to||month<=f.to)}
+function fixedSection(month){
+  const list=S.fixed.filter(f=>fixActive(f,month)&&(filter.acc==='*'||!f.account||f.account===filter.acc)).sort((a,b)=>(a.day||99)-(b.day||99)||a.name.localeCompare(b.name));
+  const today=todayISO(),cur=today.startsWith(month);
+  const st=list.map(f=>({f,s:fixState(f,month)})),done=st.filter(x=>x.s.done).length;
+  const open=st.filter(x=>!x.s.done),openSum=open.reduce((a,x)=>a+x.f.amount,0),total=list.reduce((a,f)=>a+f.amount,0);
+  const row=({f,s})=>{
+    const late=!s.done&&f.day&&(month<today.slice(0,7)||(cur&&f.day<+today.slice(8)));
+    const info=[f.day?`fällig am ${f.day}.`:'',f.account||'',f.category||''].filter(Boolean).join(' · ');
+    const hit=s.match?`gebucht ${dateDE(s.match.date).slice(0,6)} · ${esc(s.match.desc.slice(0,40))}`:'';
+    return `<div class="fixrow${s.done?' done':''}${late?' late':''}">
+      <label class="fixchk" title="${s.done?'Als offen markieren':'Abhaken'}"><input type="checkbox" data-fx="${f.id}" ${s.done?'checked':''} aria-label="${esc(f.name)} abhaken"><span></span></label>
+      <div class="fixmain" data-fe="${f.id}" role="button" tabindex="0"><div class="fixname">${esc(f.name)}${late?' <span class="fixlate">überfällig</span>':''}</div>
+        <div class="muted">${esc(info)}${hit?(info?' · ':'')+hit+(s.auto?' (automatisch)':''):''}</div></div>
+      <div class="fixamt">${fmt(-f.amount)}</div></div>`;
+  };
+  return `<h2>Fixkosten ${list.length?`(${done}/${list.length})`:''}</h2>
+  <div class="card fixcard">
+    ${list.length?`<div class="fixbar"><div style="width:${list.length?done/list.length*100:0}%"></div></div>
+      <div class="fixsum"><span>${open.length?`Noch offen: <b>${open.length}</b> · <b>${fmt(-openSum)}</b>`:'<b>Alles erledigt ✓</b>'}</span><span class="muted">Fixkosten gesamt ${fmt(-total)}</span></div>
+      ${st.map(row).join('')}`:'<p class="muted">Noch keine Fixkosten. Trag Miete, Abos, Versicherungen usw. ein und hak sie jeden Monat ab.</p>'}
+    <div class="row" style="margin-top:10px"><button id="fixAdd" type="button">+ Fixkosten</button></div>
+  </div>`;
+}
+function editFixed(id){
+  const month=view==='day'?curDay.slice(0,7):curMonth;
+  const f=id?S.fixed.find(x=>x.id===id):{name:'',amount:0,day:'',category:'',account:filter.acc!=='*'?filter.acc:'',kw:'',from:month,to:''};
+  modal(`<h3>${id?'Fixkosten bearbeiten':'Neue Fixkosten'}</h3>
+    <div class="field"><label>Name</label><input id="f_name" value="${esc(f.name)}" placeholder="z. B. Miete, Spotify, Handyvertrag"></div>
+    <div class="row"><div class="field grow"><label>Betrag pro Monat (€)</label><input id="f_amt" inputmode="decimal" value="${f.amount?f.amount.toFixed(2).replace('.',','):''}" placeholder="0,00"></div>
+      <div class="field" style="width:120px"><label>Fällig am (Tag)</label><input id="f_day" type="number" min="1" max="31" value="${f.day||''}" placeholder="z. B. 1"></div></div>
+    <div class="row"><div class="field grow"><label>Kategorie</label><select id="f_cat">${catOptions(f.category,EXP)}</select></div>
+      <div class="field grow"><label>Konto</label><select id="f_acc">${accOptions(f.account||'')}</select></div></div>
+    <div class="field"><label>Erkennen an (Stichwort in der Buchung)</label><input id="f_kw" value="${esc(f.kw||'')}" placeholder="leer = Name, z. B. „Vodafone“"></div>
+    <p class="muted" style="margin:-6px 0 12px">Findet die App im Monat eine Ausgabe mit diesem Stichwort und ungefähr diesem Betrag (±10 %), hakt sie den Posten automatisch ab.</p>
+    <div class="row"><div class="field grow"><label>Gilt ab Monat</label><input id="f_from" type="month" value="${f.from||''}"></div><div class="field grow"><label>Endet nach Monat (optional)</label><input id="f_to" type="month" value="${f.to||''}"></div></div>
+    <div class="row"><button class="primary" id="f_save">Speichern</button><button id="f_cancel">Abbrechen</button><span class="grow"></span>${id?'<button class="danger" id="f_del">Löschen</button>':''}</div>`,'sm');
+  $('#f_cancel').onclick=closeModal;
+  $('#f_save').onclick=()=>{
+    const name=$('#f_name').value.trim(),amt=Math.abs(parseAmount($('#f_amt').value)),day=parseInt($('#f_day').value,10);
+    if(!name||!amt)return toast('Bitte Name und Betrag angeben');
+    const o={id:id||uid(),name,amount:round2(amt),day:day>=1&&day<=31?day:'',category:$('#f_cat').value,account:$('#f_acc').value,kw:$('#f_kw').value.trim(),from:$('#f_from').value||'',to:$('#f_to').value||''};
+    if(id)Object.assign(f,o);else S.fixed.push(o);
+    save();closeModal();render();
+  };
+  if(id)$('#f_del').onclick=()=>{if(!confirm(`„${f.name}“ aus den Fixkosten löschen? (Für vergangene Monate reicht auch „Endet nach Monat“.)`))return;
+    S.fixed=S.fixed.filter(x=>x.id!==id);for(const m in S.fixDone)delete S.fixDone[m][id];save();closeModal();render()};
+}
 function monthView(){
   const isDay=view==='day',key=isDay?curDay:curMonth;
   const all=S.tx.filter(t=>t.date.startsWith(key)&&accOk(t));
@@ -547,7 +627,8 @@ function monthView(){
   </div>
   <div class="tablewrap"><table><thead><tr><th>Datum</th><th>Beschreibung</th><th class="hide-s">Kategorie</th><th class="n">Betrag</th></tr></thead><tbody>
   ${list.map(t=>`<tr class="click" data-id="${t.id}"><td>${dateDE(t.date)}</td><td>${esc(t.desc)}${t.account?` <span class="acc">${esc(t.account)}</span>`:''}${t.note?`<div class="muted">${esc(t.note)}</div>`:''}</td><td class="hide-s"><span class="dot" style="background:${catColor(t.category,typeOf(t.amount))}"></span>${esc(catLabel(t.category))}</td><td class="n ${isXfer(t)?'xfer':t.amount>=0?'pos':'neg'}">${fmt(t.amount)}</td></tr>`).join('')||'<tr><td colspan="4" class="muted">Noch keine Buchungen '+(isDay?'an diesem Tag':'in diesem Monat')+'. Nutze „Import“ oder „+ Buchung“.</td></tr>'}
-  </tbody></table></div>`;
+  </tbody></table></div>
+  ${fixedSection(key.slice(0,7))}`;
 }
 function yearView(){
   const all=S.tx.filter(t=>t.date.startsWith(curYear+'-')&&accOk(t));
@@ -603,6 +684,12 @@ function bindView(){
   on('#mp','change',e=>{if(e.target.value){if(view==='day')curDay=e.target.value;else curMonth=e.target.value;render()}});
   on('#fp','change',e=>setPeriod(e.target.value));
   on('#ovBtn','click',openOverview);
+  on('#fixAdd','click',()=>editFixed(null));
+  document.querySelectorAll('[data-fx]').forEach(e=>e.onchange=()=>{
+    const m=view==='day'?curDay.slice(0,7):curMonth;S.fixDone[m]=S.fixDone[m]||{};S.fixDone[m][e.dataset.fx]=e.checked;
+    save();const y=scrollY;render();scrollTo(0,y);
+  });
+  document.querySelectorAll('[data-fe]').forEach(e=>{const go=()=>editFixed(e.dataset.fe);e.onclick=go;e.onkeydown=ev=>{if(ev.key==='Enter')go()}});
   const pickMonth=()=>{const m=$('#mp');try{m.showPicker()}catch(e){m.focus();m.click()}};
   on('#ptitle','click',pickMonth);on('#ptitle','keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();pickMonth()}});
   on('#py','click',()=>{curYear--;render()});
@@ -1414,7 +1501,7 @@ function serMonth(m){
   const tb=S.tomb.filter(t=>t.date.startsWith(m)).map(t=>({id:t.id,date:t.date,u:t.u||0})).sort((a,b)=>a.id.localeCompare(b.id));
   return `{\n "tx": [${jlines(tx)}],\n "tomb": [${jlines(tb)}]\n}\n`;
 }
-const serSettings=()=>JSON.stringify({u:S.su||0,catsV:S.catsV||0,cats:S.cats,rules:S.rules,access:S.access||null,ai:S.ai||null,accounts:S.accounts,owner:S.owner||''},null,1)+'\n';
+const serSettings=()=>JSON.stringify({u:S.su||0,catsV:S.catsV||0,cats:S.cats,rules:S.rules,access:S.access||null,ai:S.ai||null,accounts:S.accounts,owner:S.owner||'',fixed:S.fixed||[],fixDone:S.fixDone||{}},null,1)+'\n';
 const b64d=s=>new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\s/g,'')),c=>c.charCodeAt(0)));
 function b64e(s){const b=new TextEncoder().encode(s);let o='';for(let i=0;i<b.length;i+=8192)o+=String.fromCharCode(...b.subarray(i,i+8192));return btoa(o)}
 
@@ -1450,7 +1537,7 @@ function mergeIn(txs,tombs){
 function mergeFile(name,content){
   let d;try{d=JSON.parse(content)}catch(e){return false}
   if(name==='settings.json'){
-    if((d.u||0)>(S.su||0)&&Array.isArray(d.cats)&&Array.isArray(d.rules)){S.cats=d.cats;S.rules=d.rules;S.access=d.access||S.access;S.ai=d.ai===undefined?S.ai:d.ai;if(Array.isArray(d.accounts))S.accounts=d.accounts;if(typeof d.owner==='string')S.owner=d.owner;S.su=d.u;ssig=JSON.stringify([S.cats,S.rules,S.access,S.ai,S.accounts,S.owner]);S.catsV=d.catsV||0;if(S.catsV<CATS_V){S.su=d.u;migrateCats()}return true}
+    if((d.u||0)>(S.su||0)&&Array.isArray(d.cats)&&Array.isArray(d.rules)){S.cats=d.cats;S.rules=d.rules;S.access=d.access||S.access;S.ai=d.ai===undefined?S.ai:d.ai;if(Array.isArray(d.accounts))S.accounts=d.accounts;if(typeof d.owner==='string')S.owner=d.owner;if(Array.isArray(d.fixed))S.fixed=d.fixed;if(d.fixDone&&typeof d.fixDone==='object')S.fixDone=d.fixDone;S.su=d.u;ssig=JSON.stringify([S.cats,S.rules,S.access,S.ai,S.accounts,S.owner,S.fixed,S.fixDone]);S.catsV=d.catsV||0;if(S.catsV<CATS_V){S.su=d.u;migrateCats()}return true}
     return false;
   }
   return mergeIn(d.tx||[],d.tomb||[]);
