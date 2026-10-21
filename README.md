@@ -10,6 +10,7 @@ Einnahmen und Ausgaben tracken – als einzelne HTML-Datei (`index.html`), ohne 
 - **Konto pro Buchung** (Standard: Commerzbank, N26; in den Einstellungen änderbar) – beim Import automatisch erkannt (Claude am Dokument, CSV am Exportformat), Filter „Alle Konten“ / einzelnes Konto in Monats- und Jahresansicht
 - **Umbuchungen** zwischen deinen eigenen Konten (z. B. Commerzbank → N26) bekommen die Kategorie „Umbuchung“ und zählen nicht in Einnahmen, Ausgaben, Saldo und Sparquote. Beim Import werden Gegenbuchungen automatisch erkannt (gleicher Betrag, umgekehrtes Vorzeichen, anderes Konto, max. 4 Tage auseinander) und an deinem Namen: Ist in den Einstellungen der **Kontoinhaber** eingetragen, wird jede Überweisung von oder an diesen Namen zur Umbuchung (geprüft wird die Gegenpartei, nicht der Verwendungszweck)
 - Duplikat-Erkennung beim Import, Vorschau zum Korrigieren vor dem Übernehmen
+- **ToDos** (Kreis-mit-Haken-Symbol oben): tägliche Liste mit < > durch die Tage, abhaken, bearbeiten; Unerledigtes von früheren Tagen erscheint unter „Heute“ und lässt sich mit einem Tipp übernehmen. Sync über `data/todos.json`
 - **Dunkel / Hell / System** unter *Einstellungen → Darstellung* (pro Gerät)
 - **Geräteübergreifender Sync** über ein *privates* GitHub-Repo (eine JSON-Datei pro Monat)
 - **Workout-Tracker** (Hantel-Symbol oben, zurück zu den Finanzen mit dem $ daneben): Körperkarte vorne/hinten mit 14 Muskelgruppen
@@ -19,7 +20,7 @@ Einnahmen und Ausgaben tracken – als einzelne HTML-Datei (`index.html`), ohne 
 | Repo | Sichtbarkeit | Inhalt |
 |---|---|---|
 | `1percent` (dieses Repo) | öffentlich | nur die App – **keine** Finanzdaten, **keine** Zugangsdaten |
-| Daten-Repo (jede Person ein eigenes, z. B. `1percent-data`) | **privat** | `data/YYYY-MM.json`, `data/settings.json`, `data/workouts.json` |
+| Daten-Repo (jede Person ein eigenes, z. B. `1percent-data`) | **privat** | `data/YYYY-MM.json`, `data/settings.json`, `data/workouts.json`, `data/todos.json` |
 
 ## Einrichtung (pro Person, einmalig)
 

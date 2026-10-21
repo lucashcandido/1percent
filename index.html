@@ -426,6 +426,14 @@ button.micbtn.rec{background:#ef4444;color:#fff;animation:micpulse 1.2s ease-in-
 :root[data-theme="light"] .seg button:not(.on){background:transparent;border:0}
 :root[data-theme="light"] .seg button:not(.on):hover{color:var(--tx)}
 .themeseg{max-width:360px;margin:0}
+/* --- ToDos --- */
+body.td #btnImport{display:none}
+.tdchk span{border-radius:50%}
+.fixcard>.tdrow:first-child{border-top:0}
+.tdchk input:checked+span::after{left:8px;top:4px;width:6px;height:11px}
+.tdadd input{min-width:0}
+.tdrow .fixname{word-break:break-word}
+button.tdmove{flex:none;font:500 12.5px var(--sans)!important;font-style:normal!important;text-transform:none;letter-spacing:0;padding:4px 10px}
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.card,.modal,.login,table,header{background:rgba(10,13,21,.96)}}
 </style>
 </head>
@@ -438,13 +446,14 @@ button.micbtn.rec{background:#ef4444;color:#fff;animation:micpulse 1.2s ease-in-
   <button id="btnImport" class="icon-btn" type="button" aria-label="Import" title="Import (Kontoauszug, Screenshot, PDF)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg></button>
   <button id="btnFinance" class="icon-btn" type="button" aria-label="Finanzen" title="Finanzen"><span class="dollar" aria-hidden="true">$</span></button>
   <button id="btnWorkout" class="icon-btn" type="button" aria-label="Training" title="Training"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11"/></svg></button>
+  <button id="btnTodo" class="icon-btn" type="button" aria-label="ToDos" title="ToDos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12.4l2.8 2.8L16.2 9.8"/></svg></button>
   <button id="btnSettings" class="icon-btn" type="button" aria-label="Einstellungen" title="Einstellungen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
 </header>
 <main id="app"></main>
 
 <script>
 /* ============ Konstanten & State ============ */
-const APP_VERSION='2026-10-21.12';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
+const APP_VERSION='2026-10-21.13';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
 const KEY='1percent-v1',CFG_KEY='1percent-cfg',REM_KEY='1percent-remote';
 const DEFAULT_ACCOUNTS=['Commerzbank','N26'];
 const CATS_V=5;          /* Version der Kategorienliste – bei Änderung wird einmalig migriert */
@@ -499,7 +508,7 @@ function catOptions(sel,type){
   return `<option value="" ${!sel?'selected':''}>${NO_CAT}</option>`+body;
 }
 
-let sigs={},ssig='',wsigs={};
+let sigs={},ssig='',wsigs={},tsigs={};
 let S=load();initSigs();migrateCats();
 const todayISO=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
 let period='month';try{const p=localStorage.getItem('1percent-period');if(['day','month','year'].includes(p))period=p}catch(e){}
@@ -516,7 +525,7 @@ const accOk=t=>filter.acc==='*'||(t.account||'')===filter.acc;
 
 function load(){
   let s=null;try{s=JSON.parse(localStorage.getItem(KEY))}catch(e){}
-  return {tx:(s&&s.tx)||[],tomb:(s&&s.tomb)||[],cats:(s&&s.cats)||DEFAULT_CATS,rules:(s&&s.rules)||DEFAULT_RULES,su:(s&&s.su)||0,access:(s&&s.access)||null,ai:(s&&s.ai)||null,accounts:(s&&Array.isArray(s.accounts)&&s.accounts)||DEFAULT_ACCOUNTS.slice(),owner:(s&&s.owner)||'',fixed:(s&&Array.isArray(s.fixed)&&s.fixed)||[],fixDone:(s&&s.fixDone&&typeof s.fixDone==='object'&&s.fixDone)||{},recv:(s&&Array.isArray(s.recv)&&s.recv)||[],pay:(s&&Array.isArray(s.pay)&&s.pay)||[],wo:(s&&Array.isArray(s.wo)&&s.wo)||[],wtomb:(s&&Array.isArray(s.wtomb)&&s.wtomb)||[],catsV:(s&&s.catsV)||0};
+  return {tx:(s&&s.tx)||[],tomb:(s&&s.tomb)||[],cats:(s&&s.cats)||DEFAULT_CATS,rules:(s&&s.rules)||DEFAULT_RULES,su:(s&&s.su)||0,access:(s&&s.access)||null,ai:(s&&s.ai)||null,accounts:(s&&Array.isArray(s.accounts)&&s.accounts)||DEFAULT_ACCOUNTS.slice(),owner:(s&&s.owner)||'',fixed:(s&&Array.isArray(s.fixed)&&s.fixed)||[],fixDone:(s&&s.fixDone&&typeof s.fixDone==='object'&&s.fixDone)||{},recv:(s&&Array.isArray(s.recv)&&s.recv)||[],pay:(s&&Array.isArray(s.pay)&&s.pay)||[],wo:(s&&Array.isArray(s.wo)&&s.wo)||[],todo:(s&&Array.isArray(s.todo)&&s.todo)||[],ttomb:(s&&Array.isArray(s.ttomb)&&s.ttomb)||[],wtomb:(s&&Array.isArray(s.wtomb)&&s.wtomb)||[],catsV:(s&&s.catsV)||0};
 }
 function migrateCats(){
   if(S.catsV>=CATS_V)return;
@@ -544,13 +553,16 @@ function migrateCats(){
    So lassen sich Änderungen von mehreren Geräten sauber zusammenführen. */
 function sig(t){return JSON.stringify([t.date,t.desc,t.amount,t.category,t.note||'',t.account||''])}
 function wsig(w){return JSON.stringify([w.ts,w.title||'',w.muscles||[],w.ex||[],w.note||''])}
-function initSigs(){sigs={};S.tx.forEach(t=>sigs[t.id]=sig(t));wsigs={};(S.wo||[]).forEach(w=>wsigs[w.id]=wsig(w));ssig=JSON.stringify([S.cats,S.rules,S.access,S.ai,S.accounts,S.owner,S.fixed,S.fixDone,S.recv,S.pay])}
+function tsig(t){return JSON.stringify([t.date,t.text,!!t.done,t.c||0])}
+function initSigs(){sigs={};S.tx.forEach(t=>sigs[t.id]=sig(t));tsigs={};(S.todo||[]).forEach(t=>tsigs[t.id]=tsig(t));wsigs={};(S.wo||[]).forEach(w=>wsigs[w.id]=wsig(w));ssig=JSON.stringify([S.cats,S.rules,S.access,S.ai,S.accounts,S.owner,S.fixed,S.fixDone,S.recv,S.pay])}
 function stamp(){
   const now=Date.now(),ids=new Set();
   for(const t of S.tx){ids.add(t.id);const j=sig(t);if(sigs[t.id]!==j){t.u=now;sigs[t.id]=j}}
   for(const id of Object.keys(sigs))if(!ids.has(id)){S.tomb.push({id,date:JSON.parse(sigs[id])[0],u:now});delete sigs[id]}
   const wids=new Set();for(const w of S.wo){wids.add(w.id);const j=wsig(w);if(wsigs[w.id]!==j){w.u=now;wsigs[w.id]=j}}
   for(const id of Object.keys(wsigs))if(!wids.has(id)){S.wtomb.push({id,u:now});delete wsigs[id]}
+  const tids=new Set();for(const t of S.todo){tids.add(t.id);const j=tsig(t);if(tsigs[t.id]!==j){t.u=now;tsigs[t.id]=j}}
+  for(const id of Object.keys(tsigs))if(!tids.has(id)){S.ttomb.push({id,u:now});delete tsigs[id]}
   const ss=JSON.stringify([S.cats,S.rules,S.access,S.ai,S.accounts,S.owner,S.fixed,S.fixDone,S.recv,S.pay]);if(ss!==ssig){S.su=now;ssig=ss}
 }
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
@@ -616,6 +628,8 @@ function render(){
   const locked=isLocked();document.body.classList.toggle('locked',locked);
   if(locked){app.innerHTML=loginHTML();bindLogin();updateSyncStatus();return}
   const banner=cfg()?'':'<div class="warn">Sync ist noch nicht eingerichtet – deine Daten liegen nur in diesem Browser. <button id="bannerSync">Jetzt einrichten</button></div>';
+  document.body.classList.toggle('td',view==='todo');{const gt=$('#btnTodo');if(gt)gt.classList.toggle('active',view==='todo')}
+  if(view==='todo'){app.innerHTML=banner+todoView();bindView();bindTodo();document.body.classList.remove('wo');updateSyncStatus();{const gw=$('#btnWorkout');if(gw)gw.classList.remove('active')}const bs3=$('#bannerSync');if(bs3)bs3.onclick=openData;return}
   if(view==='workout'){app.innerHTML=banner+workoutView();bindView();bindWorkout();document.body.classList.add('wo');updateSyncStatus();const gw=$('#btnWorkout');if(gw)gw.classList.add('active');const gs2=$('#btnSettings');if(gs2)gs2.classList.remove('active');const bs2=$('#bannerSync');if(bs2)bs2.onclick=openData;return}
   document.body.classList.remove('wo');{const gw=$('#btnWorkout');if(gw)gw.classList.remove('active')}
   if(view==='month'||view==='day')app.innerHTML=banner+monthView();
@@ -907,6 +921,53 @@ function bindWorkout(){
     items.forEach(w=>S.wo.push({id:uid(),ts:w.ts,title:w.title,muscles:w.muscles,ex:w.ex,note:''}));woDraft=null;save();render();toast(items.length===1?'Training gespeichert':items.length+' Trainings gespeichert');scrollTo(0,0)});
   document.querySelectorAll('.bodymap .mz').forEach(p=>p.onclick=()=>{const st=muscleState()[p.dataset.m];toast(MUSCLES[p.dataset.m]+(st?` – zuletzt ${agoText(st.h)} (${st.w.title||'Training'})`:' – noch nicht trainiert'))});
   clearInterval(woTimer);woTimer=setInterval(()=>{if(view==='workout'&&!$('#modalBg')&&!woRec&&!(woDraft&&woDraft.items))render()},60000);
+}
+
+/* ============ ToDos: tägliche Liste ============ */
+let todoDay=todayISO();
+const tdLabel=d=>{const t=todayISO();return d===t?'Heute':d===shiftDay(t,1)?'Morgen':d===shiftDay(t,-1)?'Gestern':new Date(d+'T12:00').toLocaleDateString('de-DE',{weekday:'short',day:'numeric',month:'short'})};
+function todoView(){
+  const t=todayISO(),list=S.todo.filter(x=>x.date===todoDay),open=list.filter(x=>!x.done).sort((a,b)=>(a.c||0)-(b.c||0)),done=list.filter(x=>x.done).sort((a,b)=>(a.done||0)-(b.done||0));
+  const old=todoDay===t?S.todo.filter(x=>!x.done&&x.date<t).sort((a,b)=>a.date.localeCompare(b.date)||(a.c||0)-(b.c||0)):[];
+  const sub=todoDay===t?new Date(t+'T12:00').toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long'}):'';
+  const row=(x,showDate)=>`<div class="fixrow tdrow${x.done?' done':''}">
+      <label class="fixchk tdchk" title="${x.done?'Wieder öffnen':'Erledigt'}"><input type="checkbox" data-tdc="${x.id}" ${x.done?'checked':''} aria-label="${esc(x.text)} erledigt"><span></span></label>
+      <div class="fixmain" data-tde="${x.id}" role="button" tabindex="0"><div class="fixname">${esc(x.text)}</div>${showDate?`<div class="muted">${tdLabel(x.date)}</div>`:''}</div>
+      ${showDate?`<button type="button" class="tdmove" data-tdm="${x.id}" title="Auf heute verschieben">Heute</button>`:''}</div>`;
+  return `<div class="period"><button id="tdPrev" class="navarrow" aria-label="Vorheriger Tag">&lt;</button><span class="ptitle${todoDay===t?'':' day'}" id="tdTitle" title="Zu heute">${tdLabel(todoDay)}</span><button id="tdNext" class="navarrow" aria-label="Nächster Tag">&gt;</button></div>
+  ${sub?`<p class="muted" style="text-align:center;margin:2px 0 0">${sub}</p>`:todoDay!==t?`<div class="periodsub"><button id="tdToday" type="button" class="ovbtn">Zu heute</button></div>`:''}
+  <div class="card fixcard" style="margin-top:14px">
+    <form id="tdForm" class="row tdadd" autocomplete="off"><input id="tdIn" class="grow" placeholder="Neues ToDo …" enterkeyhint="done" aria-label="Neues ToDo"><button class="primary" type="submit">Hinzufügen</button></form>
+    ${list.length?`<div class="fixbar" style="margin-top:14px"><div style="width:${done.length/list.length*100}%"></div></div>
+      <div class="fixsum"><span>${open.length?`Offen: <b>${open.length}</b>`:'<b>Alles erledigt ✓</b>'}</span><span class="muted">${done.length} von ${list.length} erledigt</span></div>`:'<p class="muted" style="margin:12px 0 0">Noch nichts für diesen Tag. Schreib oben dein erstes ToDo rein.</p>'}
+    ${open.map(x=>row(x)).join('')}${done.map(x=>row(x)).join('')}
+  </div>
+  ${old.length?`<h2>Offen von früheren Tagen (${old.length})</h2><div class="card fixcard">${old.map(x=>row(x,true)).join('')}
+    <div class="row" style="margin-top:10px"><button type="button" id="tdMoveAll">Alle auf heute übernehmen</button></div></div>`:''}`;
+}
+function editTodo(id){
+  const x=S.todo.find(v=>v.id===id);if(!x)return;
+  modal(`<h3>ToDo bearbeiten</h3>
+    <div class="field"><label>ToDo</label><input id="td_text" value="${esc(x.text)}"></div>
+    <div class="field"><label>Tag</label><input id="td_date" type="date" value="${x.date}"></div>
+    <div class="row"><button class="primary" id="td_save">Speichern</button><button id="td_cancel">Abbrechen</button><span class="grow"></span><button class="danger" id="td_del">Löschen</button></div>`,'sm');
+  $('#td_cancel').onclick=closeModal;
+  $('#td_save').onclick=()=>{const t=$('#td_text').value.trim();if(!t)return toast('Bitte einen Text eingeben');x.text=t;if($('#td_date').value)x.date=$('#td_date').value;save();closeModal();render()};
+  $('#td_text').onkeydown=e=>{if(e.key==='Enter')$('#td_save').click()};
+  $('#td_del').onclick=()=>{S.todo=S.todo.filter(v=>v.id!==id);save();closeModal();render()};
+}
+function bindTodo(){
+  const keep=fn=>{const y=scrollY;fn();save();render();scrollTo(0,y)};
+  const on=(id,fn)=>{const e=$(id);if(e)e.onclick=fn};
+  on('#tdPrev',()=>{todoDay=shiftDay(todoDay,-1);render()});
+  on('#tdNext',()=>{todoDay=shiftDay(todoDay,1);render()});
+  on('#tdTitle',()=>{todoDay=todayISO();render()});on('#tdToday',()=>{todoDay=todayISO();render()});
+  const f=$('#tdForm');if(f)f.onsubmit=e=>{e.preventDefault();const v=$('#tdIn').value.trim();if(!v)return;
+    S.todo.push({id:uid(),date:todoDay,text:v,done:0,c:Date.now()});save();render();const i=$('#tdIn');if(i)i.focus()};
+  document.querySelectorAll('[data-tdc]').forEach(e=>e.onchange=()=>keep(()=>{const x=S.todo.find(v=>v.id===e.dataset.tdc);if(x)x.done=e.checked?Date.now():0}));
+  document.querySelectorAll('[data-tde]').forEach(e=>{const go=()=>editTodo(e.dataset.tde);e.onclick=go;e.onkeydown=ev=>{if(ev.key==='Enter')go()}});
+  document.querySelectorAll('[data-tdm]').forEach(b=>b.onclick=()=>keep(()=>{const x=S.todo.find(v=>v.id===b.dataset.tdm);if(x)x.date=todayISO()}));
+  on('#tdMoveAll',()=>keep(()=>{const t=todayISO();S.todo.forEach(x=>{if(!x.done&&x.date<t)x.date=t})}));
 }
 
 function monthView(){
@@ -1865,6 +1926,14 @@ function mergeIn(txs,tombs){
   return changed;
 }
 const serWorkouts=()=>{const w=[...S.wo].sort((a,b)=>a.ts.localeCompare(b.ts)||a.id.localeCompare(b.id)),t=[...S.wtomb].sort((a,b)=>a.id.localeCompare(b.id));return `{\n "wo": [${jlines(w)}],\n "tomb": [${jlines(t)}]\n}\n`};
+const serTodos=()=>{const a=[...S.todo].sort((x,y)=>x.date.localeCompare(y.date)||(x.c||0)-(y.c||0)||x.id.localeCompare(y.id)),t=[...S.ttomb].sort((x,y)=>x.id.localeCompare(y.id));return `{\n "todo": [${jlines(a)}],\n "tomb": [${jlines(t)}]\n}\n`};
+function mergeTodos(d){
+  let changed=false;const map=new Map(S.todo.map(t=>[t.id,t])),tm=new Map(S.ttomb.map(t=>[t.id,t]));
+  for(const t of d.tomb||[]){const c=tm.get(t.id);if(!c||(t.u||0)>(c.u||0))tm.set(t.id,t)}
+  for(const t of d.todo||[]){if(!t||!t.id||!t.date)continue;const c=map.get(t.id);if(!c||(t.u||0)>(c.u||0)){map.set(t.id,{...t});tsigs[t.id]=tsig(t);changed=true}}
+  for(const [id,t] of tm){const c=map.get(id);if(c&&(t.u||0)>=(c.u||0)){map.delete(id);delete tsigs[id];changed=true}}
+  S.todo=[...map.values()];S.ttomb=[...tm.values()];return changed;
+}
 function mergeWorkouts(d){
   let changed=false;const map=new Map(S.wo.map(w=>[w.id,w])),tm=new Map(S.wtomb.map(t=>[t.id,t]));
   for(const t of d.tomb||[]){const c=tm.get(t.id);if(!c||(t.u||0)>(c.u||0))tm.set(t.id,t)}
@@ -1875,6 +1944,7 @@ function mergeWorkouts(d){
 function mergeFile(name,content){
   let d;try{d=JSON.parse(content)}catch(e){return false}
   if(name==='workouts.json')return mergeWorkouts(d);
+  if(name==='todos.json')return mergeTodos(d);
   if(name==='settings.json'){
     if((d.u||0)>(S.su||0)&&Array.isArray(d.cats)&&Array.isArray(d.rules)){S.cats=d.cats;S.rules=d.rules;S.access=d.access||S.access;S.ai=d.ai===undefined?S.ai:d.ai;if(Array.isArray(d.accounts))S.accounts=d.accounts;if(typeof d.owner==='string')S.owner=d.owner;if(Array.isArray(d.fixed))S.fixed=d.fixed;if(d.fixDone&&typeof d.fixDone==='object')S.fixDone=d.fixDone;if(Array.isArray(d.recv))S.recv=d.recv;if(Array.isArray(d.pay))S.pay=d.pay;S.su=d.u;ssig=JSON.stringify([S.cats,S.rules,S.access,S.ai,S.accounts,S.owner,S.fixed,S.fixDone,S.recv,S.pay]);S.catsV=d.catsV||0;if(S.catsV<CATS_V){S.su=d.u;migrateCats()}return true}
     return false;
@@ -1894,7 +1964,7 @@ async function syncNow(quiet){
       const ls=await gh(c,'GET','/contents/data',null,dirTag&&attempt===0?{'If-None-Match':dirTag}:null);
       let items;
       if(ls.status===304)items=lastItems;
-      else{items=ls.status===404?[]:ls.json.filter(x=>x.type==='file'&&/^(\d{4}-\d{2}|settings|workouts)\.json$/.test(x.name));dirTag=ls.etag||'';lastItems=items}
+      else{items=ls.status===404?[]:ls.json.filter(x=>x.type==='file'&&/^(\d{4}-\d{2}|settings|workouts|todos)\.json$/.test(x.name));dirTag=ls.etag||'';lastItems=items}
       const names=new Set(items.map(x=>x.name));
       for(const n of Object.keys(R))if(!names.has(n))delete R[n];
       for(const it of items){
@@ -1916,6 +1986,8 @@ async function syncNow(quiet){
       if(!R['settings.json']||R['settings.json'].content!==ss)jobs.push(['settings.json',ss,'Einstellungen']);
       const ws=serWorkouts();
       if((S.wo.length||S.wtomb.length||R['workouts.json'])&&(!R['workouts.json']||R['workouts.json'].content!==ws))jobs.push(['workouts.json',ws,'Training']);
+      const tds=serTodos();
+      if((S.todo.length||S.ttomb.length||R['todos.json'])&&(!R['todos.json']||R['todos.json'].content!==tds))jobs.push(['todos.json',tds,'ToDos']);
       let conflict=false;
       for(const [n,s,label] of jobs){
         try{
@@ -2171,10 +2243,11 @@ async function checkUpdate(){
 /* ============ Start ============ */
 $('#btnSettings').onclick=()=>{view=view==='settings'?period:'settings';render();scrollTo(0,0)};
 $('#btnWorkout').onclick=()=>{view=view==='workout'?period:'workout';render();scrollTo(0,0)};
+$('#btnTodo').onclick=()=>{if(view!=='todo')todoDay=todayISO();view=view==='todo'?period:'todo';render();scrollTo(0,0)};
 $('#btnFinance').onclick=()=>{view=period;render();scrollTo(0,0)};
-const goHome=()=>{if(view==='settings'||view==='workout'){view=period;render()}scrollTo(0,0)};
+const goHome=()=>{if(view==='settings'||view==='workout'||view==='todo'){view=period;render()}scrollTo(0,0)};
 $('#home').onclick=goHome;$('#home').onkeydown=e=>{if(e.key==='Enter')goHome()};
-$('#btnAdd').onclick=()=>view==='workout'?editWorkout(null):editTx(null);
+$('#btnAdd').onclick=()=>view==='todo'?($('#tdIn')&&$('#tdIn').focus()):view==='workout'?editWorkout(null):editTx(null);
 $('#btnImport').onclick=openImport;
 $('#syncBtn').onclick=openData;
 asstInit();
