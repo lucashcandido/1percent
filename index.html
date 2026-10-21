@@ -267,6 +267,37 @@ button.icon-btn:hover,button.icon-btn.active{background:rgba(255,255,255,.07)}
   button.pill{padding:9px;margin-right:4px}button.pill:not(.error) .txt{display:none}
   .navarrow-sp{min-width:44px}
 }
+/* --- Overview / Diagramme --- */
+button.ovbtn{font:500 13px var(--sans)!important;font-style:normal!important;text-transform:none;letter-spacing:0;padding:5px 12px;border-radius:11px;background:#d4d7dd;color:#0b0d12;border:0}
+button.ovbtn:hover{background:#e1e4e9}
+.modal.ovmodal{max-width:760px}
+.ovhead{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:12px}.ovhead h3{margin:0!important}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:3px;padding:3px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid var(--line);margin-bottom:14px}
+.seg button{border:0;background:transparent;color:var(--mut);font:600 14px var(--sans)!important;font-style:normal!important;text-transform:none;letter-spacing:0;border-radius:9px;padding:7px}
+.seg button.on{background:#d4d7dd;color:#0b0d12}
+.ovkpi{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:4px}
+.ovkpi span{display:block;font-size:12px;color:var(--mut)}.ovkpi b{display:block;font:800 italic 22px/1.2 var(--serif);white-space:nowrap}
+.ovwrap{position:relative;touch-action:pan-y;outline-offset:4px;border-radius:8px}
+.ovwrap h4{margin:16px 0 4px;font:500 13px var(--sans);color:var(--mut);text-transform:none;letter-spacing:0}
+.ovlegend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;color:var(--mut);margin-bottom:2px}
+.ovwrap .k,.ovtip .k{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.k.in{background:var(--pos)}.k.out{background:var(--neg)}.k.bal{background:#d4d7dd;height:3px;width:14px;vertical-align:3px}
+.ovwrap svg{display:block;max-width:100%}
+.ovwrap .gr{stroke:rgba(255,255,255,.07);stroke-width:1}.ovwrap .ax{stroke:rgba(255,255,255,.3);stroke-width:1}
+.ovwrap .tk{font-size:11px;fill:var(--mut);font-variant-numeric:tabular-nums}
+.ovwrap .bar.in{fill:var(--pos)}.ovwrap .bar.out{fill:var(--neg)}
+.ovwrap.has-cur .bar:not(.on){opacity:.38}
+.ovwrap .line{fill:none;stroke:#d4d7dd;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.ovwrap .area{fill:#d4d7dd;opacity:.08}
+.ovwrap .pt{fill:#d4d7dd;stroke:#0a0d15;stroke-width:2}
+.ovwrap .lb{font-size:12.5px;font-weight:600;fill:#fff}
+.ovwrap .cross{stroke:rgba(255,255,255,.35);stroke-width:1}
+.ovtip{position:absolute;top:40px;z-index:3;min-width:170px;padding:9px 11px;border-radius:12px;background:rgba(14,18,28,.97);border:1px solid rgba(255,255,255,.16);box-shadow:0 12px 30px rgba(0,0,0,.6);font-size:13px;pointer-events:none}
+.ovtip .th{font-weight:600;margin-bottom:4px}.ovtip .tr{display:flex;align-items:center;gap:4px;white-space:nowrap}.ovtip .tr b{margin-left:auto;padding-left:12px;font-variant-numeric:tabular-nums}
+.ovtip .tr.sm{font-size:12px;color:var(--mut)}.ovtip .tsep{height:1px;background:var(--line);margin:5px 0}
+.ovtable{overflow-x:auto;margin-top:8px}.ovtable table{font-size:13px;border-radius:12px}.ovtable th,.ovtable td{text-align:right;padding:6px 8px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.ovtable th:first-child,.ovtable td:first-child{text-align:left}
+@media(max-width:600px){.modal.ovmodal{padding:16px}.ovkpi b{font-size:17px}}
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.card,.modal,.login,table,header{background:rgba(10,13,21,.96)}}
 </style>
 </head>
@@ -283,7 +314,7 @@ button.icon-btn:hover,button.icon-btn.active{background:rgba(255,255,255,.07)}
 
 <script>
 /* ============ Konstanten & State ============ */
-const APP_VERSION='2026-10-21.4';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
+const APP_VERSION='2026-10-21.5';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
 const KEY='1percent-v1',CFG_KEY='1percent-cfg',REM_KEY='1percent-remote';
 const DEFAULT_ACCOUNTS=['Commerzbank','N26'];
 const CATS_V=5;          /* Version der Kategorienliste – bei Änderung wird einmalig migriert */
@@ -496,7 +527,7 @@ function monthView(){
     <span class="ptitle${isDay?' day':''}" id="ptitle" role="button" tabindex="0" title="${isDay?'Tag':'Monat'} wählen">${isDay?dayLabel(curDay):monthLabel(curMonth)}<input type="${isDay?'date':'month'}" id="mp" value="${key}" tabindex="-1" aria-label="${isDay?'Tag':'Monat'} wählen"></span>
     <button id="nm" class="navarrow" aria-label="${isDay?'Nächster Tag':'Nächster Monat'}">&gt;</button>
   </div>
-  <div class="periodsub">${periodSelect()}<select id="fa" class="accsel">${accOptions(filter.acc,true)}</select></div>
+  <div class="periodsub">${periodSelect()}<select id="fa" class="accsel">${accOptions(filter.acc,true)}</select><button id="ovBtn" class="ovbtn" type="button">Overview</button></div>
   <div class="cards">
     <div class="card"><div class="l">Einnahmen</div><div class="v pos">${fmt(sm.inc)}</div></div>
     <div class="card"><div class="l">Ausgaben</div><div class="v neg">${fmt(sm.exp)}</div></div>
@@ -525,7 +556,7 @@ function yearView(){
   const tot=sums(all);
   return `
   <div class="period"><button id="py" class="navarrow" aria-label="Vorheriges Jahr">&lt;</button><span class="ptitle">${curYear}</span><button id="ny" class="navarrow" aria-label="Nächstes Jahr">&gt;</button></div>
-  <div class="periodsub">${periodSelect()}<select id="fa" class="accsel">${accOptions(filter.acc,true)}</select></div>
+  <div class="periodsub">${periodSelect()}<select id="fa" class="accsel">${accOptions(filter.acc,true)}</select><button id="ovBtn" class="ovbtn" type="button">Overview</button></div>
   <div class="cards">
     <div class="card"><div class="l">Einnahmen</div><div class="v pos">${fmt(tot.inc)}</div></div>
     <div class="card"><div class="l">Ausgaben</div><div class="v neg">${fmt(tot.exp)}</div></div>
@@ -571,6 +602,7 @@ function bindView(){
   on('#nm','click',()=>{if(view==='day')curDay=shiftDay(curDay,1);else curMonth=shiftMonth(curMonth,1);render()});
   on('#mp','change',e=>{if(e.target.value){if(view==='day')curDay=e.target.value;else curMonth=e.target.value;render()}});
   on('#fp','change',e=>setPeriod(e.target.value));
+  on('#ovBtn','click',openOverview);
   const pickMonth=()=>{const m=$('#mp');try{m.showPicker()}catch(e){m.focus();m.click()}};
   on('#ptitle','click',pickMonth);on('#ptitle','keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();pickMonth()}});
   on('#py','click',()=>{curYear--;render()});
@@ -1235,6 +1267,139 @@ function asstInit(){
   inp.oninput=()=>{inp.style.height='';inp.style.height=Math.min(140,inp.scrollHeight)+'px'};
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#modalBg')&&!p.hidden)asstClose()});
 }
+
+/* ============ Overview: alles als Diagramm (wie „Resumen“ in Castcomercial) ============
+   Zwei Ansichten mit gemeinsamer Zeitachse:
+   - Tage des Monats: Einnahmen (Säulen nach oben) und Ausgaben (nach unten) je Tag, darunter der laufende Saldo des Monats;
+   - Monate: die 12 Monate bis zum gewählten Monat (bzw. das gewählte Jahr) mit Einnahmen/Ausgaben, Saldo je Monat und
+     den Ausgaben nach Kategorie als gestapelte Säulen.
+   Umbuchungen zählen nicht mit, der Kontofilter gilt. Alle Zahlen stehen zusätzlich in der Tabelle. */
+const MON3=['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+const daysIn=m=>{const [y,mo]=m.split('-').map(Number);return new Date(y,mo,0).getDate()};
+const fmtSigned=n=>(n>0?'+':'')+fmt(n);
+function compactEur(n){const a=Math.abs(n),sg=n<0?'−':'';const f=(v,d)=>new Intl.NumberFormat('de-DE',{maximumFractionDigits:d}).format(v);return a>=1e6?sg+f(a/1e6,1)+' Mio':a>=1e3?sg+f(a/1e3,a<1e4?1:0)+'k':sg+f(a,0)}
+function niceStep(range,parts){const raw=range/parts,pow=Math.pow(10,Math.floor(Math.log10(raw)));return [1,2,2.5,5,10].map(k=>k*pow).find(x=>x>=raw)||pow*10}
+const ovTx=()=>S.tx.filter(t=>accOk(t)&&!isXfer(t));
+function ovDays(month){
+  const n=daysIn(month),pts=Array.from({length:n},(_,i)=>({key:month+'-'+String(i+1).padStart(2,'0'),in:0,out:0,any:false,cats:{}}));
+  for(const t of ovTx()){if(!t.date.startsWith(month))continue;const p=pts[+t.date.slice(8)-1];if(!p)continue;if(t.amount>0)p.in+=t.amount;else{p.out-=t.amount;p.cats[t.category||'']=(p.cats[t.category||'']||0)-t.amount}p.any=true}
+  let run=0;for(const p of pts){p.net=round2(p.in-p.out);run=round2(run+p.net);p.cum=run}
+  return pts;
+}
+function ovMonths(keys){
+  const map={};for(const k of keys)map[k]={key:k,in:0,out:0,any:false,cats:{}};
+  for(const t of ovTx()){const p=map[t.date.slice(0,7)];if(!p)continue;if(t.amount>0)p.in+=t.amount;else{p.out-=t.amount;p.cats[t.category||'']=(p.cats[t.category||'']||0)-t.amount}p.any=true}
+  let run=0;return keys.map(k=>{const p=map[k];p.in=round2(p.in);p.out=round2(p.out);p.net=round2(p.in-p.out);run=round2(run+p.net);p.cum=run;return p});
+}
+const ov={mode:'days',cur:-1,cfg:null,geo:null};
+function ovBase(){
+  if(view==='year'){const t=todayISO();return {month:String(curYear)===t.slice(0,4)?t.slice(0,7):curYear+'-12',year:curYear}}
+  return {month:view==='day'?curDay.slice(0,7):curMonth,year:null};
+}
+function ovConfig(){
+  const b=ovBase();
+  if(ov.mode==='months'){
+    const keys=b.year?Array.from({length:12},(_,i)=>b.year+'-'+String(i+1).padStart(2,'0')):Array.from({length:12},(_,i)=>shiftMonth(b.month,i-11));
+    const pts=ovMonths(keys),first=Math.max(0,pts.findIndex(p=>p.any)),last=pts.reduce((a,p,i)=>p.any?i:a,-1);
+    return {pts,from:first,to:b.year?Math.max(first,last)+1:pts.length,startZero:false,dots:true,val:p=>p.net,cats:true,
+      sub:b.year?'Jahr '+b.year:'12 Monate bis '+monthLabel(b.month),titleA:'Einnahmen und Ausgaben je Monat',titleB:'Saldo je Monat',lineName:'Saldo',
+      tick:p=>MON3[+p.key.slice(5)-1],tick2:(p,i)=>i===0||p.key.endsWith('-01')?p.key.slice(0,4):'',ticks:pts.map((_,i)=>i),
+      name:p=>monthLabel(p.key),head:['Monat','Einnahmen','Ausgaben','Saldo','kumuliert'],row:p=>[monthLabel(p.key),fmt(p.in),fmt(-p.out),fmtSigned(p.net),fmtSigned(p.cum)],empty:'In diesen 12 Monaten gibt es noch keine Buchungen.'};
+  }
+  const pts=ovDays(b.month),used=pts.filter(p=>p.any),n=pts.length,t=todayISO();
+  const to=!used.length?0:t.startsWith(b.month)?Math.max(+t.slice(8),+used[used.length-1].key.slice(8)):n;
+  return {pts,from:0,to,startZero:true,dots:false,val:p=>p.cum,cats:false,
+    sub:monthLabel(b.month),titleA:'Einnahmen und Ausgaben je Tag',titleB:'Laufender Saldo im Monat',lineName:'Saldo bis hier',
+    tick:p=>String(+p.key.slice(8)),tick2:null,ticks:[1,5,10,15,20,25,n].map(d=>d-1),
+    name:p=>dayLabel(p.key),head:['Tag','Einnahmen','Ausgaben','Saldo','kumuliert'],row:p=>[dateDE(p.key),fmt(p.in),fmt(-p.out),fmtSigned(p.net),fmtSigned(p.cum)],empty:'In diesem Monat gibt es noch keine Buchungen.'};
+}
+function openOverview(){
+  ov.mode=view==='year'?'months':'days';
+  modal(`<div class="ovhead"><h3>Overview</h3><span class="muted" id="ovSub"></span></div>
+    <div class="seg" id="ovMode"><button data-m="days">Tage des Monats</button><button data-m="months">Monate</button></div>
+    <div id="ovBody"></div>
+    <div class="row" style="margin-top:16px"><span class="grow"></span><button class="primary" id="ovClose">Fertig</button></div>`,'md ovmodal');
+  $('#ovClose').onclick=closeModal;
+  document.querySelectorAll('#ovMode button').forEach(b=>b.onclick=()=>{ov.mode=b.dataset.m;ovRender()});
+  ovRender();
+}
+function ovRender(){
+  const cfg=ov.cfg=ovConfig();ov.cur=-1;ov.geo=null;
+  document.querySelectorAll('#ovMode button').forEach(b=>{const on=b.dataset.m===ov.mode;b.classList.toggle('on',on);b.setAttribute('aria-pressed',on)});
+  $('#ovSub').textContent=cfg.sub+(filter.acc!=='*'?' · '+(filter.acc||NO_ACC):'');
+  const used=cfg.pts.filter(p=>p.any),sIn=round2(cfg.pts.reduce((a,p)=>a+p.in,0)),sOut=round2(cfg.pts.reduce((a,p)=>a+p.out,0)),net=round2(sIn-sOut);
+  $('#ovBody').innerHTML=`<div class="ovkpi"><div><span>Einnahmen</span><b class="pos">${fmt(sIn)}</b></div><div><span>Ausgaben</span><b class="neg">${fmt(-sOut)}</b></div><div><span>Saldo</span><b class="${net<0?'neg':'pos'}">${fmtSigned(net)}</b></div></div>
+   ${used.length?`<div class="ovwrap" id="ovWrap" tabindex="0" role="group" aria-label="Diagramme – mit Pfeiltasten durch die ${ov.mode==='days'?'Tage':'Monate'}">
+     <h4>${cfg.titleA}</h4><div class="ovlegend"><span><i class="k in"></i>Einnahmen ↑</span><span><i class="k out"></i>Ausgaben ↓</span></div><div id="ovA"></div>
+     <h4>${cfg.titleB}</h4><div id="ovB"></div>
+     ${cfg.cats?`<h4>Ausgaben nach Kategorie je Monat</h4><div class="ovlegend" id="ovCL"></div><div id="ovC"></div>`:''}
+     <div class="ovtip" id="ovTip" hidden></div></div>
+   <p class="muted">Tippe oder fahre über das Diagramm, um die Zahlen eines ${ov.mode==='days'?'Tages':'Monats'} zu sehen.</p>
+   <details><summary>Alle Zahlen als Tabelle</summary><div class="ovtable"><table><thead><tr>${cfg.head.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${used.map(p=>`<tr>${cfg.row(p).map(c=>`<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div></details>`
+   :`<p class="muted" style="margin:20px 0">${cfg.empty}</p>`}`;
+  if(!used.length)return;
+  const wrap=$('#ovWrap'),at=e=>{const r=wrap.getBoundingClientRect();return Math.floor((e.clientX-r.left-ov.geo.L)/ov.geo.band)};
+  wrap.addEventListener('pointermove',e=>ovShow(at(e)));wrap.addEventListener('pointerdown',e=>ovShow(at(e)));
+  wrap.addEventListener('pointerleave',e=>{if(e.pointerType==='mouse')ovHide()});
+  wrap.addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key==='ArrowLeft'){e.preventDefault();ovShow(ov.cur<0?(e.key==='ArrowRight'?0:cfg.pts.length-1):ov.cur+(e.key==='ArrowRight'?1:-1))}else if(e.key==='Escape'&&ov.cur>=0){e.stopPropagation();ovHide()}});
+  ovDraw();
+}
+function ovDraw(){
+  const wrap=$('#ovWrap');if(!wrap)return;const cfg=ov.cfg,pts=cfg.pts,n=pts.length;
+  const W=Math.max(280,Math.round(wrap.clientWidth)),L=50,R=12,band=(W-L-R)/n,bw=Math.max(3,Math.min(26,band-3)),BX=cfg.tick2?34:22;
+  const x=i=>L+(i+.5)*band;
+  const axisX=(y0,h)=>cfg.ticks.map(i=>`<text class="tk" x="${x(i)}" y="${y0+h+15}" text-anchor="middle">${esc(cfg.tick(pts[i],i))}</text>`+(cfg.tick2&&cfg.tick2(pts[i],i)?`<text class="tk" x="${x(i)}" y="${y0+h+29}" text-anchor="middle">${cfg.tick2(pts[i],i)}</text>`:'')).join('');
+  const grid=(lo,hi,step,y)=>{let g='';for(let v=-lo;v<=hi+1e-9;v+=step)g+=`<line class="${Math.abs(v)<1e-9?'ax':'gr'}" x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}"/><text class="tk" x="${L-7}" y="${y(v)+4}" text-anchor="end">${compactEur(v)}</text>`;return g};
+  /* A: Einnahmen nach oben, Ausgaben nach unten */
+  const maxIn=Math.max(...pts.map(p=>p.in)),maxOut=Math.max(...pts.map(p=>p.out));
+  const sA=niceStep(Math.max(maxIn+maxOut,1),4),topA=Math.max(sA,Math.ceil(maxIn/sA)*sA),botA=Math.ceil(maxOut/sA)*sA,HA=190,TA=8,yA=v=>TA+(topA-v)/(topA+botA)*HA;
+  const col=(i,v,cls)=>{if(!v)return '';const h=Math.max(1.5,Math.abs(yA(v)-yA(0))),r=Math.min(4,bw/2,h),x0=x(i)-bw/2,y0=yA(0);
+    return cls==='in'?`<path class="bar in" data-i="${i}" d="M${x0},${y0}v${-(h-r)}q0,${-r} ${r},${-r}h${bw-2*r}q${r},0 ${r},${r}v${h-r}z"/>`:`<path class="bar out" data-i="${i}" d="M${x0},${y0}v${h-r}q0,${r} ${r},${r}h${bw-2*r}q${r},0 ${r},${-r}v${-(h-r)}z"/>`};
+  let a=grid(botA,topA,sA,yA);pts.forEach((p,i)=>{a+=col(i,p.in,'in')+col(i,-p.out,'out')});
+  $('#ovA').innerHTML=`<svg viewBox="0 0 ${W} ${TA+HA+BX}" width="${W}" height="${TA+HA+BX}" role="img" aria-label="${cfg.titleA}">${a}${axisX(TA,HA)}<line class="cross" id="crossA" y1="${TA}" y2="${TA+HA}" visibility="hidden"/></svg>`;
+  /* B: Saldo als Linie */
+  const idx=[];for(let i=cfg.from;i<cfg.to;i++)idx.push(i);
+  const vals=idx.map(i=>cfg.val(pts[i])),hi=Math.max(0,...vals),lo=Math.min(0,...vals);
+  const sB=niceStep(Math.max(hi-lo,1),4),topB=Math.max(hi>0||lo===0?sB:0,Math.ceil(hi/sB)*sB),botB=Math.ceil(-lo/sB)*sB,HB=150,TB=10,yB=v=>TB+(topB-v)/((topB+botB)||1)*HB;
+  let b=grid(botB,topB,sB,yB);
+  if(idx.length){
+    const xy=idx.map((i,k)=>[x(i),yB(vals[k])]),x0=cfg.startZero?L:xy[0][0],end=xy[xy.length-1],right=end[0]>W-R-90;
+    b+=`<path class="area" d="M${x0},${yB(0)} L${xy.map(p=>p.join(',')).join(' L')} L${end[0]},${yB(0)} Z"/><path class="line" d="${(cfg.startZero?'M'+L+','+yB(0)+' L':'M')+xy.map(p=>p.join(',')).join(' L')}"/>`
+      +(cfg.dots?xy.slice(0,-1).map(p=>`<circle class="pt" cx="${p[0]}" cy="${p[1]}" r="3.5"/>`).join(''):'')
+      +`<circle class="pt" cx="${end[0]}" cy="${end[1]}" r="5"/><text class="lb" x="${right?end[0]-9:end[0]+9}" y="${end[1]+(end[1]<TB+22?18:-9)}" text-anchor="${right?'end':'start'}">${esc(fmtSigned(vals[vals.length-1]))}</text>`;
+  }
+  $('#ovB').innerHTML=`<svg viewBox="0 0 ${W} ${TB+HB+BX}" width="${W}" height="${TB+HB+BX}" role="img" aria-label="${cfg.titleB}">${b}${axisX(TB,HB)}<line class="cross" id="crossB" y1="${TB}" y2="${TB+HB}" visibility="hidden"/><circle class="pt" id="dotB" r="5" visibility="hidden"/></svg>`;
+  /* C: Ausgaben nach Kategorie (gestapelt), die 6 größten + „Weitere“ */
+  if(cfg.cats){
+    const tot={};pts.forEach(p=>{for(const k in p.cats)tot[k]=(tot[k]||0)+p.cats[k]});
+    const top=Object.entries(tot).sort((a,b)=>b[1]-a[1]).slice(0,6).map(e=>e[0]),OTHER='\u0001';
+    const keys=Object.keys(tot).length>top.length?top.concat(OTHER):top,color=k=>k===OTHER?'#4b5563':catColor(k,EXP);
+    cfg.catKeys=keys;cfg.catName=k=>k===OTHER?'Weitere':catLabel(k);
+    const segs=p=>{const m={};for(const k in p.cats){const kk=top.includes(k)?k:OTHER;m[kk]=(m[kk]||0)+p.cats[k]}return m};
+    pts.forEach(p=>p.seg=segs(p));
+    const sC=niceStep(Math.max(maxOut,1),4),topC=Math.max(sC,Math.ceil(maxOut/sC)*sC),HC=170,TC=8,yC=v=>TC+(topC-v)/topC*HC;
+    let c=grid(0,topC,sC,yC);
+    pts.forEach((p,i)=>{let acc=0;for(const k of keys){const v=p.seg[k]||0;if(!v)continue;const y1=yC(acc),y2=yC(acc+v);c+=`<rect class="bar stk" data-i="${i}" x="${x(i)-bw/2}" y="${y2}" width="${bw}" height="${Math.max(1,y1-y2-1)}" fill="${color(k)}"/>`;acc+=v}});
+    $('#ovC').innerHTML=`<svg viewBox="0 0 ${W} ${TC+HC+BX}" width="${W}" height="${TC+HC+BX}" role="img" aria-label="Ausgaben nach Kategorie je Monat">${c}${axisX(TC,HC)}<line class="cross" id="crossC" y1="${TC}" y2="${TC+HC}" visibility="hidden"/></svg>`;
+    $('#ovCL').innerHTML=keys.map(k=>`<span><i class="k" style="background:${color(k)}"></i>${esc(cfg.catName(k))}</span>`).join('');
+  }
+  ov.geo={L,band,x,yB,W};
+  if(ov.cur>=0)ovShow(ov.cur);
+}
+function ovShow(i){
+  if(!ov.geo)return;const cfg=ov.cfg;ov.cur=Math.max(0,Math.min(cfg.pts.length-1,i));
+  const p=cfg.pts[ov.cur],X=ov.geo.x(ov.cur),wrap=$('#ovWrap'),tip=$('#ovTip'),onLine=ov.cur>=cfg.from&&ov.cur<cfg.to;
+  for(const id of ['#crossA','#crossB','#crossC']){const c=$(id);if(c){c.setAttribute('x1',X);c.setAttribute('x2',X);c.setAttribute('visibility','visible')}}
+  const d=$('#dotB');if(onLine){d.setAttribute('cx',X);d.setAttribute('cy',ov.geo.yB(cfg.val(p)));d.setAttribute('visibility','visible')}else d.setAttribute('visibility','hidden');
+  document.querySelectorAll('#ovWrap .bar').forEach(b=>b.classList.toggle('on',+b.dataset.i===ov.cur));wrap.classList.add('has-cur');
+  let h=`<div class="th">${esc(cfg.name(p))}</div><div class="tr"><i class="k in"></i>Einnahmen <b>${fmt(p.in)}</b></div><div class="tr"><i class="k out"></i>Ausgaben <b>${fmt(-p.out)}</b></div>`;
+  if(onLine)h+=`<div class="tr"><i class="k bal"></i>${cfg.lineName} <b>${fmtSigned(cfg.val(p))}</b></div>`;
+  if(cfg.cats&&p.seg){const l=cfg.catKeys.filter(k=>p.seg[k]).map(k=>`<div class="tr sm"><span>${esc(cfg.catName(k))}</span> <b>${fmt(-p.seg[k])}</b></div>`).join('');if(l)h+=`<div class="tsep"></div>`+l}
+  tip.innerHTML=h;tip.hidden=false;
+  const tw=tip.offsetWidth,ww=wrap.clientWidth;tip.style.left=Math.max(0,Math.min(ww-tw,X+12>ww-tw?X-tw-12:X+12))+'px';
+}
+function ovHide(){ov.cur=-1;const t=$('#ovTip');if(t)t.hidden=true;['#crossA','#crossB','#crossC','#dotB'].forEach(id=>{const e=$(id);if(e)e.setAttribute('visibility','hidden')});const w=$('#ovWrap');if(w)w.classList.remove('has-cur');document.querySelectorAll('#ovWrap .bar.on').forEach(b=>b.classList.remove('on'))}
+addEventListener('resize',()=>{if($('#ovWrap'))ovDraw()});
 
 /* ============ Sync (privates GitHub-Repo) ============ */
 const cfg=()=>{try{const c=JSON.parse(localStorage.getItem(CFG_KEY));return c&&c.repo&&c.token?c:null}catch(e){return null}};
