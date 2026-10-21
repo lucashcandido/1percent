@@ -234,6 +234,15 @@ body.asst-open .toast{bottom:96px;z-index:60}
 .asst-in{display:flex;gap:8px;padding:10px;border-top:1px solid var(--line);align-items:flex-end}
 .asst-in textarea{flex:1;resize:none;min-height:40px;max-height:140px;font:inherit;line-height:1.4}
 @media(max-width:600px){#asst{right:0;bottom:0;width:100vw;height:100dvh;border-radius:0;border:0}.fab{right:14px;bottom:14px}}
+/* --- Monats-/Jahresnavigation: zentriert, < TITEL > --- */
+.period{display:flex;align-items:center;justify-content:center;gap:4px;margin:6px 0 2px}
+.ptitle{position:relative;font:800 italic 40px/1 var(--serif);text-transform:uppercase;letter-spacing:.005em;color:#fff;text-align:center;padding:0 .12em;cursor:pointer;user-select:none}
+.ptitle input{position:absolute;inset:0;width:100%;height:100%;opacity:0;pointer-events:none;border:0;padding:0}
+button.navarrow{background:none;border:0;box-shadow:none;border-radius:10px;font:800 italic 40px/1 var(--serif)!important;color:#fff;padding:2px 14px 6px;min-width:52px}
+button.navarrow:hover{background:rgba(255,255,255,.06);color:#d4d7dd}
+.periodsub{display:flex;justify-content:center;margin:8px 0 4px}
+.periodsub select{font-size:13px;padding:5px 10px}
+@media(max-width:600px){.ptitle,button.navarrow{font-size:32px!important}button.navarrow{min-width:44px;padding:2px 10px 5px}}
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.card,.modal,.login,table,header{background:rgba(10,13,21,.96)}}
 </style>
 </head>
@@ -449,13 +458,12 @@ function monthView(){
   let list=all.filter(t=>(filter.cat==='*'||(t.category||'')===filter.cat)&&(!filter.q||norm(t.desc+' '+(t.note||'')).includes(norm(filter.q))));
   list.sort((a,b)=>b.date.localeCompare(a.date)||0);
   return `
-  <div class="row">
-    <button id="pm">←</button>
-    <input type="month" id="mp" value="${curMonth}">
-    <button id="nm">→</button>
-    <strong class="grow" style="font-size:18px">${monthLabel(curMonth)}</strong>
-    <select id="fa" class="accsel">${accOptions(filter.acc,true)}</select>
+  <div class="period">
+    <button id="pm" class="navarrow" aria-label="Vorheriger Monat">&lt;</button>
+    <span class="ptitle" id="ptitle" role="button" tabindex="0" title="Monat wählen">${monthLabel(curMonth)}<input type="month" id="mp" value="${curMonth}" tabindex="-1" aria-label="Monat wählen"></span>
+    <button id="nm" class="navarrow" aria-label="Nächster Monat">&gt;</button>
   </div>
+  <div class="periodsub"><select id="fa" class="accsel">${accOptions(filter.acc,true)}</select></div>
   <div class="cards">
     <div class="card"><div class="l">Einnahmen</div><div class="v pos">${fmt(sm.inc)}</div></div>
     <div class="card"><div class="l">Ausgaben</div><div class="v neg">${fmt(sm.exp)}</div></div>
@@ -483,7 +491,8 @@ function yearView(){
   const max=Math.max(1,...months.flatMap(x=>[x.inc,-x.exp]));
   const tot=sums(all);
   return `
-  <div class="row"><button id="py">←</button><strong style="font-size:18px">${curYear}</strong><button id="ny">→</button><span class="grow"></span><select id="fa" class="accsel">${accOptions(filter.acc,true)}</select></div>
+  <div class="period"><button id="py" class="navarrow" aria-label="Vorheriges Jahr">&lt;</button><span class="ptitle">${curYear}</span><button id="ny" class="navarrow" aria-label="Nächstes Jahr">&gt;</button></div>
+  <div class="periodsub"><select id="fa" class="accsel">${accOptions(filter.acc,true)}</select></div>
   <div class="cards">
     <div class="card"><div class="l">Einnahmen</div><div class="v pos">${fmt(tot.inc)}</div></div>
     <div class="card"><div class="l">Ausgaben</div><div class="v neg">${fmt(tot.exp)}</div></div>
@@ -523,6 +532,8 @@ function bindView(){
   on('#pm','click',()=>{curMonth=shiftMonth(curMonth,-1);render()});
   on('#nm','click',()=>{curMonth=shiftMonth(curMonth,1);render()});
   on('#mp','change',e=>{if(e.target.value){curMonth=e.target.value;render()}});
+  const pickMonth=()=>{const m=$('#mp');try{m.showPicker()}catch(e){m.focus();m.click()}};
+  on('#ptitle','click',pickMonth);on('#ptitle','keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();pickMonth()}});
   on('#py','click',()=>{curYear--;render()});
   on('#ny','click',()=>{curYear++;render()});
   on('#fq','input',e=>{filter.q=e.target.value;const p=e.target.selectionStart;render();const f=$('#fq');f.focus();f.setSelectionRange(p,p)});
