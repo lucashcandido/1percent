@@ -69,6 +69,7 @@ Unter *Sync & Daten → Claude* trägst du einen eigenen [Anthropic-API-Schlüss
 - **Screenshots und PDFs** gehen direkt aus dem Browser an Claude. Claude liest alle Buchungen (Datum, Beschreibung, Betrag mit Vorzeichen) und ordnet jede einer deiner Kategorien zu – Ausgaben nur Ausgaben-, Einnahmen nur Einnahmen-Kategorien.
 - **CSV** wird lokal gelesen; die Stichwort-Regeln gelten zuerst, nur was übrig bleibt, ordnet Claude zu.
 - Claude bekommt dafür deine Kategorien, deine Regeln und als Beispiele, wie du bisher zugeordnet hast. Passt keine Kategorie eindeutig, bleibt die Buchung „Ohne Kategorie“ (in der Vorschau gelb markiert).
+- **Hochladen wie bei Castcomercial:** Dateien auswählen, hineinziehen oder einfügen (auch mehrere, z. B. PDF + Screenshots) – sie werden erst gesammelt. Darunter steht ein Feld für **Extra-Anweisungen** (z. B. „Nur Oktober übernehmen“, „Alles bei Amazon ist Freizeit & Vergnügen“, „Schreib ‚Urlaub Lissabon‘ in die Notiz“). Mit „Mit Claude auswerten“ gehen Dateien und Anweisungen zusammen an Claude.
 - Alles landet zuerst in der Vorschau – dort korrigieren, dann übernehmen. Pro Import lässt sich Claude abschalten.
 - Kosten laufen über dein Anthropic-Konto. Der Schlüssel liegt in den synchronisierten Einstellungen (privates Daten-Repo), damit alle deine Geräte ihn haben.
 
