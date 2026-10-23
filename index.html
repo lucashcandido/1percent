@@ -309,6 +309,7 @@ button.ovbtn:hover{background:#e1e4e9}
 @media(max-width:600px){.modal.ovmodal{padding:16px}.ovkpi b{font-size:17px}}
 /* --- Fixkosten-Checkliste --- */
 .fixcard{padding:14px 16px}
+.savsub{font-size:11.5px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 main{padding-bottom:96px!important}
 .fixbar{height:6px;border-radius:999px;background:rgba(255,255,255,.06);overflow:hidden;margin:2px 0 10px}
 .fixbar div{height:100%;background:var(--pos);border-radius:999px;transition:width .3s}
@@ -463,7 +464,7 @@ button.upx:hover{color:var(--neg);background:rgba(255,255,255,.06)}
 
 <script>
 /* ============ Konstanten & State ============ */
-const APP_VERSION='2026-10-23.6';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
+const APP_VERSION='2026-10-23.7';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
 const KEY='1percent-v1',CFG_KEY='1percent-cfg',REM_KEY='1percent-remote';
 const DEFAULT_ACCOUNTS=['Commerzbank','N26'];
 const CATS_V=5;          /* Version der Kategorienliste – bei Änderung wird einmalig migriert */
@@ -535,7 +536,7 @@ const accOk=t=>filter.acc==='*'||(t.account||'')===filter.acc;
 
 function load(){
   let s=null;try{s=JSON.parse(localStorage.getItem(KEY))}catch(e){}
-  return {tx:(s&&s.tx)||[],tomb:(s&&s.tomb)||[],cats:(s&&s.cats)||DEFAULT_CATS,rules:(s&&s.rules)||DEFAULT_RULES,su:(s&&s.su)||0,access:(s&&s.access)||null,ai:(s&&s.ai)||null,accounts:(s&&Array.isArray(s.accounts)&&s.accounts)||DEFAULT_ACCOUNTS.slice(),owner:(s&&s.owner)||'',fixed:(s&&Array.isArray(s.fixed)&&s.fixed)||[],fixDone:(s&&s.fixDone&&typeof s.fixDone==='object'&&s.fixDone)||{},recv:(s&&Array.isArray(s.recv)&&s.recv)||[],pay:(s&&Array.isArray(s.pay)&&s.pay)||[],learn:(s&&Array.isArray(s.learn)&&s.learn)||[],wo:(s&&Array.isArray(s.wo)&&s.wo)||[],todo:(s&&Array.isArray(s.todo)&&s.todo)||[],ttomb:(s&&Array.isArray(s.ttomb)&&s.ttomb)||[],wtomb:(s&&Array.isArray(s.wtomb)&&s.wtomb)||[],catsV:(s&&s.catsV)||0};
+  return {tx:(s&&s.tx)||[],tomb:(s&&s.tomb)||[],cats:(s&&s.cats)||DEFAULT_CATS,rules:(s&&s.rules)||DEFAULT_RULES,su:(s&&s.su)||0,access:(s&&s.access)||null,ai:(s&&s.ai)||null,accounts:(s&&Array.isArray(s.accounts)&&s.accounts)||DEFAULT_ACCOUNTS.slice(),owner:(s&&s.owner)||'',fixed:(s&&Array.isArray(s.fixed)&&s.fixed)||[],fixDone:(s&&s.fixDone&&typeof s.fixDone==='object'&&s.fixDone)||{},recv:(s&&Array.isArray(s.recv)&&s.recv)||[],pay:(s&&Array.isArray(s.pay)&&s.pay)||[],learn:(s&&Array.isArray(s.learn)&&s.learn)||[],savings:(s&&Array.isArray(s.savings)&&s.savings)||[],wo:(s&&Array.isArray(s.wo)&&s.wo)||[],todo:(s&&Array.isArray(s.todo)&&s.todo)||[],ttomb:(s&&Array.isArray(s.ttomb)&&s.ttomb)||[],wtomb:(s&&Array.isArray(s.wtomb)&&s.wtomb)||[],catsV:(s&&s.catsV)||0};
 }
 function migrateCats(){
   if(S.catsV>=CATS_V)return;
@@ -564,7 +565,7 @@ function migrateCats(){
 function sig(t){return JSON.stringify([t.date,t.desc,t.amount,t.category,t.note||'',t.account||''])}
 function wsig(w){return JSON.stringify([w.ts,w.title||'',w.muscles||[],w.ex||[],w.note||''])}
 function tsig(t){return JSON.stringify([t.date,t.text,!!t.done,t.c||0])}
-function initSigs(){sigs={};S.tx.forEach(t=>sigs[t.id]=sig(t));tsigs={};(S.todo||[]).forEach(t=>tsigs[t.id]=tsig(t));wsigs={};(S.wo||[]).forEach(w=>wsigs[w.id]=wsig(w));ssig=JSON.stringify([S.cats,S.rules,S.access,S.ai,S.accounts,S.owner,S.fixed,S.fixDone,S.recv,S.pay,S.learn])}
+function initSigs(){sigs={};S.tx.forEach(t=>sigs[t.id]=sig(t));tsigs={};(S.todo||[]).forEach(t=>tsigs[t.id]=tsig(t));wsigs={};(S.wo||[]).forEach(w=>wsigs[w.id]=wsig(w));ssig=JSON.stringify([S.cats,S.rules,S.access,S.ai,S.accounts,S.owner,S.fixed,S.fixDone,S.recv,S.pay,S.learn,S.savings])}
 function stamp(){
   const now=Date.now(),ids=new Set();
   for(const t of S.tx){ids.add(t.id);const j=sig(t);if(sigs[t.id]!==j){t.u=now;sigs[t.id]=j}}
@@ -573,7 +574,7 @@ function stamp(){
   for(const id of Object.keys(wsigs))if(!wids.has(id)){S.wtomb.push({id,u:now});delete wsigs[id]}
   const tids=new Set();for(const t of S.todo){tids.add(t.id);const j=tsig(t);if(tsigs[t.id]!==j){t.u=now;tsigs[t.id]=j}}
   for(const id of Object.keys(tsigs))if(!tids.has(id)){S.ttomb.push({id,u:now});delete tsigs[id]}
-  const ss=JSON.stringify([S.cats,S.rules,S.access,S.ai,S.accounts,S.owner,S.fixed,S.fixDone,S.recv,S.pay,S.learn]);if(ss!==ssig){S.su=now;ssig=ss}
+  const ss=JSON.stringify([S.cats,S.rules,S.access,S.ai,S.accounts,S.owner,S.fixed,S.fixDone,S.recv,S.pay,S.learn,S.savings]);if(ss!==ssig){S.su=now;ssig=ss}
 }
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 let saveTimer;
@@ -688,6 +689,17 @@ function render(){
 }
 const xferName=type=>(S.cats.find(c=>c.transfer&&catType(c)===type)||{}).name||'';
 const isXfer=t=>!!t.category&&S.cats.some(c=>c.transfer&&c.name===t.category&&catType(c)===typeOf(t.amount));
+/* ============ Sparkonten (z. B. N26-Space „Immobilie“) ============
+   Überweisungen auf/von einem Sparkonto sind Umbuchungen. Was im Zeitraum netto aufs Sparkonto geht, ist echte Ersparnis:
+   „An Immobilie“ −100 € → +100 € gespart; „Von Immobilie“ +50 € → 50 € wieder entnommen. */
+const savingName=t=>{const tk=new Set(nameTokens(t.desc));return (S.savings||[]).find(n=>{const w=nameTokens(n);return w.length&&w.every(x=>tk.has(x))})||''};
+const savedOf=list=>round2(-list.filter(t=>savingName(t)).reduce((a,t)=>a+t.amount,0));
+function detectSpaces(){
+  const seen=new Map();
+  for(const t of S.tx){const m=/\b(?:von|an|from|to)\s+(.+?)\s*\((?:space[- ]?umbuchung|space transfer)\)/i.exec(t.desc)||/\(space\s+([^)]+)\)/i.exec(t.desc);
+    if(m){const n=m[1].trim();if(n&&n.length<=40)seen.set(n,(seen.get(n)||0)+1)}}
+  return [...seen.entries()].filter(([n])=>!(S.savings||[]).some(x=>norm(x)===norm(n))).sort((a,b)=>b[1]-a[1]).map(([n])=>n).slice(0,5);
+}
 function sums(list){
   list=list.filter(t=>!isXfer(t));
   const inc=list.filter(t=>t.amount>0).reduce((a,t)=>a+t.amount,0);
@@ -1036,6 +1048,11 @@ function wipePeriod(){
       const back=new Set(backup.map(t=>t.id));S.tomb=S.tomb.filter(t=>!back.has(t.id));S.tx.push(...backup);save();render();toast('Wiederhergestellt')};
   };
 }
+function savCard(list,sm){
+  if(!(S.savings||[]).length)return `<div class="card"><div class="l">Sparquote</div><div class="v">${sm.inc>0?Math.round(sm.net/sm.inc*100)+' %':'–'}</div></div>`;
+  const sv=savedOf(list);
+  return `<div class="card" title="Netto auf ${esc(S.savings.join(', '))} überwiesen"><div class="l">Ersparnis</div><div class="v ${sv>0?'pos':sv<0?'neg':''}">${sv>0?'+':''}${fmt(sv)}</div><div class="muted savsub">${esc(S.savings.join(', '))}${sm.inc>0&&Math.abs(sv)<=sm.inc?` · ${Math.round(sv/sm.inc*100)} % vom Einkommen`:''}</div></div>`;
+}
 function monthView(){
   const isDay=view==='day',key=isDay?curDay:curMonth;
   const all=S.tx.filter(t=>t.date.startsWith(key)&&accOk(t));
@@ -1053,10 +1070,11 @@ function monthView(){
     <div class="card"><div class="l">Einnahmen</div><div class="v pos">${fmt(sm.inc)}</div></div>
     <div class="card"><div class="l">Ausgaben</div><div class="v neg">${fmt(sm.exp)}</div></div>
     <div class="card"><div class="l">Saldo</div><div class="v ${sm.net>=0?'pos':'neg'}">${fmt(sm.net)}</div></div>
-    <div class="card"><div class="l">Sparquote</div><div class="v">${sm.inc>0?Math.round(sm.net/sm.inc*100)+' %':'–'}</div></div>
+    ${savCard(all,sm)}
   </div>
   ${(()=>{const x=all.filter(isXfer);if(!x.length)return '';const net=x.reduce((a,t)=>a+t.amount,0);
-    return `<p class="muted xfernote">↔ ${x.length} Umbuchung${x.length===1?'':'en'} zwischen deinen Konten${filter.acc!=='*'?` (netto ${net>=0?'+':''}${fmt(net)} für ${esc(filter.acc||NO_ACC)})`:''} – nicht in den Summen enthalten.</p>`})()}
+    const sv=(S.savings||[]).length?savedOf(all):0,sn=all.filter(t=>savingName(t)).length;
+    return `<p class="muted xfernote">↔ ${x.length} Umbuchung${x.length===1?'':'en'} zwischen deinen Konten${sn?` (davon ${sn} mit ${esc(S.savings.join('/'))}: ${sv>=0?'+':''}${fmt(sv)} gespart)`:''}${filter.acc!=='*'?` (netto ${net>=0?'+':''}${fmt(net)} für ${esc(filter.acc||NO_ACC)})`:''} – nicht in den Summen enthalten.</p>`})()}
   <h2>Ausgaben nach Kategorie</h2>
   <div class="card">${catBars(all)}</div>
   <h2>Einnahmen nach Kategorie</h2>
@@ -1086,12 +1104,13 @@ function yearView(){
     <div class="card"><div class="l">Einnahmen</div><div class="v pos">${fmt(tot.inc)}</div></div>
     <div class="card"><div class="l">Ausgaben</div><div class="v neg">${fmt(tot.exp)}</div></div>
     <div class="card"><div class="l">Saldo</div><div class="v ${tot.net>=0?'pos':'neg'}">${fmt(tot.net)}</div></div>
+    ${(S.savings||[]).length?savCard(all,tot):''}
   </div>
   <h2>Monate</h2>
-  <div class="tablewrap"><table><thead><tr><th>Monat</th><th>Verlauf</th><th class="n">Einnahmen</th><th class="n">Ausgaben</th><th class="n">Saldo</th></tr></thead><tbody>
+  <div class="tablewrap"><table><thead><tr><th>Monat</th><th>Verlauf</th><th class="n">Einnahmen</th><th class="n">Ausgaben</th><th class="n">Saldo</th>${(S.savings||[]).length?'<th class="n hide-s">Ersparnis</th>':''}</tr></thead><tbody>
   ${months.map(x=>`<tr class="click${x.inc||x.exp?'':' zero'}" data-m="${x.m}"><td>${new Date(x.m+'-01T12:00').toLocaleDateString('de-DE',{month:'short'})}</td>
    <td style="width:35%"><div style="height:8px;border-radius:4px;background:var(--pos);width:${x.inc/max*100}%;margin-bottom:3px"></div><div style="height:8px;border-radius:4px;background:var(--neg);width:${-x.exp/max*100}%"></div></td>
-   <td class="n pos">${fmt(x.inc)}</td><td class="n neg">${fmt(x.exp)}</td><td class="n ${x.net>=0?'pos':'neg'}">${fmt(x.net)}</td></tr>`).join('')}
+   <td class="n pos">${fmt(x.inc)}</td><td class="n neg">${fmt(x.exp)}</td><td class="n ${x.net>=0?'pos':'neg'}">${fmt(x.net)}</td>${(S.savings||[]).length?(()=>{const sv=savedOf(all.filter(t=>t.date.startsWith(x.m)));return `<td class="n hide-s ${sv>0?'pos':sv<0?'neg':''}">${sv?(sv>0?'+':'')+fmt(sv):'–'}</td>`})():''}</tr>`).join('')}
   </tbody></table></div>
   <h2>Ausgaben nach Kategorie (Jahr)</h2><div class="card">${catBars(all)}</div>
   <h2>Einnahmen nach Kategorie (Jahr)</h2><div class="card">${catBars(all,INC)}</div>`;
@@ -1119,7 +1138,11 @@ function settingsView(){
   <h2>Konten</h2>
   <div class="card">
     <div class="field"><label>Kontoinhaber (dein Name, wie er auf Überweisungen steht)</label><input id="ownerIn" value="${esc(S.owner||'')}" placeholder="z. B. Max Mustermann" autocomplete="name"></div>
-    <p class="muted" style="margin:-6px 0 12px">Überweisungen von oder an diesen Namen werden automatisch zur Umbuchung.</p>${S.accounts.map((a,i)=>`<div class="row catrow"><input data-an="${i}" value="${esc(a)}" class="grow"><button class="danger" data-ad="${i}">✕</button></div>`).join('')||'<p class="muted">Noch keine.</p>'}<button id="addAcc">+ Konto</button></div>
+    <p class="muted" style="margin:-6px 0 12px">Überweisungen von oder an diesen Namen werden automatisch zur Umbuchung.</p>${S.accounts.map((a,i)=>`<div class="row catrow"><input data-an="${i}" value="${esc(a)}" class="grow"><button class="danger" data-ad="${i}">✕</button></div>`).join('')||'<p class="muted">Noch keine.</p>'}<button id="addAcc">+ Konto</button>
+    <h4>Sparkonten (zählen als Ersparnis)</h4>
+    <p class="muted" style="margin:-4px 0 10px">Z. B. ein N26-Space. Was im Monat netto dorthin geht, wird als <b>Ersparnis</b> angezeigt. Erkannt am Namen im Buchungstext („An Immobilie (Space-Umbuchung)“).</p>
+    ${(S.savings||[]).map((n,i)=>`<div class="row catrow"><input data-svn="${i}" value="${esc(n)}" class="grow"><button class="danger" data-svd="${i}" aria-label="${esc(n)} entfernen">✕</button></div>`).join('')}
+    <div class="row">${detectSpaces().map(n=>`<button type="button" data-svadd="${esc(n)}">+ ${esc(n)}</button>`).join('')}<button id="addSav" type="button">+ Sparkonto</button></div></div>
   <h2>Automatische Zuordnung</h2>
   <p class="muted">Enthält die Beschreibung den Suchbegriff (Groß-/Kleinschreibung egal), wird die Kategorie gesetzt. Die erste passende Regel gewinnt. Gilt beim Import.</p>
   <div class="card">
@@ -1188,6 +1211,10 @@ function bindView(){
   on('#setBack','click',()=>{view=period;render();scrollTo(0,0)});
   document.querySelectorAll('[data-ld]').forEach(b=>b.onclick=()=>{S.learn.splice(+b.dataset.ld,1);save();const y=scrollY;render();scrollTo(0,y)});
   on('#setSync','click',()=>openData());
+  document.querySelectorAll('[data-svadd]').forEach(b=>b.onclick=()=>{S.savings=[...(S.savings||[]),b.dataset.svadd];save();const y=scrollY;render();scrollTo(0,y)});
+  on('#addSav','click',()=>{const n=prompt('Name des Sparkontos (wie im Buchungstext, z. B. Immobilie):');if(n&&n.trim()){S.savings=[...(S.savings||[]),n.trim()];save();const y=scrollY;render();scrollTo(0,y)}});
+  document.querySelectorAll('[data-svn]').forEach(e=>e.onchange=()=>{const v=e.value.trim();if(v)S.savings[+e.dataset.svn]=v;else S.savings.splice(+e.dataset.svn,1);save();render()});
+  document.querySelectorAll('[data-svd]').forEach(b=>b.onclick=()=>{S.savings.splice(+b.dataset.svd,1);save();const y=scrollY;render();scrollTo(0,y)});
   on('#addAcc','click',()=>{let n='Neues Konto',k=2;while(S.accounts.includes(n))n='Neues Konto '+k++;S.accounts.push(n);save();render()});
   on('#addRule','click',()=>{S.rules.unshift({kw:'',cat:(S.cats[0]||{}).name||''});save();render()});
   on('#reapply','click',()=>{if(!confirm('Alle Buchungen neu kategorisieren? Manuelle Zuordnungen werden überschrieben.'))return;
@@ -1632,7 +1659,7 @@ function aiCategoryContext(){
     (rules?`Stichwort-Regeln des Nutzers (Beschreibung enthält Stichwort → Kategorie): ${rules}\n\n`:'')+
     ((S.learn||[]).length?`Vom Nutzer selbst korrigiert – genau so zuordnen (Händler → Kategorie): ${(S.learn||[]).slice(0,60).map(l=>`${l.k} (${l.t===INC?'+':'−'}) → ${l.c}`).join('; ')}\n\n`:'')+
     (ex.length?`So hat der Nutzer bisher zugeordnet (daran orientieren):\n${ex.join('\n')}\n\n`:'')+
-    `„${xferName(EXP)||'Umbuchung'}“ ist für Überweisungen zwischen den EIGENEN Konten des Nutzers (${S.accounts.join(', ')||'–'}), z. B. Commerzbank → N26 oder Aufladen/Übertrag aufs eigene Konto – nicht für Zahlungen an andere Personen.\n`+
+    `„${xferName(EXP)||'Umbuchung'}“ ist für Überweisungen zwischen den EIGENEN Konten des Nutzers (${S.accounts.join(', ')||'–'}), z. B. Commerzbank → N26, Aufladen/Übertrag aufs eigene Konto oder Überweisungen auf/von einem N26-Space bzw. Unterkonto${(S.savings||[]).length?` (Sparkonten: ${S.savings.join(', ')})`:''}, auch Aufrundungen – nicht für Zahlungen an andere Personen.\n`+
     (S.owner?`Der Kontoinhaber heißt „${S.owner}“. JEDE Buchung, bei der „${S.owner}“ Absender oder Empfänger ist (auch in anderer Schreibweise, z. B. Nachname zuerst, mit Komma, ohne Mittelnamen, in Großbuchstaben), ist eine Umbuchung zwischen seinen eigenen Konten – weder Einnahme noch Ausgabe. Nur wenn der Name allein im Verwendungszweck einer Zahlung von jemand anderem steht (z. B. Gehalt vom Arbeitgeber), gilt das nicht.\n`:'')+
     `Wähle für jede Buchung genau eine Kategorie aus der passenden Liste, Name exakt wie angegeben. Wenn keine eindeutig passt, gib "" zurück – nicht raten.`;
 }
@@ -2026,7 +2053,7 @@ function serMonth(m){
   const tb=S.tomb.filter(t=>t.date.startsWith(m)).map(t=>({id:t.id,date:t.date,u:t.u||0})).sort((a,b)=>a.id.localeCompare(b.id));
   return `{\n "tx": [${jlines(tx)}],\n "tomb": [${jlines(tb)}]\n}\n`;
 }
-const serSettings=()=>JSON.stringify({u:S.su||0,catsV:S.catsV||0,cats:S.cats,rules:S.rules,access:S.access||null,ai:S.ai||null,accounts:S.accounts,owner:S.owner||'',fixed:S.fixed||[],fixDone:S.fixDone||{},recv:S.recv||[],pay:S.pay||[],learn:S.learn||[]},null,1)+'\n';
+const serSettings=()=>JSON.stringify({u:S.su||0,catsV:S.catsV||0,cats:S.cats,rules:S.rules,access:S.access||null,ai:S.ai||null,accounts:S.accounts,owner:S.owner||'',fixed:S.fixed||[],fixDone:S.fixDone||{},recv:S.recv||[],pay:S.pay||[],learn:S.learn||[],savings:S.savings||[]},null,1)+'\n';
 const b64d=s=>new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\s/g,'')),c=>c.charCodeAt(0)));
 function b64e(s){const b=new TextEncoder().encode(s);let o='';for(let i=0;i<b.length;i+=8192)o+=String.fromCharCode(...b.subarray(i,i+8192));return btoa(o)}
 
@@ -2080,7 +2107,7 @@ function mergeFile(name,content){
   if(name==='workouts.json')return mergeWorkouts(d);
   if(name==='todos.json')return mergeTodos(d);
   if(name==='settings.json'){
-    if((d.u||0)>(S.su||0)&&Array.isArray(d.cats)&&Array.isArray(d.rules)){S.cats=d.cats;S.rules=d.rules;S.access=d.access||S.access;S.ai=d.ai===undefined?S.ai:d.ai;if(Array.isArray(d.accounts))S.accounts=d.accounts;if(typeof d.owner==='string')S.owner=d.owner;if(Array.isArray(d.fixed))S.fixed=d.fixed;if(d.fixDone&&typeof d.fixDone==='object')S.fixDone=d.fixDone;if(Array.isArray(d.recv))S.recv=d.recv;if(Array.isArray(d.pay))S.pay=d.pay;if(Array.isArray(d.learn))S.learn=d.learn;S.su=d.u;ssig=JSON.stringify([S.cats,S.rules,S.access,S.ai,S.accounts,S.owner,S.fixed,S.fixDone,S.recv,S.pay,S.learn]);S.catsV=d.catsV||0;if(S.catsV<CATS_V){S.su=d.u;migrateCats()}return true}
+    if((d.u||0)>(S.su||0)&&Array.isArray(d.cats)&&Array.isArray(d.rules)){S.cats=d.cats;S.rules=d.rules;S.access=d.access||S.access;S.ai=d.ai===undefined?S.ai:d.ai;if(Array.isArray(d.accounts))S.accounts=d.accounts;if(typeof d.owner==='string')S.owner=d.owner;if(Array.isArray(d.fixed))S.fixed=d.fixed;if(d.fixDone&&typeof d.fixDone==='object')S.fixDone=d.fixDone;if(Array.isArray(d.recv))S.recv=d.recv;if(Array.isArray(d.pay))S.pay=d.pay;if(Array.isArray(d.learn))S.learn=d.learn;if(Array.isArray(d.savings))S.savings=d.savings;S.su=d.u;ssig=JSON.stringify([S.cats,S.rules,S.access,S.ai,S.accounts,S.owner,S.fixed,S.fixDone,S.recv,S.pay,S.learn,S.savings]);S.catsV=d.catsV||0;if(S.catsV<CATS_V){S.su=d.u;migrateCats()}return true}
     return false;
   }
   return mergeIn(d.tx||[],d.tomb||[]);
