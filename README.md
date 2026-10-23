@@ -34,12 +34,14 @@ Einnahmen und Ausgaben tracken – als einzelne HTML-Datei (`index.html`), ohne 
 
 Die Links zum Anlegen von Repo und Token stehen auch direkt im Sync-Dialog.
 
-### Weitere Geräte per Link / QR-Code
+### Weitere Geräte per Code (wie Castcomercial)
 
-Unter *Sync → Weitere Geräte* auf **„Zugang für weitere Geräte erzeugen“**. Danach:
+Unter *Sync & Daten → Weitere Geräte* auf **„Zugang für weitere Geräte erzeugen“**. Die App zeigt einen 12-stelligen Code (z. B. `KRWX-58B2-7EMQ`).
 
-- **QR-Code zeigen** → mit dem neuen Gerät scannen, oder **Link kopieren** → dort öffnen: fertig, ohne etwas zu tippen.
-- Sicherer in zwei Schritten: **„Link ohne Code kopieren“** und den 12-stelligen **Code** getrennt schicken. Auf dem neuen Gerät fragt die App nach dem Code. Man kann den Link dort auch ins Feld auf dem Login-Bildschirm einfügen.
+- Auf dem neuen Gerät 1Percent öffnen und den **Code eingeben** – fertig. Oder den **QR-Code** scannen.
+- Geht auch, wenn das Gerät schon „Nur lokal“ genutzt wurde: *Sync & Daten → Mit Code verbinden*.
+- **Einmalig nötig:** Der Token braucht zusätzlich Zugriff auf das App-Repo (`1percent`, *Contents: Read and write*), weil dort der verschlüsselte Zugang abgelegt wird. Fehlt das Recht, sagt die App es dir und bietet bis dahin einen QR-Code/Link an, der den Zugang direkt enthält.
+- **„Neuer Code“** macht den alten Code ungültig; schon verbundene Geräte bleiben verbunden.
 
 ## Mehrere Personen
 
@@ -47,9 +49,10 @@ Jede Person nutzt dieselbe App-Adresse, aber ihr **eigenes** Daten-Repo mit **ei
 
 ## Wie der Gerätezugang funktioniert
 
-- Das verbundene Gerät verschlüsselt `{Repo, Token}` mit dem Code (PBKDF2, 600 000 Runden → AES-GCM) und packt das Ergebnis in den Link (`…/#a=<Block>&c=<Code>`). Der Teil hinter `#` wird vom Browser nie an einen Server geschickt; die App entfernt ihn nach dem Öffnen aus der Adresszeile.
-- Es wird nichts im App-Repo gespeichert. Der Code liegt in den synchronisierten Einstellungen deines privaten Daten-Repos, damit jedes verbundene Gerät neue Links und QR-Codes erzeugen kann.
-- **Wer Link und Code hat, hat vollen Zugriff auf deine Daten.** Einen Zugang zurückziehen kannst du nur, indem du den Token auf GitHub löschst und einen neuen einträgst; alle Geräte müssen danach neu verbunden werden.
+- Das erste Gerät verschlüsselt `{Repo, Token}` mit dem Code (PBKDF2, 600 000 Runden → AES-GCM) und legt das Ergebnis als `access/<id>.json` ins öffentliche App-Repo. Auch `<id>` wird langsam (PBKDF2) aus dem Code abgeleitet, der Code lässt sich also nicht über den Dateinamen erraten. Die Datei enthält weder Token noch Repo-Namen im Klartext.
+- Ein neues Gerät leitet aus dem Code `<id>` ab, lädt die Datei und entschlüsselt sie – ohne Code ist sie nutzlos.
+- Der Code liegt in den synchronisierten Einstellungen deines privaten Daten-Repos, damit jedes verbundene Gerät ihn anzeigen kann. Nach einem Token-Wechsel aktualisiert die App die Datei automatisch.
+- **Wer den Code hat, hat vollen Zugriff auf deine Daten.** Ganz zurückziehen kannst du einen Zugang nur, indem du den Token auf GitHub löschst und einen neuen einträgst.
 
 ## Wie der Sync funktioniert
 
