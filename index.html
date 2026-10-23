@@ -463,7 +463,7 @@ button.upx:hover{color:var(--neg);background:rgba(255,255,255,.06)}
 
 <script>
 /* ============ Konstanten & State ============ */
-const APP_VERSION='2026-10-23.5';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
+const APP_VERSION='2026-10-23.6';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
 const KEY='1percent-v1',CFG_KEY='1percent-cfg',REM_KEY='1percent-remote';
 const DEFAULT_ACCOUNTS=['Commerzbank','N26'];
 const CATS_V=5;          /* Version der Kategorienliste – bei Änderung wird einmalig migriert */
@@ -1017,6 +1017,25 @@ function bindTodo(){
   on('#tdMoveAll',()=>keep(()=>{const t=todayISO();S.todo.forEach(x=>{if(!x.done&&x.date<t)x.date=t})}));
 }
 
+/* Alle Buchungen des angezeigten Monats/Tags löschen (bei gewähltem Konto nur dessen) – mit Rückgängig */
+function wipePeriod(){
+  const isDay=view==='day',key=isDay?curDay:curMonth,del=S.tx.filter(t=>t.date.startsWith(key)&&accOk(t));if(!del.length)return;
+  const label=(isDay?dayLabel(curDay):monthLabel(curMonth))+(filter.acc!=='*'?' · '+(filter.acc||NO_ACC):'');
+  modal(`<h3>Einträge löschen?</h3>
+    <p>Alle <b>${del.length} Buchung${del.length===1?'':'en'}</b> von <b>${esc(label)}</b> werden gelöscht – auch auf deinen anderen Geräten.</p>
+    <p class="muted">Fixkosten, Forderungen, Verbindlichkeiten, Kategorien und gelernte Zuordnungen bleiben erhalten.</p>
+    <div class="row"><button class="danger" id="wp_ok" type="button">Ja, ${del.length} löschen</button><button id="wp_no" type="button">Abbrechen</button></div>`,'sm');
+  $('#wp_no').onclick=closeModal;
+  $('#wp_ok').onclick=()=>{
+    const ids=new Set(del.map(t=>t.id)),backup=del.map(t=>({...t}));
+    S.tx=S.tx.filter(t=>!ids.has(t.id));save();closeModal();render();
+    const bar=document.createElement('div');bar.className='updbar';bar.style.top='auto';bar.style.bottom='24px';
+    bar.innerHTML=`${del.length} Buchung${del.length===1?'':'en'} gelöscht <button class="primary" type="button">Rückgängig</button>`;
+    document.body.appendChild(bar);const tm=setTimeout(()=>bar.remove(),10000);
+    bar.querySelector('button').onclick=()=>{clearTimeout(tm);bar.remove();
+      const back=new Set(backup.map(t=>t.id));S.tomb=S.tomb.filter(t=>!back.has(t.id));S.tx.push(...backup);save();render();toast('Wiederhergestellt')};
+  };
+}
 function monthView(){
   const isDay=view==='day',key=isDay?curDay:curMonth;
   const all=S.tx.filter(t=>t.date.startsWith(key)&&accOk(t));
@@ -1050,6 +1069,7 @@ function monthView(){
   <div class="tablewrap"><table><thead><tr><th>Datum</th><th>Beschreibung</th><th class="hide-s">Kategorie</th><th class="n">Betrag</th></tr></thead><tbody>
   ${list.map(t=>`<tr class="click" data-id="${t.id}"><td>${dateDE(t.date)}</td><td>${esc(t.desc)}${t.account?` <span class="acc">${esc(t.account)}</span>`:''}${t.note?`<div class="muted">${esc(t.note)}</div>`:''}</td><td class="hide-s"><span class="dot" style="background:${catColor(t.category,typeOf(t.amount))}"></span>${esc(catLabel(t.category))}</td><td class="n ${isXfer(t)?'xfer':t.amount>=0?'pos':'neg'}">${fmt(t.amount)}</td></tr>`).join('')||'<tr><td colspan="4" class="muted">Noch keine Buchungen '+(isDay?'an diesem Tag':'in diesem Monat')+'. Nutze „Import“ oder „+ Buchung“.</td></tr>'}
   </tbody></table></div>
+  ${all.length?`<div class="row" style="justify-content:flex-end;margin-top:10px"><button class="danger" id="wipePeriod" type="button">${isDay?'Einträge dieses Tages':'Monatseinträge'} löschen (${all.length})</button></div>`:''}
   ${fixedSection(key.slice(0,7))}
   ${debtSection('recv')}
   ${debtSection('pay')}`;
@@ -1120,6 +1140,7 @@ function bindView(){
   on('#fp','change',e=>setPeriod(e.target.value));
   on('#ovBtn','click',openOverview);
   on('#fixAdd','click',()=>editFixed(null));
+  on('#wipePeriod','click',wipePeriod);
   document.querySelectorAll('[data-theme-set]').forEach(b=>b.onclick=()=>setTheme(b.dataset.themeSet));
   bindDebts();
   document.querySelectorAll('[data-fx]').forEach(e=>e.onchange=()=>{
