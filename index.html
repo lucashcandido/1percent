@@ -309,6 +309,8 @@ button.ovbtn:hover{background:#e1e4e9}
 @media(max-width:600px){.modal.ovmodal{padding:16px}.ovkpi b{font-size:17px}}
 /* --- Fixkosten-Checkliste --- */
 .fixcard{padding:14px 16px}
+.pendtag{display:inline-block;font-size:10.5px;font-weight:600;letter-spacing:.03em;padding:0 6px;margin-left:6px;border-radius:6px;border:1px dashed rgba(250,204,21,.6);color:#fde68a;vertical-align:1px;white-space:nowrap}.pendtag.rp{border-style:solid;border-color:rgba(74,222,128,.5);color:#bbf7d0}
+:root[data-theme="light"] .pendtag{color:#8a6100;border-color:#d4a106}:root[data-theme="light"] .pendtag.rp{color:#15803d;border-color:#22c55e}
 .dupg{padding:10px 12px;border-bottom:1px solid var(--line)}.dupg:last-child{border-bottom:0}
 .duph{font-weight:600;margin-bottom:4px;font-variant-numeric:tabular-nums}
 .dupr{display:flex;gap:10px;align-items:center;padding:4px 0;font-size:13.5px;cursor:pointer}.dupr .grow{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -474,7 +476,7 @@ button.upx:hover{color:var(--neg);background:rgba(255,255,255,.06)}
 
 <script>
 /* ============ Konstanten & State ============ */
-const APP_VERSION='2026-10-23.10';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
+const APP_VERSION='2026-10-23.11';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
 const KEY='1percent-v1',CFG_KEY='1percent-cfg',REM_KEY='1percent-remote';
 const DEFAULT_ACCOUNTS=['Commerzbank','N26'];
 const CATS_V=5;          /* Version der Kategorienliste – bei Änderung wird einmalig migriert */
@@ -572,7 +574,7 @@ function migrateCats(){
 }
 /* Änderungen werden automatisch mit Zeitstempel (u) versehen, gelöschte Buchungen werden zu Tombstones.
    So lassen sich Änderungen von mehreren Geräten sauber zusammenführen. */
-function sig(t){return JSON.stringify([t.date,t.desc,t.amount,t.category,t.note||'',t.account||''])}
+function sig(t){return JSON.stringify([t.date,t.desc,t.amount,t.category,t.note||'',t.account||'',t.pend?1:0])}
 function wsig(w){return JSON.stringify([w.ts,w.title||'',w.muscles||[],w.ex||[],w.note||''])}
 function tsig(t){return JSON.stringify([t.date,t.text,!!t.done,t.c||0])}
 function initSigs(){sigs={};S.tx.forEach(t=>sigs[t.id]=sig(t));tsigs={};(S.todo||[]).forEach(t=>tsigs[t.id]=tsig(t));wsigs={};(S.wo||[]).forEach(w=>wsigs[w.id]=wsig(w));ssig=JSON.stringify([S.cats,S.rules,S.access,S.ai,S.accounts,S.owner,S.fixed,S.fixDone,S.recv,S.pay,S.learn,S.savings])}
@@ -1122,7 +1124,7 @@ function monthView(){
     <select id="fc"><option value="*">Alle Kategorien</option>${catOptions(filter.cat==='*'?'\u0000':filter.cat)}</select>
   </div>
   <div class="tablewrap"><table><thead><tr><th>Datum</th><th>Beschreibung</th><th class="hide-s">Kategorie</th><th class="n">Betrag</th></tr></thead><tbody>
-  ${list.map(t=>`<tr class="click" data-id="${t.id}"><td>${dateDE(t.date)}</td><td>${esc(t.desc)}${t.account?` <span class="acc">${esc(t.account)}</span>`:''}${t.note?`<div class="muted">${esc(t.note)}</div>`:''}</td><td class="hide-s"><span class="dot" style="background:${catColor(t.category,typeOf(t.amount))}"></span>${esc(catLabel(t.category))}</td><td class="n ${isXfer(t)?'xfer':t.amount>=0?'pos':'neg'}">${fmt(t.amount)}</td></tr>`).join('')||'<tr><td colspan="4" class="muted">Noch keine Buchungen '+(isDay?'an diesem Tag':'in diesem Monat')+'. Nutze „Import“ oder „+ Buchung“.</td></tr>'}
+  ${list.map(t=>`<tr class="click" data-id="${t.id}"><td>${dateDE(t.date)}</td><td>${esc(t.desc)}${t.account?` <span class="acc">${esc(t.account)}</span>`:''}${t.pend?' <span class="pendtag" title="Aus einem vorläufigen Auszug – wird mit dem endgültigen Auszug abgeglichen">vorgemerkt</span>':''}${t.note?`<div class="muted">${esc(t.note)}</div>`:''}</td><td class="hide-s"><span class="dot" style="background:${catColor(t.category,typeOf(t.amount))}"></span>${esc(catLabel(t.category))}</td><td class="n ${isXfer(t)?'xfer':t.amount>=0?'pos':'neg'}">${fmt(t.amount)}</td></tr>`).join('')||'<tr><td colspan="4" class="muted">Noch keine Buchungen '+(isDay?'an diesem Tag':'in diesem Monat')+'. Nutze „Import“ oder „+ Buchung“.</td></tr>'}
   </tbody></table></div>
   ${all.length?`<div class="row" style="justify-content:flex-end;margin-top:10px"><button class="danger" id="wipePeriod" type="button">${isDay?'Einträge dieses Tages':'Monatseinträge'} löschen (${all.length})</button></div>`:''}
   ${fixedSection(key.slice(0,7))}
@@ -1525,16 +1527,27 @@ function descSim(a,b){
 }
 const sameTx=(a,b,days)=>Math.abs(a.amount-b.amount)<0.005&&(!a.account||!b.account||a.account===b.account)&&dayDiff(a.date,b.date)<=days&&descSim(a.desc,b.desc);
 const rowSrc=r=>r.file||(r.csvId?'csv:'+r.csvId:'');
+/* Vorgemerkte Buchung aus einem vorläufigen Auszug ↔ endgültige Buchung: Datum bis 7 Tage, Betrag bis 15 % (mind. 1 €) anders
+   (Kartenreservierung, Trinkgeld, Wechselkurs), gleicher Händler. */
+const pendMatch=(r,t)=>t.pend&&(!r.account||!t.account||r.account===t.account)&&Math.sign(r.amount)===Math.sign(t.amount)&&dayDiff(r.date,t.date)<=7&&Math.abs(r.amount-t.amount)<=Math.max(1,Math.abs(t.amount)*0.15)&&descSim(r.desc,t.desc);
 function markDups(){
-  const taken=new Set(stage.rows.filter(r=>r.dupOfId).map(r=>r.dupOfId));
+  const taken=new Set(stage.rows.filter(r=>r.dupOfId||r.replaces).map(r=>r.dupOfId||r.replaces));
   stage.rows.forEach((r,i)=>{
     if(r.dupDone)return;r.dupDone=true;
-    const m=S.tx.find(t=>!taken.has(t.id)&&sameTx(r,t,2));
+    const m=S.tx.find(t=>!taken.has(t.id)&&sameTx(r,t,4));
+    if(m&&m.pend&&!r.pend){taken.add(m.id);r.replaces=m.id;r.dupWhy=`ersetzt die vorgemerkte Buchung vom ${dateDE(m.date)}`;return}
     if(m){taken.add(m.id);r.dup=true;r.dupOfId=m.id;r.dupWhy=`schon gebucht: ${dateDE(m.date)} · ${m.desc.slice(0,40)}`;r.include=false;return}
+    if(!r.pend){const pm=S.tx.find(t=>!taken.has(t.id)&&pendMatch(r,t));
+      if(pm){taken.add(pm.id);r.replaces=pm.id;r.dupWhy=`ersetzt die vorgemerkte Buchung vom ${dateDE(pm.date)} (${fmt(pm.amount)})`;return}}
     /* dieselbe Buchung aus einer anderen Datei dieser Auswahl (z. B. PDF + Screenshot desselben Zeitraums) */
     const q=stage.rows.find((o,j)=>j<i&&!o.dup&&!o.dupTwin&&rowSrc(o)!==rowSrc(r)&&rowSrc(o)&&rowSrc(r)&&sameTx(o,r,1));
     if(q){q.dupTwin=true;r.dup=true;r.dupWhy=`steht schon in dieser Auswahl: ${dateDE(q.date)} · ${q.desc.slice(0,40)}`;r.include=false}
   });
+  /* Vorgemerkte Buchungen im Zeitraum des neuen Auszugs, die dort nicht mehr vorkommen → vermutlich storniert */
+  const used=new Set(stage.rows.map(r=>r.dupOfId||r.replaces).filter(Boolean)),accs=new Set(stage.rows.map(r=>r.account||''));
+  const ds=stage.rows.filter(r=>!r.pend).map(r=>r.date).sort();
+  stage.stale=ds.length?S.tx.filter(t=>t.pend&&!used.has(t.id)&&t.date>=ds[0]&&t.date<=ds[ds.length-1]&&(accs.has(t.account||'')||accs.has(''))).map(t=>t.id):[];
+  stage.staleDel=new Set([...(stage.staleDel||[])].filter(id=>stage.stale.includes(id)).concat(stage.stale.filter(id=>!(stage.staleKeep||new Set()).has(id))));
 }
 /* Text (OCR / PDF) → Buchungen */
 function parseTextLines(lines,src){
@@ -1585,13 +1598,16 @@ async function importPdf(f){
 function previewUI(){
   const n=stage.rows.filter(r=>r.include).length,dups=stage.rows.filter(r=>r.dup).length,unc=stage.rows.filter(r=>r.uncertain).length;
   return `<h3 style="margin-top:18px">Vorschau (${n} von ${stage.rows.length} ausgewählt)</h3>
+  ${(()=>{const rp=stage.rows.filter(r=>r.replaces&&r.include).length;return rp?`<div class="warn">↻ ${rp} Buchung${rp===1?'':'en'} aus deinem vorläufigen Auszug werden durch die endgültige Fassung <b>ersetzt</b> (Datum/Betrag aktualisiert, deine Kategorie bleibt).</div>`:''})()}
+  ${(stage.stale||[]).length?`<div class="warn">${stage.stale.length} vorgemerkte Buchung${stage.stale.length===1?'':'en'} aus einem früheren vorläufigen Auszug ${stage.stale.length===1?'kommt':'kommen'} im neuen Auszug nicht mehr vor (vermutlich storniert). Angehakte werden beim Importieren gelöscht:
+    ${stage.stale.map(id=>{const t=S.tx.find(x=>x.id===id);return t?`<label class="dupr"><input type="checkbox" data-stale="${id}" ${stage.staleDel.has(id)?'checked':''}><span>${dateDE(t.date)}</span><span class="grow">${esc(t.desc)}</span><span>${fmt(t.amount)}</span></label>`:''}).join('')}</div>`:''}
   ${dups?`<div class="warn">${dups} mögliche Doppelbuchung${dups===1?'':'en'} (schon gebucht oder in mehreren Dateien) sind abgewählt und stehen ganz unten. Falls doch neu: Häkchen setzen.</div>`:''}
   ${(()=>{const o=stage.rows.filter(r=>!r.category&&!r.dup).length;return o?`<div class="warn">${o} Buchung${o===1?'':'en'} ohne Kategorie – stehen ganz oben. Was du hier zuordnest, merkt sich die App für den nächsten Import.</div>`:''})()}
   ${unc?`<div class="warn">Bei ${unc} Zeilen war das Vorzeichen unklar – als Ausgabe angenommen. Bitte prüfen (Einnahmen ohne Minus eingeben, z. B. 1500,00).</div>`:''}
   <div class="scroll"><div class="tablewrap"><table><thead><tr><th></th><th>Datum</th><th>Beschreibung</th><th>Betrag</th><th>Kategorie</th><th>Konto</th></tr></thead><tbody>
   ${stage.rows.map((r,i)=>[r,i]).sort(([a,i],[b,j])=>(+!!a.dup-+!!b.dup)||(+!!a.category-+!!b.category)||(i-j)).map(([r,i])=>`<tr class="${r.dup?'dup':''}"${r.dupWhy?` title="${esc(r.dupWhy)}"`:''}><td><input type="checkbox" data-i="${i}" data-f="include" ${r.include?'checked':''}></td>
    <td><input type="date" data-i="${i}" data-f="date" value="${r.date}"></td>
-   <td><input data-i="${i}" data-f="desc" value="${esc(r.desc)}"${r.ai?' title="Kategorie von Claude"':''}></td>
+   <td><input data-i="${i}" data-f="desc" value="${esc(r.desc)}"${r.ai?' title="Kategorie von Claude"':''}>${r.pend?'<span class="pendtag">vorgemerkt</span>':''}${r.replaces?'<span class="pendtag rp">ersetzt vorläufige</span>':''}</td>
    <td><input data-i="${i}" data-f="amount" value="${r.amount.toFixed(2).replace('.',',')}" style="min-width:80px;text-align:right"></td>
    <td><select data-i="${i}" data-f="category" class="${r.category?'':'nocat'}">${catOptions(r.category,typeOf(r.amount))}</select></td>
    <td><select data-i="${i}" data-f="account" class="${r.account?'':'nocat'}">${accOptions(r.account||'')}</select></td></tr>`).join('')}
@@ -1604,18 +1620,22 @@ function bindPreview(){
     else if(f==='amount'){const v=parseAmount(e.value);if(!isNaN(v))r.amount=v;e.value=r.amount.toFixed(2).replace('.',',')}
     else{r[f]=e.value;if(f==='category'){r.userCat=true}if(f==='category'||f==='account')e.classList.toggle('nocat',!e.value)}
   });
+  document.querySelectorAll('[data-stale]').forEach(c=>c.onchange=()=>{stage.staleKeep=stage.staleKeep||new Set();if(c.checked){stage.staleDel.add(c.dataset.stale);stage.staleKeep.delete(c.dataset.stale)}else{stage.staleDel.delete(c.dataset.stale);stage.staleKeep.add(c.dataset.stale)}});
   const b=$('#doImport');
   if(b)b.onclick=()=>{
-    const ex=new Set(S.tx.map(keyOf));let added=0,skipped=0,learned=0;
+    const ex=new Set(S.tx.map(keyOf));let added=0,skipped=0,learned=0,replaced=0,removed=0;
+    if(stage.staleDel&&stage.staleDel.size){const before=S.tx.length;S.tx=S.tx.filter(t=>!stage.staleDel.has(t.id));removed=before-S.tx.length}
     stage.rows.filter(r=>r.include).forEach(r=>{
-      const t={id:uid(),date:r.date,desc:r.desc,amount:r.amount,category:r.category,account:r.account||'',note:r.note||''};
+      if(r.replaces){const o=S.tx.find(x=>x.id===r.replaces);
+        if(o){o.date=r.date;o.amount=r.amount;o.desc=r.desc;if(!o.category||r.userCat)o.category=r.category;if(!o.account)o.account=r.account||'';if(r.note&&!o.note)o.note=r.note;delete o.pend;replaced++;return}}
+      const t={id:uid(),date:r.date,desc:r.desc,amount:r.amount,category:r.category,account:r.account||'',note:r.note||'',...(r.pend?{pend:1}:{})};
       S.tx.push(t);ex.add(keyOf(t));added++;if(r.userCat&&t.category&&learn(t.desc,t.amount,t.category))learned++;
       if(r.pairTx&&isXfer(t)){const o=S.tx.find(x=>x.id===r.pairTx);if(o&&!o.category)o.category=xferName(typeOf(o.amount))}     /* Gegenbuchung ebenfalls als Umbuchung */
     });
     const last=stage.rows.filter(r=>r.include).map(r=>r.date).sort().pop();
     if(last){curMonth=last.slice(0,7);curDay=last;curYear=Number(last.slice(0,4))}
     const more=learned?applyLearned():0;
-    save();closeModal();view=period;render();toast(`${added} Buchung${added===1?'':'en'} importiert`+(learned?` · ${learned} Zuordnung${learned===1?'':'en'} gemerkt`+(more?`, ${more} weitere zugeordnet`:''):''));
+    save();closeModal();view=period;render();toast(`${added} Buchung${added===1?'':'en'} importiert`+(replaced?` · ${replaced} vorläufige aktualisiert`:'')+(removed?` · ${removed} stornierte entfernt`:'')+(learned?` · ${learned} Zuordnung${learned===1?'':'en'} gemerkt`+(more?`, ${more} weitere zugeordnet`:''):''));
   };
 }
 
@@ -1761,7 +1781,8 @@ const AI_TX_TOOL={name:'report_transactions',description:'Gibt alle gefundenen B
     category:{type:'string',description:'Exakter Kategoriename aus der passenden Liste oder ""'},
     account:{type:'string',description:'Konto/Bank, von der die Buchung stammt – exakter Name aus der Kontenliste oder ""'},
     note:{type:'string',description:'Notiz zur Buchung – nur wenn der Nutzer das in seinen Anweisungen verlangt, sonst weglassen'},
-    file:{type:'integer',description:'Nummer der Datei, aus der die Buchung stammt'}}}}}}};
+    file:{type:'integer',description:'Nummer der Datei, aus der die Buchung stammt'},
+    pending:{type:'boolean',description:'true, wenn die Buchung im Dokument als vorgemerkt/ausstehend markiert ist'}}}}}}};
 const AI_CAT_TOOL={name:'assign_categories',description:'Ordnet Buchungen Kategorien zu.',
   input_schema:{type:'object',required:['items'],properties:{items:{type:'array',items:{type:'object',required:['i','category'],properties:{i:{type:'integer'},category:{type:'string'}}}}}}};
 const userNote=()=>{const n=(stage&&stage.note||'').trim();return n?`\n\nZUSÄTZLICHE ANWEISUNGEN DES NUTZERS für diesen Import – befolge sie, sie haben Vorrang vor den allgemeinen Regeln oben (Kategorien nur aus den Listen):\n"""${n.slice(0,2000)}"""`:''};
@@ -1771,7 +1792,7 @@ async function aiReadFiles(files,onProgress){
   const today=new Date().toISOString().slice(0,10);
   content.push({type:'text',text:`Das sind Kontoauszüge, Screenshots aus einer Banking-App, Rechnungen oder Belege des Nutzers (Deutschland, Euro). Heute ist ${today}.
 Lies ALLE einzelnen Buchungen heraus und melde sie mit report_transactions.
-- Nur echte Buchungen: keine Kontostände, Salden, Zwischensummen, Überschriften oder vorgemerkten Umsätze ohne Betrag.
+- Nur echte Buchungen: keine Kontostände, Salden, Zwischensummen oder Überschriften. Vorgemerkte/ausstehende Umsätze (z. B. „vorgemerkt“, „in Bearbeitung“, „ausstehend“, „pending“, Kartenreservierung) MIT Betrag melden und pending=true setzen; alles Gebuchte pending=false.
 - Vorzeichen: Abbuchung/Lastschrift/Kartenzahlung/Überweisung an andere = negativ; Gutschrift/Eingang/Gehalt = positiv. Bei Belegen und Rechnungen (Kassenbon) ist es eine Ausgabe mit der Endsumme.
 - Fehlt das Jahr im Datum, nimm das plausibelste (meist das aktuelle; Daten nach heute gehören ins Vorjahr).
 - KEINE Doppelungen: Überlappende Bildteile, mehrere Screenshots derselben Liste oder PDF und Screenshot desselben Zeitraums zeigen oft dieselben Buchungen – jede echte Buchung nur EINMAL melden. Nur wenn dieselbe Zahlung im selben Dokument wirklich mehrfach aufgeführt ist (z. B. 3× Aufrundung), alle melden.
@@ -1785,7 +1806,7 @@ ${aiCategoryContext()}${userNote()}`});
     if(!date||isNaN(amount)||!amount)return null;
     const desc=String(t.description||'').trim()||'(ohne Beschreibung)',party=String(t.counterparty||'').trim();
     const acc=stage.acc&&stage.acc!=='auto'?stage.acc:(S.accounts.includes(String(t.account||''))?String(t.account):'');
-    return {date,desc,account:acc,amount:Math.round(amount*100)/100,category:ownerXfer(desc,amount,party)||learnedCat(desc,amount)||validCat(String(t.category||''),amount)||autoCat(desc,amount),note:String(t.note||'').trim().slice(0,300),file:'ai:'+(Number.isInteger(t.file)?t.file:0),include:true,src:'ai',uncertain:false,ai:true,aiTried:true};
+    return {date,desc,account:acc,amount:Math.round(amount*100)/100,category:ownerXfer(desc,amount,party)||learnedCat(desc,amount)||validCat(String(t.category||''),amount)||autoCat(desc,amount),note:String(t.note||'').trim().slice(0,300),file:'ai:'+(Number.isInteger(t.file)?t.file:0),pend:t.pending===true,include:true,src:'ai',uncertain:false,ai:true,aiTried:true};
   }).filter(Boolean);
 }
 async function aiCategorize(rows,onProgress){
@@ -2137,7 +2158,7 @@ let R={};try{R=JSON.parse(localStorage.getItem(REM_KEY))||{}}catch(e){}
 const persistR=()=>{try{localStorage.setItem(REM_KEY,JSON.stringify(R))}catch(e){}};
 let syncState={s:'off',msg:'',at:null},syncing=false,again=false;
 
-const normTx=t=>({id:t.id,date:t.date,desc:t.desc,amount:Number(t.amount),category:t.category,account:t.account||'',note:t.note||'',u:t.u||0});
+const normTx=t=>({id:t.id,date:t.date,desc:t.desc,amount:Number(t.amount),category:t.category,account:t.account||'',note:t.note||'',...(t.pend?{pend:1}:{}),u:t.u||0});
 const jlines=a=>a.length?'\n'+a.map(x=>'  '+JSON.stringify(x)).join(',\n')+'\n ':'';
 function serMonth(m){
   const tx=S.tx.filter(t=>t.date.startsWith(m)).map(normTx).sort((a,b)=>a.date.localeCompare(b.date)||a.id.localeCompare(b.id));
