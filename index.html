@@ -463,7 +463,7 @@ button.upx:hover{color:var(--neg);background:rgba(255,255,255,.06)}
 
 <script>
 /* ============ Konstanten & State ============ */
-const APP_VERSION='2026-10-23.3';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
+const APP_VERSION='2026-10-23.4';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
 const KEY='1percent-v1',CFG_KEY='1percent-cfg',REM_KEY='1percent-remote';
 const DEFAULT_ACCOUNTS=['Commerzbank','N26'];
 const CATS_V=5;          /* Version der Kategorienliste – bei Änderung wird einmalig migriert */
@@ -622,8 +622,18 @@ function isOwner(party){
   const got=new Set(nameTokens(party));const hits=own.filter(w=>got.has(w)).length;
   return hits>=Math.min(2,own.length);
 }
+/* Alles von oder an den Kontoinhaber ist eine Umbuchung – egal ob der Name als Gegenpartei oder im Buchungstext steht. */
+/* Name am Anfang des Buchungstexts = Gegenpartei („Lucas Harting Candido Übertrag“, „Überweisung von Lucas Candido“);
+   steht er nur hinten im Verwendungszweck (z. B. „Firma GmbH Gehalt Oktober Lucas …“), bleibt es Gehalt. */
+const ownerLeads=desc=>isOwner(nameTokens(desc).filter(w=>!/^(uberweisung|ueberweisung|von|an|from|to|gutschrift|lastschrift|dauerauftrag|sepa|echtzeit|instant|transfer)$/.test(w)).slice(0,3).join(' '));
+const ownerXfer=(desc,amount,party)=>S.owner&&(isOwner(party)||ownerLeads(desc))?xferName(typeOf(amount)):'';
+function applyOwnerRule(){
+  if(!S.owner)return 0;let n=0;
+  S.tx.forEach(t=>{const x=ownerXfer(t.desc,t.amount);if(x&&t.category!==x){t.category=x;n++}});
+  return n;
+}
 function autoCat(desc,amount,party){
-  if(party!==undefined&&isOwner(party)&&xferName(typeOf(amount)))return xferName(typeOf(amount));
+  {const x=ownerXfer(desc,amount,party);if(x)return x}
   const d=desc.toLowerCase();
   const want=amount>0?INC:EXP;
   for(const r of S.rules){if(!r.kw||!d.includes(r.kw.toLowerCase()))continue;if(S.cats.some(c=>c.name===r.cat&&catType(c)===want))return r.cat}
@@ -631,7 +641,12 @@ function autoCat(desc,amount,party){
 }
 
 /* ============ Rendering ============ */
+const OWNER_V='1percent-owner-applied';
+function ownerCatchUp(){let v='';try{v=localStorage.getItem(OWNER_V)||''}catch(e){}
+  if(!S.owner||v===S.owner)return;try{localStorage.setItem(OWNER_V,S.owner)}catch(e){}
+  const n=applyOwnerRule();if(n){save();setTimeout(()=>toast(`${n} Buchung${n===1?'':'en'} von/an ${S.owner} als Umbuchung markiert`),50)}}
 function render(){
+  ownerCatchUp();
   const gs=$('#btnSettings');if(gs)gs.classList.toggle('active',view==='settings');
   const gf=$('#btnFinance');if(gf)gf.classList.toggle('active',view==='month'||view==='day'||view==='year');
   const app=$('#app');
@@ -1121,9 +1136,8 @@ function bindView(){
     const a=S.accounts[+e.dataset.ad];if(!confirm(`Konto „${a}“ löschen? Seine Buchungen bleiben erhalten und sind danach „${NO_ACC}“.`))return;
     S.tx.forEach(t=>{if(t.account===a)t.account=''});S.accounts.splice(+e.dataset.ad,1);if(filter.acc===a)filter.acc='*';save();render()});
   on('#ownerIn','change',e=>{
-    S.owner=e.target.value.trim();let n=0;
-    if(S.owner)S.tx.forEach(t=>{if(!t.category&&isOwner(t.desc)&&xferName(typeOf(t.amount))){t.category=xferName(typeOf(t.amount));n++}});
-    save();render();toast(n?`Gespeichert – ${n} Buchung${n===1?'':'en'} ohne Kategorie als Umbuchung erkannt`:'Gespeichert');
+    S.owner=e.target.value.trim();const n=applyOwnerRule();try{localStorage.setItem(OWNER_V,S.owner)}catch(x){}
+    save();render();toast(n?`Gespeichert – ${n} Buchung${n===1?'':'en'} von/an ${S.owner} sind jetzt Umbuchungen`:'Gespeichert');
   });
   on('#setBack','click',()=>{view=period;render();scrollTo(0,0)});
   on('#setSync','click',()=>openData());
@@ -1568,7 +1582,7 @@ function aiCategoryContext(){
     (rules?`Stichwort-Regeln des Nutzers (Beschreibung enthält Stichwort → Kategorie): ${rules}\n\n`:'')+
     (ex.length?`So hat der Nutzer bisher zugeordnet (daran orientieren):\n${ex.join('\n')}\n\n`:'')+
     `„${xferName(EXP)||'Umbuchung'}“ ist für Überweisungen zwischen den EIGENEN Konten des Nutzers (${S.accounts.join(', ')||'–'}), z. B. Commerzbank → N26 oder Aufladen/Übertrag aufs eigene Konto – nicht für Zahlungen an andere Personen.\n`+
-    (S.owner?`Der Kontoinhaber heißt „${S.owner}“. Jede Überweisung VON oder AN „${S.owner}“ (auch in anderer Schreibweise, z. B. Nachname zuerst, mit Komma, ohne Mittelnamen, in Großbuchstaben) ist eine Umbuchung zwischen seinen eigenen Konten – entscheidend ist der Name der Gegenpartei, nicht ein Name im Verwendungszweck (z. B. „Gehalt … ${S.owner}“ vom Arbeitgeber ist Gehalt).\n`:'')+
+    (S.owner?`Der Kontoinhaber heißt „${S.owner}“. JEDE Buchung, bei der „${S.owner}“ Absender oder Empfänger ist (auch in anderer Schreibweise, z. B. Nachname zuerst, mit Komma, ohne Mittelnamen, in Großbuchstaben), ist eine Umbuchung zwischen seinen eigenen Konten – weder Einnahme noch Ausgabe. Nur wenn der Name allein im Verwendungszweck einer Zahlung von jemand anderem steht (z. B. Gehalt vom Arbeitgeber), gilt das nicht.\n`:'')+
     `Wähle für jede Buchung genau eine Kategorie aus der passenden Liste, Name exakt wie angegeben. Wenn keine eindeutig passt, gib "" zurück – nicht raten.`;
 }
 const AI_TX_TOOL={name:'report_transactions',description:'Gibt alle gefundenen Buchungen mit Kategorie zurück.',
@@ -1602,7 +1616,7 @@ ${aiCategoryContext()}${userNote()}`});
     if(!date||isNaN(amount)||!amount)return null;
     const desc=String(t.description||'').trim()||'(ohne Beschreibung)',party=String(t.counterparty||'').trim();
     const acc=stage.acc&&stage.acc!=='auto'?stage.acc:(S.accounts.includes(String(t.account||''))?String(t.account):'');
-    return {date,desc,account:acc,amount:Math.round(amount*100)/100,category:(isOwner(party)&&!stage.note&&xferName(typeOf(amount)))||validCat(String(t.category||''),amount)||(isOwner(party)&&xferName(typeOf(amount)))||autoCat(desc,amount),note:String(t.note||'').trim().slice(0,300),include:true,src:'ai',uncertain:false,ai:true,aiTried:true};
+    return {date,desc,account:acc,amount:Math.round(amount*100)/100,category:ownerXfer(desc,amount,party)||validCat(String(t.category||''),amount)||autoCat(desc,amount),note:String(t.note||'').trim().slice(0,300),include:true,src:'ai',uncertain:false,ai:true,aiTried:true};
   }).filter(Boolean);
 }
 async function aiCategorize(rows,onProgress){
@@ -1610,7 +1624,7 @@ async function aiCategorize(rows,onProgress){
   const lines=rows.map((r,i)=>`${i}\t${r.date}\t${r.amount.toFixed(2)}\t${r.desc.slice(0,160)}`).join('\n');
   const content=[{type:'text',text:`Ordne diese Buchungen (Index, Datum, Betrag in €, Beschreibung) den Kategorien des Nutzers zu und melde das Ergebnis mit assign_categories.\n\n${aiCategoryContext()}${userNote()}\n\nBuchungen:\n${lines}`}];
   let n=0;
-  for(const o of await aiAsk(content,AI_CAT_TOOL,onProgress))for(const it of o.items||[]){const r=rows[it.i];if(!r)continue;const c=validCat(String(it.category||''),r.amount);if(c){r.category=c;r.ai=true;n++}}
+  for(const o of await aiAsk(content,AI_CAT_TOOL,onProgress))for(const it of o.items||[]){const r=rows[it.i];if(!r)continue;const c=ownerXfer(r.desc,r.amount)||validCat(String(it.category||''),r.amount);if(c){r.category=c;r.ai=true;n++}}
   return n;
 }
 
