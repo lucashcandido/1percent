@@ -470,7 +470,7 @@ button.upx:hover{color:var(--neg);background:rgba(255,255,255,.06)}
 
 <script>
 /* ============ Konstanten & State ============ */
-const APP_VERSION='2026-10-23.8';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
+const APP_VERSION='2026-10-23.9';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
 const KEY='1percent-v1',CFG_KEY='1percent-cfg',REM_KEY='1percent-remote';
 const DEFAULT_ACCOUNTS=['Commerzbank','N26'];
 const CATS_V=5;          /* Version der Kategorienliste – bei Änderung wird einmalig migriert */
@@ -1531,9 +1531,10 @@ function previewUI(){
   const n=stage.rows.filter(r=>r.include).length,dups=stage.rows.filter(r=>r.dup).length,unc=stage.rows.filter(r=>r.uncertain).length;
   return `<h3 style="margin-top:18px">Vorschau (${n} von ${stage.rows.length} ausgewählt)</h3>
   ${dups?`<div class="warn">${dups} mögliche Duplikate (bereits vorhanden) sind abgewählt.</div>`:''}
+  ${(()=>{const o=stage.rows.filter(r=>!r.category&&!r.dup).length;return o?`<div class="warn">${o} Buchung${o===1?'':'en'} ohne Kategorie – stehen ganz oben. Was du hier zuordnest, merkt sich die App für den nächsten Import.</div>`:''})()}
   ${unc?`<div class="warn">Bei ${unc} Zeilen war das Vorzeichen unklar – als Ausgabe angenommen. Bitte prüfen (Einnahmen ohne Minus eingeben, z. B. 1500,00).</div>`:''}
   <div class="scroll"><div class="tablewrap"><table><thead><tr><th></th><th>Datum</th><th>Beschreibung</th><th>Betrag</th><th>Kategorie</th><th>Konto</th></tr></thead><tbody>
-  ${stage.rows.map((r,i)=>`<tr class="${r.dup?'dup':''}"><td><input type="checkbox" data-i="${i}" data-f="include" ${r.include?'checked':''}></td>
+  ${stage.rows.map((r,i)=>[r,i]).sort(([a,i],[b,j])=>(+!!a.dup-+!!b.dup)||(+!!a.category-+!!b.category)||(i-j)).map(([r,i])=>`<tr class="${r.dup?'dup':''}"><td><input type="checkbox" data-i="${i}" data-f="include" ${r.include?'checked':''}></td>
    <td><input type="date" data-i="${i}" data-f="date" value="${r.date}"></td>
    <td><input data-i="${i}" data-f="desc" value="${esc(r.desc)}"${r.ai?' title="Kategorie von Claude"':''}></td>
    <td><input data-i="${i}" data-f="amount" value="${r.amount.toFixed(2).replace('.',',')}" style="min-width:80px;text-align:right"></td>
