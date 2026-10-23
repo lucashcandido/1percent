@@ -309,6 +309,10 @@ button.ovbtn:hover{background:#e1e4e9}
 @media(max-width:600px){.modal.ovmodal{padding:16px}.ovkpi b{font-size:17px}}
 /* --- Fixkosten-Checkliste --- */
 .fixcard{padding:14px 16px}
+.dupg{padding:10px 12px;border-bottom:1px solid var(--line)}.dupg:last-child{border-bottom:0}
+.duph{font-weight:600;margin-bottom:4px;font-variant-numeric:tabular-nums}
+.dupr{display:flex;gap:10px;align-items:center;padding:4px 0;font-size:13.5px;cursor:pointer}.dupr .grow{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dupr .muted{flex:none;font-size:12px}.dupkeep{font-size:11px;color:var(--mut);width:34px;flex:none}.dupr input{flex:none;width:34px}
 .flcard{padding:14px 16px}
 .flname{font:800 italic 17px/1 var(--serif);text-transform:uppercase;letter-spacing:.03em;margin:2px 0 6px}
 .flrow{display:flex;justify-content:space-between;gap:12px;padding:4px 0;font-size:14px;color:var(--mut)}
@@ -470,7 +474,7 @@ button.upx:hover{color:var(--neg);background:rgba(255,255,255,.06)}
 
 <script>
 /* ============ Konstanten & State ============ */
-const APP_VERSION='2026-10-23.9';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
+const APP_VERSION='2026-10-23.10';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
 const KEY='1percent-v1',CFG_KEY='1percent-cfg',REM_KEY='1percent-remote';
 const DEFAULT_ACCOUNTS=['Commerzbank','N26'];
 const CATS_V=5;          /* Version der Kategorienliste – bei Änderung wird einmalig migriert */
@@ -1149,6 +1153,31 @@ function yearView(){
   <h2>Ausgaben nach Kategorie (Jahr)</h2><div class="card">${catBars(all)}</div>
   <h2>Einnahmen nach Kategorie (Jahr)</h2><div class="card">${catBars(all,INC)}</div>`;
 }
+/* Vorhandene Doppelungen finden: gleiche Buchung (s. sameTx) – ab 5 € bis 2 Tage auseinander, kleine Beträge und Umbuchungen
+   nur am selben Tag (sonst zu viele regelmäßige Space-Überweisungen). */
+function findDupGroups(){
+  const tx=[...S.tx].sort((a,b)=>a.date.localeCompare(b.date)||a.id.localeCompare(b.id)),used=new Set(),groups=[];
+  for(let i=0;i<tx.length;i++){const a=tx[i];if(used.has(a.id))continue;const g=[a];
+    for(let j=i+1;j<tx.length&&dayDiff(tx[j].date,a.date)<=2;j++){const b=tx[j];if(!used.has(b.id)&&sameTx(a,b,isXfer(a)||Math.abs(a.amount)<5?0:2)){g.push(b);used.add(b.id)}}
+    if(g.length>1){used.add(a.id);groups.push(g)}}
+  return groups;
+}
+function openDupCheck(){
+  const groups=findDupGroups(),pre=(a,b)=>a.date===b.date&&Math.abs(b.amount)>=1&&!isXfer(b);
+  modal(`<h3>Doppelte Buchungen</h3>
+    ${groups.length?`<p class="muted">${groups.length} Gruppe${groups.length===1?'':'n'} mit gleicher Buchung (gleicher Betrag, gleiches Konto, ähnlicher Text; ab 5 € bis 2 Tage auseinander, sonst am selben Tag). Die erste bleibt immer, angehakte Kopien werden gelöscht. Vorausgewählt sind nur Kopien vom selben Tag ab 1 € ohne Umbuchungen – echte Wiederholungen (z. B. mehrere Aufrundungen oder gleiche Space-Überweisungen) prüfst du selbst.</p>
+    <div class="scroll" style="max-height:55vh">${groups.map(g=>`<div class="dupg"><div class="duph">${fmt(g[0].amount)} · ${esc(g[0].account||NO_ACC)}</div>${g.map((t,k)=>`<label class="dupr">${k?`<input type="checkbox" data-dupdel="${t.id}" ${pre(g[0],t)?'checked':''}>`:'<span class="dupkeep">bleibt</span>'}<span>${dateDE(t.date)}</span><span class="grow">${esc(t.desc)}</span><span class="muted">${esc(t.category||'–')}</span></label>`).join('')}</div>`).join('')}</div>
+    <div class="row" style="margin-top:12px"><button class="danger" id="dupGo" type="button">Ausgewählte löschen</button><button id="dupNo" type="button">Schließen</button></div>`
+    :`<p>Keine doppelten Buchungen gefunden. ✓</p><div class="row"><button id="dupNo" class="primary" type="button">Schließen</button></div>`}`,'md');
+  $('#dupNo').onclick=closeModal;
+  const go=$('#dupGo');if(go){const upd=()=>{const n=document.querySelectorAll('[data-dupdel]:checked').length;go.textContent=n?`${n} Kopie${n===1?'':'n'} löschen`:'Ausgewählte löschen';go.disabled=!n};
+    document.querySelectorAll('[data-dupdel]').forEach(c=>c.onchange=upd);upd();
+    go.onclick=()=>{const ids=new Set([...document.querySelectorAll('[data-dupdel]:checked')].map(c=>c.dataset.dupdel));
+      const backup=S.tx.filter(t=>ids.has(t.id)).map(t=>({...t}));S.tx=S.tx.filter(t=>!ids.has(t.id));save();closeModal();render();
+      const bar=document.createElement('div');bar.className='updbar';bar.style.top='auto';bar.style.bottom='24px';
+      bar.innerHTML=`${backup.length} doppelte Buchung${backup.length===1?'':'en'} gelöscht <button class="primary" type="button">Rückgängig</button>`;document.body.appendChild(bar);
+      const tm=setTimeout(()=>bar.remove(),10000);bar.querySelector('button').onclick=()=>{clearTimeout(tm);bar.remove();const b=new Set(backup.map(t=>t.id));S.tomb=S.tomb.filter(t=>!b.has(t.id));S.tx.push(...backup);save();render();toast('Wiederhergestellt')}};}
+}
 function settingsHead(){
   return `<div class="period"><button id="setBack" class="navarrow" aria-label="Zurück zur Übersicht">&lt;</button><span class="ptitle">Einstellungen</span><span class="navarrow-sp"></span></div>
   <div class="periodsub"><button id="setSync">Sync &amp; Daten · Claude</button></div>`;
@@ -1184,6 +1213,8 @@ function settingsView(){
     <button id="addRule">+ Regel</button>
     <button id="reapply">Regeln auf alle Buchungen anwenden</button>
   </div>
+  <h2>Doppelte Buchungen</h2>
+  <div class="card"><p class="muted" style="margin-top:0">Findet Buchungen, die versehentlich mehrfach importiert wurden, und löscht die Kopien – mit Vorschau und Rückgängig.</p><button id="dupCheck" type="button">Doppelte Buchungen suchen</button></div>
   <h2>Gelernte Zuordnungen ${(S.learn||[]).length?`(${S.learn.length})`:''}</h2>
   <p class="muted">Wenn du eine Buchung selbst einer Kategorie zuordnest (in der Import-Vorschau oder beim Bearbeiten), merkt sich die App den Händler. Beim nächsten Import wird er sofort so zugeordnet – ohne Claude, also ohne Kosten.</p>
   <div class="card fixcard">${(S.learn||[]).length?S.learn.map((l,i)=>`<div class="fixrow"><div class="fixmain"><div class="fixname">${esc(l.k)}</div><div class="muted">${l.t===INC?'Einnahme':'Ausgabe'} → ${esc(l.c)}</div></div><button type="button" class="upx" data-ld="${i}" aria-label="Zuordnung ${esc(l.k)} vergessen">✕</button></div>`).join(''):'<p class="muted">Noch nichts gelernt.</p>'}</div>
@@ -1243,6 +1274,7 @@ function bindView(){
     save();render();toast(n?`Gespeichert – ${n} Buchung${n===1?'':'en'} von/an ${S.owner} sind jetzt Umbuchungen`:'Gespeichert');
   });
   on('#setBack','click',()=>{view=period;render();scrollTo(0,0)});
+  on('#dupCheck','click',openDupCheck);
   document.querySelectorAll('[data-ld]').forEach(b=>b.onclick=()=>{S.learn.splice(+b.dataset.ld,1);save();const y=scrollY;render();scrollTo(0,y)});
   on('#setSync','click',()=>openData());
   document.querySelectorAll('[data-svadd]').forEach(b=>b.onclick=()=>{S.savings=[...(S.savings||[]),b.dataset.svadd];save();const y=scrollY;render();scrollTo(0,y)});
@@ -1477,9 +1509,32 @@ function pairTransfers(){
   }
   return n;
 }
+/* ============ Doppelte Buchungen erkennen ============
+   Gleich = gleicher Betrag, gleiches Konto (oder eins unbekannt), Datum höchstens ein paar Tage auseinander
+   (Buchungs- vs. Wertstellungsdatum) und ähnlicher Text („REWE Hamburg – Lebensmittel“ ≈ „REWE HAMBURG“).
+   Zuordnung 1:1: Jede vorhandene Buchung kann nur EINE neue „verdecken“ – echte Wiederholungen am selben Tag
+   (z. B. 3× Aufrundung 0,01 €) bleiben so erhalten, solange sie öfter vorkommen als schon gebucht. */
+const dayDiff=(a,b)=>Math.abs(Math.round((new Date(a+'T12:00')-new Date(b+'T12:00'))/864e5));
+const DUP_STOP=new Set(['lebensmittel','bars','restaurants','sonstiges','gutschrift','lastschrift','kartenzahlung','zahlung','umbuchung','space','von','an','und','gmbh','sagt','danke']);
+const simToks=d=>new Set(nameTokens(String(d).split(/\s[–-]\s/)[0]).filter(w=>w.length>=3&&!/^\d+$/.test(w)&&!DUP_STOP.has(w)));
+function descSim(a,b){
+  if(norm(a)===norm(b))return true;
+  const x=simToks(a),y=simToks(b);if(!x.size||!y.size)return norm(a).slice(0,12)===norm(b).slice(0,12);
+  let both=0;x.forEach(w=>{if(y.has(w))both++});
+  return both===Math.min(x.size,y.size)||both/(x.size+y.size-both)>=0.5;
+}
+const sameTx=(a,b,days)=>Math.abs(a.amount-b.amount)<0.005&&(!a.account||!b.account||a.account===b.account)&&dayDiff(a.date,b.date)<=days&&descSim(a.desc,b.desc);
+const rowSrc=r=>r.file||(r.csvId?'csv:'+r.csvId:'');
 function markDups(){
-  const ex=new Set(S.tx.map(keyOf));const seen=new Set();
-  stage.rows.forEach(r=>{const k=keyOf(r);r.dup=ex.has(k)||seen.has(k)&&false;if(r.dup)r.include=false;seen.add(k)});
+  const taken=new Set(stage.rows.filter(r=>r.dupOfId).map(r=>r.dupOfId));
+  stage.rows.forEach((r,i)=>{
+    if(r.dupDone)return;r.dupDone=true;
+    const m=S.tx.find(t=>!taken.has(t.id)&&sameTx(r,t,2));
+    if(m){taken.add(m.id);r.dup=true;r.dupOfId=m.id;r.dupWhy=`schon gebucht: ${dateDE(m.date)} · ${m.desc.slice(0,40)}`;r.include=false;return}
+    /* dieselbe Buchung aus einer anderen Datei dieser Auswahl (z. B. PDF + Screenshot desselben Zeitraums) */
+    const q=stage.rows.find((o,j)=>j<i&&!o.dup&&!o.dupTwin&&rowSrc(o)!==rowSrc(r)&&rowSrc(o)&&rowSrc(r)&&sameTx(o,r,1));
+    if(q){q.dupTwin=true;r.dup=true;r.dupWhy=`steht schon in dieser Auswahl: ${dateDE(q.date)} · ${q.desc.slice(0,40)}`;r.include=false}
+  });
 }
 /* Text (OCR / PDF) → Buchungen */
 function parseTextLines(lines,src){
@@ -1503,7 +1558,7 @@ async function importImage(f){
   log(`… ${f.name}: Texterkennung läuft (beim ersten Mal wird das deutsche Sprachmodell geladen)`);
   await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js');
   const {data}=await Tesseract.recognize(f,'deu');
-  const rows=parseTextLines(data.text.split('\n'),'img').map(r=>({...r,account:guessAccount(f.name,data.text)}));
+  const rows=parseTextLines(data.text.split('\n'),'img').map(r=>({...r,account:guessAccount(f.name,data.text),file:'img:'+f.name+f.size}));
   stage.rows.push(...rows);markDups();
   log(rows.length?`✓ ${f.name}: ${rows.length} Buchungen erkannt.`:`⚠ ${f.name}: Keine Buchungen mit Datum und Betrag in einer Zeile erkannt. Bitte manuell erfassen.`);
 }
@@ -1523,18 +1578,18 @@ async function pdfLines(f){
 async function importPdf(f){
   log(`… ${f.name}: PDF wird gelesen`);
   const lines=await pdfLines(f);
-  const rows=parseTextLines(lines,'pdf').map(r=>({...r,account:guessAccount(f.name,lines.join(' '))}));
+  const rows=parseTextLines(lines,'pdf').map(r=>({...r,account:guessAccount(f.name,lines.join(' ')),file:'pdf:'+f.name+f.size}));
   stage.rows.push(...rows);markDups();
   log(rows.length?`✓ ${f.name}: ${rows.length} Buchungen erkannt.`:`⚠ ${f.name}: Keine Buchungen erkannt (evtl. gescannte PDF – als Screenshot/Bild versuchen, oder CSV exportieren).`);
 }
 function previewUI(){
   const n=stage.rows.filter(r=>r.include).length,dups=stage.rows.filter(r=>r.dup).length,unc=stage.rows.filter(r=>r.uncertain).length;
   return `<h3 style="margin-top:18px">Vorschau (${n} von ${stage.rows.length} ausgewählt)</h3>
-  ${dups?`<div class="warn">${dups} mögliche Duplikate (bereits vorhanden) sind abgewählt.</div>`:''}
+  ${dups?`<div class="warn">${dups} mögliche Doppelbuchung${dups===1?'':'en'} (schon gebucht oder in mehreren Dateien) sind abgewählt und stehen ganz unten. Falls doch neu: Häkchen setzen.</div>`:''}
   ${(()=>{const o=stage.rows.filter(r=>!r.category&&!r.dup).length;return o?`<div class="warn">${o} Buchung${o===1?'':'en'} ohne Kategorie – stehen ganz oben. Was du hier zuordnest, merkt sich die App für den nächsten Import.</div>`:''})()}
   ${unc?`<div class="warn">Bei ${unc} Zeilen war das Vorzeichen unklar – als Ausgabe angenommen. Bitte prüfen (Einnahmen ohne Minus eingeben, z. B. 1500,00).</div>`:''}
   <div class="scroll"><div class="tablewrap"><table><thead><tr><th></th><th>Datum</th><th>Beschreibung</th><th>Betrag</th><th>Kategorie</th><th>Konto</th></tr></thead><tbody>
-  ${stage.rows.map((r,i)=>[r,i]).sort(([a,i],[b,j])=>(+!!a.dup-+!!b.dup)||(+!!a.category-+!!b.category)||(i-j)).map(([r,i])=>`<tr class="${r.dup?'dup':''}"><td><input type="checkbox" data-i="${i}" data-f="include" ${r.include?'checked':''}></td>
+  ${stage.rows.map((r,i)=>[r,i]).sort(([a,i],[b,j])=>(+!!a.dup-+!!b.dup)||(+!!a.category-+!!b.category)||(i-j)).map(([r,i])=>`<tr class="${r.dup?'dup':''}"${r.dupWhy?` title="${esc(r.dupWhy)}"`:''}><td><input type="checkbox" data-i="${i}" data-f="include" ${r.include?'checked':''}></td>
    <td><input type="date" data-i="${i}" data-f="date" value="${r.date}"></td>
    <td><input data-i="${i}" data-f="desc" value="${esc(r.desc)}"${r.ai?' title="Kategorie von Claude"':''}></td>
    <td><input data-i="${i}" data-f="amount" value="${r.amount.toFixed(2).replace('.',',')}" style="min-width:80px;text-align:right"></td>
@@ -1554,7 +1609,6 @@ function bindPreview(){
     const ex=new Set(S.tx.map(keyOf));let added=0,skipped=0,learned=0;
     stage.rows.filter(r=>r.include).forEach(r=>{
       const t={id:uid(),date:r.date,desc:r.desc,amount:r.amount,category:r.category,account:r.account||'',note:r.note||''};
-      if(ex.has(keyOf(t))&&r.dup){skipped++;return}
       S.tx.push(t);ex.add(keyOf(t));added++;if(r.userCat&&t.category&&learn(t.desc,t.amount,t.category))learned++;
       if(r.pairTx&&isXfer(t)){const o=S.tx.find(x=>x.id===r.pairTx);if(o&&!o.category)o.category=xferName(typeOf(o.amount))}     /* Gegenbuchung ebenfalls als Umbuchung */
     });
@@ -1706,20 +1760,22 @@ const AI_TX_TOOL={name:'report_transactions',description:'Gibt alle gefundenen B
     amount:{type:'number',description:'Betrag in Euro: Ausgaben/Abbuchungen negativ, Einnahmen/Gutschriften positiv'},
     category:{type:'string',description:'Exakter Kategoriename aus der passenden Liste oder ""'},
     account:{type:'string',description:'Konto/Bank, von der die Buchung stammt – exakter Name aus der Kontenliste oder ""'},
-    note:{type:'string',description:'Notiz zur Buchung – nur wenn der Nutzer das in seinen Anweisungen verlangt, sonst weglassen'}}}}}}};
+    note:{type:'string',description:'Notiz zur Buchung – nur wenn der Nutzer das in seinen Anweisungen verlangt, sonst weglassen'},
+    file:{type:'integer',description:'Nummer der Datei, aus der die Buchung stammt'}}}}}}};
 const AI_CAT_TOOL={name:'assign_categories',description:'Ordnet Buchungen Kategorien zu.',
   input_schema:{type:'object',required:['items'],properties:{items:{type:'array',items:{type:'object',required:['i','category'],properties:{i:{type:'integer'},category:{type:'string'}}}}}}};
 const userNote=()=>{const n=(stage&&stage.note||'').trim();return n?`\n\nZUSÄTZLICHE ANWEISUNGEN DES NUTZERS für diesen Import – befolge sie, sie haben Vorrang vor den allgemeinen Regeln oben (Kategorien nur aus den Listen):\n"""${n.slice(0,2000)}"""`:''};
 const validCat=(name,amount)=>name&&S.cats.some(c=>c.name===name&&catType(c)===typeOf(amount))?name:'';
 async function aiReadFiles(files,onProgress){
-  const content=[];for(const f of files)content.push(...await fileBlocks(f));
+  const content=[];for(const [i,f] of files.entries()){content.push({type:'text',text:`[Datei ${i+1}]`});content.push(...await fileBlocks(f))}
   const today=new Date().toISOString().slice(0,10);
   content.push({type:'text',text:`Das sind Kontoauszüge, Screenshots aus einer Banking-App, Rechnungen oder Belege des Nutzers (Deutschland, Euro). Heute ist ${today}.
 Lies ALLE einzelnen Buchungen heraus und melde sie mit report_transactions.
 - Nur echte Buchungen: keine Kontostände, Salden, Zwischensummen, Überschriften oder vorgemerkten Umsätze ohne Betrag.
 - Vorzeichen: Abbuchung/Lastschrift/Kartenzahlung/Überweisung an andere = negativ; Gutschrift/Eingang/Gehalt = positiv. Bei Belegen und Rechnungen (Kassenbon) ist es eine Ausgabe mit der Endsumme.
 - Fehlt das Jahr im Datum, nimm das plausibelste (meist das aktuelle; Daten nach heute gehören ins Vorjahr).
-- Überlappende Bildteile oder mehrere Screenshots derselben Liste: jede Buchung nur einmal.
+- KEINE Doppelungen: Überlappende Bildteile, mehrere Screenshots derselben Liste oder PDF und Screenshot desselben Zeitraums zeigen oft dieselben Buchungen – jede echte Buchung nur EINMAL melden. Nur wenn dieselbe Zahlung im selben Dokument wirklich mehrfach aufgeführt ist (z. B. 3× Aufrundung), alle melden.
+- file: Nummer der Datei ([Datei 1], [Datei 2] …), aus der die Buchung stammt.
 - Beschreibung: Name des Händlers/Empfängers bzw. Auftraggebers, ggf. kurz der Zweck (ohne IBAN, Mandats- oder Referenznummern).
 - Konto: ${stage.acc&&stage.acc!=='auto'?`Alle Dateien stammen vom Konto „${stage.acc}“ – setze bei jeder Buchung account="${stage.acc}".`:`Bestimme für jede Datei, von welchem Konto des Nutzers sie stammt, und setze account bei jeder Buchung. Konten: ${S.accounts.map(a=>`„${a}“`).join(', ')||'(keine)'}. Erkennungsmerkmale: Logo, Kopfzeile, App-Design, IBAN/BIC (N26: BIC NTSBDEB1, IBAN mit Bankleitzahl 10011001, schwarz-weiße/türkise App; Commerzbank: BIC COBADEFF, gelbes Logo/Band). Wenn nicht erkennbar: "".`}
 
@@ -1729,7 +1785,7 @@ ${aiCategoryContext()}${userNote()}`});
     if(!date||isNaN(amount)||!amount)return null;
     const desc=String(t.description||'').trim()||'(ohne Beschreibung)',party=String(t.counterparty||'').trim();
     const acc=stage.acc&&stage.acc!=='auto'?stage.acc:(S.accounts.includes(String(t.account||''))?String(t.account):'');
-    return {date,desc,account:acc,amount:Math.round(amount*100)/100,category:ownerXfer(desc,amount,party)||learnedCat(desc,amount)||validCat(String(t.category||''),amount)||autoCat(desc,amount),note:String(t.note||'').trim().slice(0,300),include:true,src:'ai',uncertain:false,ai:true,aiTried:true};
+    return {date,desc,account:acc,amount:Math.round(amount*100)/100,category:ownerXfer(desc,amount,party)||learnedCat(desc,amount)||validCat(String(t.category||''),amount)||autoCat(desc,amount),note:String(t.note||'').trim().slice(0,300),file:'ai:'+(Number.isInteger(t.file)?t.file:0),include:true,src:'ai',uncertain:false,ai:true,aiTried:true};
   }).filter(Boolean);
 }
 async function aiCategorize(rows,onProgress){
