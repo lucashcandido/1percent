@@ -71,7 +71,13 @@ Unter *Sync & Daten → Claude* trägst du einen eigenen [Anthropic-API-Schlüss
 - Claude bekommt dafür deine Kategorien, deine Regeln und als Beispiele, wie du bisher zugeordnet hast. Passt keine Kategorie eindeutig, bleibt die Buchung „Ohne Kategorie“ (in der Vorschau gelb markiert).
 - **Hochladen wie bei Castcomercial:** Dateien auswählen, hineinziehen oder einfügen (auch mehrere, z. B. PDF + Screenshots) – sie werden erst gesammelt. Darunter steht ein Feld für **Extra-Anweisungen** (z. B. „Nur Oktober übernehmen“, „Alles bei Amazon ist Freizeit & Vergnügen“, „Schreib ‚Urlaub Lissabon‘ in die Notiz“). Mit „Mit Claude auswerten“ gehen Dateien und Anweisungen zusammen an Claude.
 - Alles landet zuerst in der Vorschau – dort korrigieren, dann übernehmen. Pro Import lässt sich Claude abschalten.
-- Kosten laufen über dein Anthropic-Konto. Der Schlüssel liegt in den synchronisierten Einstellungen (privates Daten-Repo), damit alle deine Geräte ihn haben.
+- Kosten laufen über dein Anthropic-Konto. Die App ist auf **möglichst wenig Verbrauch** eingestellt:
+  - Standard ist **Claude Haiku** (ca. 20× günstiger als Sonnet); unter *Sync & Daten → Claude → Modell* lässt sich „Genauer – Claude Sonnet“ wählen.
+  - Text-PDFs (normale Kontoauszüge) werden im Browser in Text umgewandelt und nur als Text geschickt; nur gescannte PDFs gehen als Dokument.
+  - Bilder werden auf max. 1100 px verkleinert, lange Screenshots in Teile geschnitten.
+  - Der Assistent schickt nur die letzten Fragen mit, lädt höchstens 25 Buchungen pro Suche und nutzt Prompt-Caching.
+  - Nach jeder Auswertung stehen die geschätzten Kosten im Protokoll, die Monatssumme (pro Gerät) im Claude-Bereich.
+  - Grobe Werte mit Haiku: Kontoauszug-PDF 0,1–0,5 US-Cent, Screenshot ca. 0,1–0,2 US-Cent, Frage an den Assistenten ca. 0,1–0,5 US-Cent.
 
 ## Claude-Assistent
 
