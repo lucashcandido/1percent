@@ -309,6 +309,12 @@ button.ovbtn:hover{background:#e1e4e9}
 @media(max-width:600px){.modal.ovmodal{padding:16px}.ovkpi b{font-size:17px}}
 /* --- Fixkosten-Checkliste --- */
 .fixcard{padding:14px 16px}
+.flcard{padding:14px 16px}
+.flname{font:800 italic 17px/1 var(--serif);text-transform:uppercase;letter-spacing:.03em;margin:2px 0 6px}
+.flrow{display:flex;justify-content:space-between;gap:12px;padding:4px 0;font-size:14px;color:var(--mut)}
+.flrow b{font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap}
+.flrow.sum{border-top:1px solid var(--line);margin-top:4px;padding-top:7px;color:var(--tx)}.flrow.sum b{font-weight:700}
+.flarrow{text-align:center;color:var(--dim);font-size:16px;margin:6px 0}
 .savsub{font-size:11.5px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 main{padding-bottom:96px!important}
 .fixbar{height:6px;border-radius:999px;background:rgba(255,255,255,.06);overflow:hidden;margin:2px 0 10px}
@@ -464,7 +470,7 @@ button.upx:hover{color:var(--neg);background:rgba(255,255,255,.06)}
 
 <script>
 /* ============ Konstanten & State ============ */
-const APP_VERSION='2026-10-23.7';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
+const APP_VERSION='2026-10-23.8';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
 const KEY='1percent-v1',CFG_KEY='1percent-cfg',REM_KEY='1percent-remote';
 const DEFAULT_ACCOUNTS=['Commerzbank','N26'];
 const CATS_V=5;          /* Version der Kategorienliste – bei Änderung wird einmalig migriert */
@@ -1048,6 +1054,32 @@ function wipePeriod(){
       const back=new Set(backup.map(t=>t.id));S.tomb=S.tomb.filter(t=>!back.has(t.id));S.tx.push(...backup);save();render();toast('Wiederhergestellt')};
   };
 }
+/* ============ Geldfluss: Konto für Konto ============
+   z. B. Commerzbank: Einnahmen → Fixkosten/Ausgaben → Umbuchung an N26 → bleibt;
+         N26: von Commerzbank → Ausgaben → an Immobilie → bleibt; Immobilie: Ersparnis. */
+function flowCard(list){
+  if(filter.acc!=='*'||S.accounts.length<1||!list.length)return '';
+  const accs=S.accounts.filter(a=>list.some(t=>(t.account||'')===a));
+  const missing=S.accounts.filter(a=>!accs.includes(a));
+  const other=a=>S.accounts.length===2?S.accounts.find(x=>x!==a):'andere Konten';
+  const line=(label,v,cls,strong)=>v||strong?`<div class="flrow${strong?' sum':''}"><span>${label}</span><b class="${cls||(v>0?'pos':v<0?'neg':'')}">${v>0?'+':''}${fmt(v)}</b></div>`:'';
+  const blocks=accs.map(a=>{
+    const l=list.filter(t=>(t.account||'')===a),plain=l.filter(t=>!isXfer(t)&&!savingName(t));
+    const inc=round2(plain.filter(t=>t.amount>0).reduce((x,t)=>x+t.amount,0)),exp=round2(plain.filter(t=>t.amount<0).reduce((x,t)=>x+t.amount,0));
+    const sav=l.filter(t=>savingName(t)),xf=l.filter(t=>isXfer(t)&&!savingName(t));
+    const xin=round2(xf.filter(t=>t.amount>0).reduce((x,t)=>x+t.amount,0)),xout=round2(xf.filter(t=>t.amount<0).reduce((x,t)=>x+t.amount,0));
+    const svNet=round2(sav.reduce((x,t)=>x+t.amount,0)),rest=round2(l.reduce((x,t)=>x+t.amount,0));
+    const sn=(S.savings||[]).join('/')||'Sparkonto';
+    return `<div class="flacc"><div class="flname">${esc(a)}</div>
+      ${line('Einnahmen',inc)}${line('← von '+esc(other(a)),xin)}${line('Ausgaben',exp)}${line('→ an '+esc(other(a)),xout)}${line(svNet<=0?'→ an '+esc(sn):'← aus '+esc(sn),svNet)}
+      ${line('Bleibt auf dem Konto',rest,'',true)}</div>`;
+  });
+  const sv=(S.savings||[]).length?savedOf(list):null;
+  if(sv!==null&&list.some(t=>savingName(t)))blocks.push(`<div class="flacc"><div class="flname">${esc(S.savings.join(' / '))}</div>${line('Ersparnis im Zeitraum',sv,'',true)}</div>`);
+  if(blocks.length<2&&!missing.length)return '';
+  return `<h2>Geldfluss</h2><div class="card flcard">${blocks.join('<div class="flarrow" aria-hidden="true">↓</div>')}
+    ${missing.length?`<p class="muted" style="margin:10px 0 0">Keine Buchungen von <b>${missing.map(esc).join(', ')}</b> in diesem Zeitraum – Auszug importieren, damit Einnahmen und Fixkosten mitzählen.</p>`:''}</div>`;
+}
 function savCard(list,sm){
   if(!(S.savings||[]).length)return `<div class="card"><div class="l">Sparquote</div><div class="v">${sm.inc>0?Math.round(sm.net/sm.inc*100)+' %':'–'}</div></div>`;
   const sv=savedOf(list);
@@ -1075,6 +1107,7 @@ function monthView(){
   ${(()=>{const x=all.filter(isXfer);if(!x.length)return '';const net=x.reduce((a,t)=>a+t.amount,0);
     const sv=(S.savings||[]).length?savedOf(all):0,sn=all.filter(t=>savingName(t)).length;
     return `<p class="muted xfernote">↔ ${x.length} Umbuchung${x.length===1?'':'en'} zwischen deinen Konten${sn?` (davon ${sn} mit ${esc(S.savings.join('/'))}: ${sv>=0?'+':''}${fmt(sv)} gespart)`:''}${filter.acc!=='*'?` (netto ${net>=0?'+':''}${fmt(net)} für ${esc(filter.acc||NO_ACC)})`:''} – nicht in den Summen enthalten.</p>`})()}
+  ${flowCard(all)}
   <h2>Ausgaben nach Kategorie</h2>
   <div class="card">${catBars(all)}</div>
   <h2>Einnahmen nach Kategorie</h2>
@@ -1106,6 +1139,7 @@ function yearView(){
     <div class="card"><div class="l">Saldo</div><div class="v ${tot.net>=0?'pos':'neg'}">${fmt(tot.net)}</div></div>
     ${(S.savings||[]).length?savCard(all,tot):''}
   </div>
+  ${flowCard(all)}
   <h2>Monate</h2>
   <div class="tablewrap"><table><thead><tr><th>Monat</th><th>Verlauf</th><th class="n">Einnahmen</th><th class="n">Ausgaben</th><th class="n">Saldo</th>${(S.savings||[]).length?'<th class="n hide-s">Ersparnis</th>':''}</tr></thead><tbody>
   ${months.map(x=>`<tr class="click${x.inc||x.exp?'':' zero'}" data-m="${x.m}"><td>${new Date(x.m+'-01T12:00').toLocaleDateString('de-DE',{month:'short'})}</td>
