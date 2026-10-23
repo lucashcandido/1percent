@@ -463,7 +463,7 @@ button.upx:hover{color:var(--neg);background:rgba(255,255,255,.06)}
 
 <script>
 /* ============ Konstanten & State ============ */
-const APP_VERSION='2026-10-23.4';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
+const APP_VERSION='2026-10-23.5';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
 const KEY='1percent-v1',CFG_KEY='1percent-cfg',REM_KEY='1percent-remote';
 const DEFAULT_ACCOUNTS=['Commerzbank','N26'];
 const CATS_V=5;          /* Version der Kategorienliste – bei Änderung wird einmalig migriert */
@@ -535,7 +535,7 @@ const accOk=t=>filter.acc==='*'||(t.account||'')===filter.acc;
 
 function load(){
   let s=null;try{s=JSON.parse(localStorage.getItem(KEY))}catch(e){}
-  return {tx:(s&&s.tx)||[],tomb:(s&&s.tomb)||[],cats:(s&&s.cats)||DEFAULT_CATS,rules:(s&&s.rules)||DEFAULT_RULES,su:(s&&s.su)||0,access:(s&&s.access)||null,ai:(s&&s.ai)||null,accounts:(s&&Array.isArray(s.accounts)&&s.accounts)||DEFAULT_ACCOUNTS.slice(),owner:(s&&s.owner)||'',fixed:(s&&Array.isArray(s.fixed)&&s.fixed)||[],fixDone:(s&&s.fixDone&&typeof s.fixDone==='object'&&s.fixDone)||{},recv:(s&&Array.isArray(s.recv)&&s.recv)||[],pay:(s&&Array.isArray(s.pay)&&s.pay)||[],wo:(s&&Array.isArray(s.wo)&&s.wo)||[],todo:(s&&Array.isArray(s.todo)&&s.todo)||[],ttomb:(s&&Array.isArray(s.ttomb)&&s.ttomb)||[],wtomb:(s&&Array.isArray(s.wtomb)&&s.wtomb)||[],catsV:(s&&s.catsV)||0};
+  return {tx:(s&&s.tx)||[],tomb:(s&&s.tomb)||[],cats:(s&&s.cats)||DEFAULT_CATS,rules:(s&&s.rules)||DEFAULT_RULES,su:(s&&s.su)||0,access:(s&&s.access)||null,ai:(s&&s.ai)||null,accounts:(s&&Array.isArray(s.accounts)&&s.accounts)||DEFAULT_ACCOUNTS.slice(),owner:(s&&s.owner)||'',fixed:(s&&Array.isArray(s.fixed)&&s.fixed)||[],fixDone:(s&&s.fixDone&&typeof s.fixDone==='object'&&s.fixDone)||{},recv:(s&&Array.isArray(s.recv)&&s.recv)||[],pay:(s&&Array.isArray(s.pay)&&s.pay)||[],learn:(s&&Array.isArray(s.learn)&&s.learn)||[],wo:(s&&Array.isArray(s.wo)&&s.wo)||[],todo:(s&&Array.isArray(s.todo)&&s.todo)||[],ttomb:(s&&Array.isArray(s.ttomb)&&s.ttomb)||[],wtomb:(s&&Array.isArray(s.wtomb)&&s.wtomb)||[],catsV:(s&&s.catsV)||0};
 }
 function migrateCats(){
   if(S.catsV>=CATS_V)return;
@@ -564,7 +564,7 @@ function migrateCats(){
 function sig(t){return JSON.stringify([t.date,t.desc,t.amount,t.category,t.note||'',t.account||''])}
 function wsig(w){return JSON.stringify([w.ts,w.title||'',w.muscles||[],w.ex||[],w.note||''])}
 function tsig(t){return JSON.stringify([t.date,t.text,!!t.done,t.c||0])}
-function initSigs(){sigs={};S.tx.forEach(t=>sigs[t.id]=sig(t));tsigs={};(S.todo||[]).forEach(t=>tsigs[t.id]=tsig(t));wsigs={};(S.wo||[]).forEach(w=>wsigs[w.id]=wsig(w));ssig=JSON.stringify([S.cats,S.rules,S.access,S.ai,S.accounts,S.owner,S.fixed,S.fixDone,S.recv,S.pay])}
+function initSigs(){sigs={};S.tx.forEach(t=>sigs[t.id]=sig(t));tsigs={};(S.todo||[]).forEach(t=>tsigs[t.id]=tsig(t));wsigs={};(S.wo||[]).forEach(w=>wsigs[w.id]=wsig(w));ssig=JSON.stringify([S.cats,S.rules,S.access,S.ai,S.accounts,S.owner,S.fixed,S.fixDone,S.recv,S.pay,S.learn])}
 function stamp(){
   const now=Date.now(),ids=new Set();
   for(const t of S.tx){ids.add(t.id);const j=sig(t);if(sigs[t.id]!==j){t.u=now;sigs[t.id]=j}}
@@ -573,7 +573,7 @@ function stamp(){
   for(const id of Object.keys(wsigs))if(!wids.has(id)){S.wtomb.push({id,u:now});delete wsigs[id]}
   const tids=new Set();for(const t of S.todo){tids.add(t.id);const j=tsig(t);if(tsigs[t.id]!==j){t.u=now;tsigs[t.id]=j}}
   for(const id of Object.keys(tsigs))if(!tids.has(id)){S.ttomb.push({id,u:now});delete tsigs[id]}
-  const ss=JSON.stringify([S.cats,S.rules,S.access,S.ai,S.accounts,S.owner,S.fixed,S.fixDone,S.recv,S.pay]);if(ss!==ssig){S.su=now;ssig=ss}
+  const ss=JSON.stringify([S.cats,S.rules,S.access,S.ai,S.accounts,S.owner,S.fixed,S.fixDone,S.recv,S.pay,S.learn]);if(ss!==ssig){S.su=now;ssig=ss}
 }
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 let saveTimer;
@@ -632,8 +632,30 @@ function applyOwnerRule(){
   S.tx.forEach(t=>{const x=ownerXfer(t.desc,t.amount);if(x&&t.category!==x){t.category=x;n++}});
   return n;
 }
+/* ============ Gelernte Zuordnungen ============
+   Ordnest du eine Buchung selbst zu (in der Import-Vorschau oder beim Bearbeiten), merkt sich die App
+   Händler/Gegenpartei → Kategorie. Beim nächsten Import gilt das sofort, ohne Claude zu fragen (kostet nichts). */
+const LEARN_STOP=new Set('lastschrift kartenzahlung karte kartenumsatz debitkarte visa mastercard maestro girocard sepa basislastschrift uberweisung ueberweisung dauerauftrag gutschrift echtzeituberweisung echtzeit instant zahlung payment purchase transfer von an from to bei mit fur und the der die das gmbh ag se kg ug mbh co ohg ev ltd inc llc bv nv sa sarl sl spa srl ab as oy plc eu europe deutschland germany de com www online shop store markt filiale nr ref end mandat kd kdnr rechnung buchung umsatz'.split(' '));
+function learnKey(desc){
+  const w=nameTokens(desc).filter(x=>x.length>=3&&!/\d/.test(x)&&!LEARN_STOP.has(x));
+  if(!w.length)return '';
+  return w.slice(0,2).join(' ');           /* erste zwei Namensteile; bei „PayPal … Spotify“ → „paypal spotify“ */
+}
+function learnedCat(desc,amount){
+  const k=learnKey(desc);if(!k)return '';const ty=typeOf(amount),toks=new Set(nameTokens(desc));
+  const hit=(S.learn||[]).find(l=>l.t===ty&&(l.k===k||l.k.split(' ').every(x=>toks.has(x))));
+  return hit&&validCat(hit.c,amount)?hit.c:'';
+}
+function learn(desc,amount,cat){
+  if(!cat||ownerXfer(desc,amount))return false;const k=learnKey(desc);if(!k)return false;const ty=typeOf(amount);
+  S.learn=(S.learn||[]).filter(l=>!(l.k===k&&l.t===ty));S.learn.unshift({k,t:ty,c:cat,u:Date.now()});
+  if(S.learn.length>400)S.learn.length=400;return true;
+}
+/* Nach dem Lernen: andere Buchungen ohne Kategorie mit demselben Händler gleich mit zuordnen */
+function applyLearned(){let n=0;S.tx.forEach(t=>{if(!t.category){const c=learnedCat(t.desc,t.amount);if(c){t.category=c;n++}}});return n}
 function autoCat(desc,amount,party){
   {const x=ownerXfer(desc,amount,party);if(x)return x}
+  {const c=learnedCat(desc,amount);if(c)return c}
   const d=desc.toLowerCase();
   const want=amount>0?INC:EXP;
   for(const r of S.rules){if(!r.kw||!d.includes(r.kw.toLowerCase()))continue;if(S.cats.some(c=>c.name===r.cat&&catType(c)===want))return r.cat}
@@ -1085,6 +1107,9 @@ function settingsView(){
     <button id="addRule">+ Regel</button>
     <button id="reapply">Regeln auf alle Buchungen anwenden</button>
   </div>
+  <h2>Gelernte Zuordnungen ${(S.learn||[]).length?`(${S.learn.length})`:''}</h2>
+  <p class="muted">Wenn du eine Buchung selbst einer Kategorie zuordnest (in der Import-Vorschau oder beim Bearbeiten), merkt sich die App den Händler. Beim nächsten Import wird er sofort so zugeordnet – ohne Claude, also ohne Kosten.</p>
+  <div class="card fixcard">${(S.learn||[]).length?S.learn.map((l,i)=>`<div class="fixrow"><div class="fixmain"><div class="fixname">${esc(l.k)}</div><div class="muted">${l.t===INC?'Einnahme':'Ausgabe'} → ${esc(l.c)}</div></div><button type="button" class="upx" data-ld="${i}" aria-label="Zuordnung ${esc(l.k)} vergessen">✕</button></div>`).join(''):'<p class="muted">Noch nichts gelernt.</p>'}</div>
   <p class="muted" style="text-align:center;margin-top:28px">1Percent · Version ${APP_VERSION}</p>`;
 }
 function bindView(){
@@ -1140,6 +1165,7 @@ function bindView(){
     save();render();toast(n?`Gespeichert – ${n} Buchung${n===1?'':'en'} von/an ${S.owner} sind jetzt Umbuchungen`:'Gespeichert');
   });
   on('#setBack','click',()=>{view=period;render();scrollTo(0,0)});
+  document.querySelectorAll('[data-ld]').forEach(b=>b.onclick=()=>{S.learn.splice(+b.dataset.ld,1);save();const y=scrollY;render();scrollTo(0,y)});
   on('#setSync','click',()=>openData());
   on('#addAcc','click',()=>{let n='Neues Konto',k=2;while(S.accounts.includes(n))n='Neues Konto '+k++;S.accounts.push(n);save();render()});
   on('#addRule','click',()=>{S.rules.unshift({kw:'',cat:(S.cats[0]||{}).name||''});save();render()});
@@ -1177,7 +1203,9 @@ function editTx(id){
     const amt=parseAmount($('#e_amt').value);
     if(isNaN(amt)||!$('#e_date').value)return toast('Datum und Betrag prüfen');
     const o={id:id||uid(),date:$('#e_date').value,desc:$('#e_desc').value.trim()||'(ohne Beschreibung)',amount:Math.abs(amt)*Number($('#e_type').value),category:$('#e_cat').value,account:$('#e_acc').value,note:$('#e_note').value.trim()};
+    const catChanged=o.category&&o.category!==(id?t.category:'');
     if(id)Object.assign(t,o);else S.tx.push(o);
+    if(catChanged&&learn(o.desc,o.amount,o.category)){const more=applyLearned();if(more)setTimeout(()=>toast(`Gemerkt – ${more} weitere Buchung${more===1?'':'en'} gleich zugeordnet`),60)}
     curMonth=o.date.slice(0,7);curDay=o.date;curYear=Number(o.date.slice(0,4));save();closeModal();render();
   };
   if(id)$('#e_del').onclick=()=>{if(confirm('Buchung löschen?')){S.tx=S.tx.filter(x=>x.id!==id);save();closeModal();render()}};
@@ -1436,20 +1464,21 @@ function bindPreview(){
     const r=stage.rows[e.dataset.i],f=e.dataset.f;
     if(f==='include')r.include=e.checked;
     else if(f==='amount'){const v=parseAmount(e.value);if(!isNaN(v))r.amount=v;e.value=r.amount.toFixed(2).replace('.',',')}
-    else{r[f]=e.value;if(f==='category'||f==='account')e.classList.toggle('nocat',!e.value)}
+    else{r[f]=e.value;if(f==='category'){r.userCat=true}if(f==='category'||f==='account')e.classList.toggle('nocat',!e.value)}
   });
   const b=$('#doImport');
   if(b)b.onclick=()=>{
-    const ex=new Set(S.tx.map(keyOf));let added=0,skipped=0;
+    const ex=new Set(S.tx.map(keyOf));let added=0,skipped=0,learned=0;
     stage.rows.filter(r=>r.include).forEach(r=>{
       const t={id:uid(),date:r.date,desc:r.desc,amount:r.amount,category:r.category,account:r.account||'',note:r.note||''};
       if(ex.has(keyOf(t))&&r.dup){skipped++;return}
-      S.tx.push(t);ex.add(keyOf(t));added++;
+      S.tx.push(t);ex.add(keyOf(t));added++;if(r.userCat&&t.category&&learn(t.desc,t.amount,t.category))learned++;
       if(r.pairTx&&isXfer(t)){const o=S.tx.find(x=>x.id===r.pairTx);if(o&&!o.category)o.category=xferName(typeOf(o.amount))}     /* Gegenbuchung ebenfalls als Umbuchung */
     });
     const last=stage.rows.filter(r=>r.include).map(r=>r.date).sort().pop();
     if(last){curMonth=last.slice(0,7);curDay=last;curYear=Number(last.slice(0,4))}
-    save();closeModal();view=period;render();toast(`${added} Buchung${added===1?'':'en'} importiert`);
+    const more=learned?applyLearned():0;
+    save();closeModal();view=period;render();toast(`${added} Buchung${added===1?'':'en'} importiert`+(learned?` · ${learned} Zuordnung${learned===1?'':'en'} gemerkt`+(more?`, ${more} weitere zugeordnet`:''):''));
   };
 }
 
@@ -1580,6 +1609,7 @@ function aiCategoryContext(){
   }
   return `AUSGABEN-Kategorien (nur für Beträge < 0):\n${list(EXP)}\n\nEINNAHMEN-Kategorien (nur für Beträge > 0):\n${list(INC)}\n\n`+
     (rules?`Stichwort-Regeln des Nutzers (Beschreibung enthält Stichwort → Kategorie): ${rules}\n\n`:'')+
+    ((S.learn||[]).length?`Vom Nutzer selbst korrigiert – genau so zuordnen (Händler → Kategorie): ${(S.learn||[]).slice(0,60).map(l=>`${l.k} (${l.t===INC?'+':'−'}) → ${l.c}`).join('; ')}\n\n`:'')+
     (ex.length?`So hat der Nutzer bisher zugeordnet (daran orientieren):\n${ex.join('\n')}\n\n`:'')+
     `„${xferName(EXP)||'Umbuchung'}“ ist für Überweisungen zwischen den EIGENEN Konten des Nutzers (${S.accounts.join(', ')||'–'}), z. B. Commerzbank → N26 oder Aufladen/Übertrag aufs eigene Konto – nicht für Zahlungen an andere Personen.\n`+
     (S.owner?`Der Kontoinhaber heißt „${S.owner}“. JEDE Buchung, bei der „${S.owner}“ Absender oder Empfänger ist (auch in anderer Schreibweise, z. B. Nachname zuerst, mit Komma, ohne Mittelnamen, in Großbuchstaben), ist eine Umbuchung zwischen seinen eigenen Konten – weder Einnahme noch Ausgabe. Nur wenn der Name allein im Verwendungszweck einer Zahlung von jemand anderem steht (z. B. Gehalt vom Arbeitgeber), gilt das nicht.\n`:'')+
@@ -1616,7 +1646,7 @@ ${aiCategoryContext()}${userNote()}`});
     if(!date||isNaN(amount)||!amount)return null;
     const desc=String(t.description||'').trim()||'(ohne Beschreibung)',party=String(t.counterparty||'').trim();
     const acc=stage.acc&&stage.acc!=='auto'?stage.acc:(S.accounts.includes(String(t.account||''))?String(t.account):'');
-    return {date,desc,account:acc,amount:Math.round(amount*100)/100,category:ownerXfer(desc,amount,party)||validCat(String(t.category||''),amount)||autoCat(desc,amount),note:String(t.note||'').trim().slice(0,300),include:true,src:'ai',uncertain:false,ai:true,aiTried:true};
+    return {date,desc,account:acc,amount:Math.round(amount*100)/100,category:ownerXfer(desc,amount,party)||learnedCat(desc,amount)||validCat(String(t.category||''),amount)||autoCat(desc,amount),note:String(t.note||'').trim().slice(0,300),include:true,src:'ai',uncertain:false,ai:true,aiTried:true};
   }).filter(Boolean);
 }
 async function aiCategorize(rows,onProgress){
@@ -1624,7 +1654,7 @@ async function aiCategorize(rows,onProgress){
   const lines=rows.map((r,i)=>`${i}\t${r.date}\t${r.amount.toFixed(2)}\t${r.desc.slice(0,160)}`).join('\n');
   const content=[{type:'text',text:`Ordne diese Buchungen (Index, Datum, Betrag in €, Beschreibung) den Kategorien des Nutzers zu und melde das Ergebnis mit assign_categories.\n\n${aiCategoryContext()}${userNote()}\n\nBuchungen:\n${lines}`}];
   let n=0;
-  for(const o of await aiAsk(content,AI_CAT_TOOL,onProgress))for(const it of o.items||[]){const r=rows[it.i];if(!r)continue;const c=ownerXfer(r.desc,r.amount)||validCat(String(it.category||''),r.amount);if(c){r.category=c;r.ai=true;n++}}
+  for(const o of await aiAsk(content,AI_CAT_TOOL,onProgress))for(const it of o.items||[]){const r=rows[it.i];if(!r)continue;const c=ownerXfer(r.desc,r.amount)||learnedCat(r.desc,r.amount)||validCat(String(it.category||''),r.amount);if(c){r.category=c;r.ai=true;n++}}
   return n;
 }
 
@@ -1975,7 +2005,7 @@ function serMonth(m){
   const tb=S.tomb.filter(t=>t.date.startsWith(m)).map(t=>({id:t.id,date:t.date,u:t.u||0})).sort((a,b)=>a.id.localeCompare(b.id));
   return `{\n "tx": [${jlines(tx)}],\n "tomb": [${jlines(tb)}]\n}\n`;
 }
-const serSettings=()=>JSON.stringify({u:S.su||0,catsV:S.catsV||0,cats:S.cats,rules:S.rules,access:S.access||null,ai:S.ai||null,accounts:S.accounts,owner:S.owner||'',fixed:S.fixed||[],fixDone:S.fixDone||{},recv:S.recv||[],pay:S.pay||[]},null,1)+'\n';
+const serSettings=()=>JSON.stringify({u:S.su||0,catsV:S.catsV||0,cats:S.cats,rules:S.rules,access:S.access||null,ai:S.ai||null,accounts:S.accounts,owner:S.owner||'',fixed:S.fixed||[],fixDone:S.fixDone||{},recv:S.recv||[],pay:S.pay||[],learn:S.learn||[]},null,1)+'\n';
 const b64d=s=>new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\s/g,'')),c=>c.charCodeAt(0)));
 function b64e(s){const b=new TextEncoder().encode(s);let o='';for(let i=0;i<b.length;i+=8192)o+=String.fromCharCode(...b.subarray(i,i+8192));return btoa(o)}
 
@@ -2029,7 +2059,7 @@ function mergeFile(name,content){
   if(name==='workouts.json')return mergeWorkouts(d);
   if(name==='todos.json')return mergeTodos(d);
   if(name==='settings.json'){
-    if((d.u||0)>(S.su||0)&&Array.isArray(d.cats)&&Array.isArray(d.rules)){S.cats=d.cats;S.rules=d.rules;S.access=d.access||S.access;S.ai=d.ai===undefined?S.ai:d.ai;if(Array.isArray(d.accounts))S.accounts=d.accounts;if(typeof d.owner==='string')S.owner=d.owner;if(Array.isArray(d.fixed))S.fixed=d.fixed;if(d.fixDone&&typeof d.fixDone==='object')S.fixDone=d.fixDone;if(Array.isArray(d.recv))S.recv=d.recv;if(Array.isArray(d.pay))S.pay=d.pay;S.su=d.u;ssig=JSON.stringify([S.cats,S.rules,S.access,S.ai,S.accounts,S.owner,S.fixed,S.fixDone,S.recv,S.pay]);S.catsV=d.catsV||0;if(S.catsV<CATS_V){S.su=d.u;migrateCats()}return true}
+    if((d.u||0)>(S.su||0)&&Array.isArray(d.cats)&&Array.isArray(d.rules)){S.cats=d.cats;S.rules=d.rules;S.access=d.access||S.access;S.ai=d.ai===undefined?S.ai:d.ai;if(Array.isArray(d.accounts))S.accounts=d.accounts;if(typeof d.owner==='string')S.owner=d.owner;if(Array.isArray(d.fixed))S.fixed=d.fixed;if(d.fixDone&&typeof d.fixDone==='object')S.fixDone=d.fixDone;if(Array.isArray(d.recv))S.recv=d.recv;if(Array.isArray(d.pay))S.pay=d.pay;if(Array.isArray(d.learn))S.learn=d.learn;S.su=d.u;ssig=JSON.stringify([S.cats,S.rules,S.access,S.ai,S.accounts,S.owner,S.fixed,S.fixDone,S.recv,S.pay,S.learn]);S.catsV=d.catsV||0;if(S.catsV<CATS_V){S.su=d.u;migrateCats()}return true}
     return false;
   }
   return mergeIn(d.tx||[],d.tomb||[]);
