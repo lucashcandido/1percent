@@ -476,7 +476,7 @@ button.upx:hover{color:var(--neg);background:rgba(255,255,255,.06)}
 
 <script>
 /* ============ Konstanten & State ============ */
-const APP_VERSION='2026-10-23.11';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
+const APP_VERSION='2026-10-23.12';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
 const KEY='1percent-v1',CFG_KEY='1percent-cfg',REM_KEY='1percent-remote';
 const DEFAULT_ACCOUNTS=['Commerzbank','N26'];
 const CATS_V=5;          /* Version der Kategorienliste – bei Änderung wird einmalig migriert */
@@ -548,7 +548,7 @@ const accOk=t=>filter.acc==='*'||(t.account||'')===filter.acc;
 
 function load(){
   let s=null;try{s=JSON.parse(localStorage.getItem(KEY))}catch(e){}
-  return {tx:(s&&s.tx)||[],tomb:(s&&s.tomb)||[],cats:(s&&s.cats)||DEFAULT_CATS,rules:(s&&s.rules)||DEFAULT_RULES,su:(s&&s.su)||0,access:(s&&s.access)||null,ai:(s&&s.ai)||null,accounts:(s&&Array.isArray(s.accounts)&&s.accounts)||DEFAULT_ACCOUNTS.slice(),owner:(s&&s.owner)||'',fixed:(s&&Array.isArray(s.fixed)&&s.fixed)||[],fixDone:(s&&s.fixDone&&typeof s.fixDone==='object'&&s.fixDone)||{},recv:(s&&Array.isArray(s.recv)&&s.recv)||[],pay:(s&&Array.isArray(s.pay)&&s.pay)||[],learn:(s&&Array.isArray(s.learn)&&s.learn)||[],savings:(s&&Array.isArray(s.savings)&&s.savings)||[],wo:(s&&Array.isArray(s.wo)&&s.wo)||[],todo:(s&&Array.isArray(s.todo)&&s.todo)||[],ttomb:(s&&Array.isArray(s.ttomb)&&s.ttomb)||[],wtomb:(s&&Array.isArray(s.wtomb)&&s.wtomb)||[],catsV:(s&&s.catsV)||0};
+  return {tx:(s&&s.tx)||[],tomb:(s&&s.tomb)||[],cats:(s&&s.cats)||DEFAULT_CATS,rules:(s&&s.rules)||DEFAULT_RULES,su:(s&&s.su)||0,access:(s&&s.access)||null,ai:(s&&s.ai)||null,accounts:(s&&Array.isArray(s.accounts)&&s.accounts)||DEFAULT_ACCOUNTS.slice(),owner:(s&&s.owner)||'',fixed:(s&&Array.isArray(s.fixed)&&s.fixed)||[],fixDone:(s&&s.fixDone&&typeof s.fixDone==='object'&&s.fixDone)||{},recv:(s&&Array.isArray(s.recv)&&s.recv)||[],pay:(s&&Array.isArray(s.pay)&&s.pay)||[],learn:(s&&Array.isArray(s.learn)&&s.learn)||[],savings:(s&&Array.isArray(s.savings)&&s.savings)||[],shared:(s&&Array.isArray(s.shared)&&s.shared)||[],wo:(s&&Array.isArray(s.wo)&&s.wo)||[],todo:(s&&Array.isArray(s.todo)&&s.todo)||[],ttomb:(s&&Array.isArray(s.ttomb)&&s.ttomb)||[],wtomb:(s&&Array.isArray(s.wtomb)&&s.wtomb)||[],catsV:(s&&s.catsV)||0};
 }
 function migrateCats(){
   if(S.catsV>=CATS_V)return;
@@ -574,10 +574,10 @@ function migrateCats(){
 }
 /* Änderungen werden automatisch mit Zeitstempel (u) versehen, gelöschte Buchungen werden zu Tombstones.
    So lassen sich Änderungen von mehreren Geräten sauber zusammenführen. */
-function sig(t){return JSON.stringify([t.date,t.desc,t.amount,t.category,t.note||'',t.account||'',t.pend?1:0])}
+function sig(t){return JSON.stringify([t.date,t.desc,t.amount,t.category,t.note||'',t.account||'',t.pend?1:0,t.rb||''])}
 function wsig(w){return JSON.stringify([w.ts,w.title||'',w.muscles||[],w.ex||[],w.note||''])}
 function tsig(t){return JSON.stringify([t.date,t.text,!!t.done,t.c||0])}
-function initSigs(){sigs={};S.tx.forEach(t=>sigs[t.id]=sig(t));tsigs={};(S.todo||[]).forEach(t=>tsigs[t.id]=tsig(t));wsigs={};(S.wo||[]).forEach(w=>wsigs[w.id]=wsig(w));ssig=JSON.stringify([S.cats,S.rules,S.access,S.ai,S.accounts,S.owner,S.fixed,S.fixDone,S.recv,S.pay,S.learn,S.savings])}
+function initSigs(){sigs={};S.tx.forEach(t=>sigs[t.id]=sig(t));tsigs={};(S.todo||[]).forEach(t=>tsigs[t.id]=tsig(t));wsigs={};(S.wo||[]).forEach(w=>wsigs[w.id]=wsig(w));ssig=JSON.stringify([S.cats,S.rules,S.access,S.ai,S.accounts,S.owner,S.fixed,S.fixDone,S.recv,S.pay,S.learn,S.savings,S.shared])}
 function stamp(){
   const now=Date.now(),ids=new Set();
   for(const t of S.tx){ids.add(t.id);const j=sig(t);if(sigs[t.id]!==j){t.u=now;sigs[t.id]=j}}
@@ -586,7 +586,7 @@ function stamp(){
   for(const id of Object.keys(wsigs))if(!wids.has(id)){S.wtomb.push({id,u:now});delete wsigs[id]}
   const tids=new Set();for(const t of S.todo){tids.add(t.id);const j=tsig(t);if(tsigs[t.id]!==j){t.u=now;tsigs[t.id]=j}}
   for(const id of Object.keys(tsigs))if(!tids.has(id)){S.ttomb.push({id,u:now});delete tsigs[id]}
-  const ss=JSON.stringify([S.cats,S.rules,S.access,S.ai,S.accounts,S.owner,S.fixed,S.fixDone,S.recv,S.pay,S.learn,S.savings]);if(ss!==ssig){S.su=now;ssig=ss}
+  const ss=JSON.stringify([S.cats,S.rules,S.access,S.ai,S.accounts,S.owner,S.fixed,S.fixDone,S.recv,S.pay,S.learn,S.savings,S.shared]);if(ss!==ssig){S.su=now;ssig=ss}
 }
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 let saveTimer;
@@ -667,6 +667,7 @@ function learn(desc,amount,cat){
 /* Nach dem Lernen: andere Buchungen ohne Kategorie mit demselben Händler gleich mit zuordnen */
 function applyLearned(){let n=0;S.tx.forEach(t=>{if(!t.category){const c=learnedCat(t.desc,t.amount);if(c){t.category=c;n++}}});return n}
 function autoCat(desc,amount,party){
+  {const sx=amount<0&&sharedOf({desc,date:todayISO()});if(sx&&validCat(sx.cat,amount))return sx.cat}
   {const x=ownerXfer(desc,amount,party);if(x)return x}
   {const c=learnedCat(desc,amount);if(c)return c}
   const d=desc.toLowerCase();
@@ -680,8 +681,31 @@ const OWNER_V='1percent-owner-applied';
 function ownerCatchUp(){let v='';try{v=localStorage.getItem(OWNER_V)||''}catch(e){}
   if(!S.owner||v===S.owner)return;try{localStorage.setItem(OWNER_V,S.owner)}catch(e){}
   const n=applyOwnerRule();if(n){save();setTimeout(()=>toast(`${n} Buchung${n===1?'':'en'} von/an ${S.owner} als Umbuchung markiert`),50)}}
+/* ============ Gemeinsame Spaces (z. B. N26-Space „food“ mit der Freundin) ============
+   Gezählt wird nur, was du einzahlst („An food“ → Ausgabe in der gewählten Kategorie).
+   Erstattungen aus dem Space („Von food (Penny Niendorf)“ +11,60) heben die Zahlung davor/danach auf (Penny −11,60):
+   beide bekommen rb = Space-Name und zählen nicht. „Von food (Space Umbuchung)“ ohne Händler hebt eine gleich hohe Einzahlung auf. */
+const sharedOf=t=>{if(!(S.shared||[]).length)return null;const tk=nameTokens(t.desc);
+  return S.shared.find(x=>{const w=nameTokens(x.name);return w.length&&(!x.from||t.date.slice(0,7)>=x.from)&&w.every(v=>tk.includes(v))&&/\b(an|von|to|from|space)\b/i.test(t.desc)&&(tk[0]==='an'||tk[0]==='von'||tk.includes('space'))})||null};
+const spaceMerchant=d=>{const m=/\(([^)]+)\)/.exec(d);return m&&!/space/i.test(m[1])?m[1].trim():''};
+function applyShared(){
+  if(!(S.shared||[]).length)return 0;let n=0;const set=(t,k,v)=>{if(t[k]!==v){if(v===undefined)delete t[k];else t[k]=v;n++}};
+  const sh=S.tx.filter(t=>sharedOf(t)),taken=new Set(S.tx.filter(t=>t.rb&&!sharedOf(t)).map(t=>t.rbBy).filter(Boolean));
+  for(const t of sh){const x=sharedOf(t);
+    if(t.amount<0){if(!t.rb&&(!t.category||isXfer(t))&&validCat(x.cat,t.amount))set(t,'category',x.cat);continue}
+    if(t.rb)continue;
+    const mer=spaceMerchant(t.desc),acc=t.account||'';
+    const cands=S.tx.filter(o=>o!==t&&!o.rb&&o.amount<0&&Math.abs(o.amount+t.amount)<0.005&&(o.account||'')===acc&&dayDiff(o.date,t.date)<=4&&(mer?!sharedOf(o):sharedOf(o)===x));
+    cands.sort((a,b)=>(mer?(+descSim(b.desc,mer)-+descSim(a.desc,mer)):0)||dayDiff(a.date,t.date)-dayDiff(b.date,t.date));
+    const o=cands[0];
+    set(t,'rb',x.name);if(o){set(o,'rb',x.name)}
+  }
+  return n;
+}
+let sharedSig='';
+function sharedCatchUp(){const k=JSON.stringify(S.shared||[])+'|'+S.tx.length+'|'+S.su;if(k===sharedSig)return;sharedSig=k;if(applyShared())save()}
 function render(){
-  ownerCatchUp();
+  ownerCatchUp();sharedCatchUp();
   const gs=$('#btnSettings');if(gs)gs.classList.toggle('active',view==='settings');
   const gf=$('#btnFinance');if(gf)gf.classList.toggle('active',view==='month'||view==='day'||view==='year');
   const app=$('#app');
@@ -700,7 +724,7 @@ function render(){
   updateSyncStatus();
 }
 const xferName=type=>(S.cats.find(c=>c.transfer&&catType(c)===type)||{}).name||'';
-const isXfer=t=>!!t.category&&S.cats.some(c=>c.transfer&&c.name===t.category&&catType(c)===typeOf(t.amount));
+const isXfer=t=>!!t.rb||!!t.category&&S.cats.some(c=>c.transfer&&c.name===t.category&&catType(c)===typeOf(t.amount));
 /* ============ Sparkonten (z. B. N26-Space „Immobilie“) ============
    Überweisungen auf/von einem Sparkonto sind Umbuchungen. Was im Zeitraum netto aufs Sparkonto geht, ist echte Ersparnis:
    „An Immobilie“ −100 € → +100 € gespart; „Von Immobilie“ +50 € → 50 € wieder entnommen. */
@@ -1072,7 +1096,7 @@ function flowCard(list){
   const blocks=accs.map(a=>{
     const l=list.filter(t=>(t.account||'')===a),plain=l.filter(t=>!isXfer(t)&&!savingName(t));
     const inc=round2(plain.filter(t=>t.amount>0).reduce((x,t)=>x+t.amount,0)),exp=round2(plain.filter(t=>t.amount<0).reduce((x,t)=>x+t.amount,0));
-    const sav=l.filter(t=>savingName(t)),xf=l.filter(t=>isXfer(t)&&!savingName(t));
+    const sav=l.filter(t=>savingName(t)),xf=l.filter(t=>isXfer(t)&&!savingName(t)&&!t.rb);
     const xin=round2(xf.filter(t=>t.amount>0).reduce((x,t)=>x+t.amount,0)),xout=round2(xf.filter(t=>t.amount<0).reduce((x,t)=>x+t.amount,0));
     const svNet=round2(sav.reduce((x,t)=>x+t.amount,0)),rest=round2(l.reduce((x,t)=>x+t.amount,0));
     const sn=(S.savings||[]).join('/')||'Sparkonto';
@@ -1111,8 +1135,8 @@ function monthView(){
     ${savCard(all,sm)}
   </div>
   ${(()=>{const x=all.filter(isXfer);if(!x.length)return '';const net=x.reduce((a,t)=>a+t.amount,0);
-    const sv=(S.savings||[]).length?savedOf(all):0,sn=all.filter(t=>savingName(t)).length;
-    return `<p class="muted xfernote">↔ ${x.length} Umbuchung${x.length===1?'':'en'} zwischen deinen Konten${sn?` (davon ${sn} mit ${esc(S.savings.join('/'))}: ${sv>=0?'+':''}${fmt(sv)} gespart)`:''}${filter.acc!=='*'?` (netto ${net>=0?'+':''}${fmt(net)} für ${esc(filter.acc||NO_ACC)})`:''} – nicht in den Summen enthalten.</p>`})()}
+    const sv=(S.savings||[]).length?savedOf(all):0,sn=all.filter(t=>savingName(t)).length,rb=all.filter(t=>t.rb&&t.amount<0&&!sharedOf(t));
+    return `<p class="muted xfernote">↔ ${x.length} Umbuchung${x.length===1?'':'en'} zwischen deinen Konten${sn?` (davon ${sn} mit ${esc(S.savings.join('/'))}: ${sv>=0?'+':''}${fmt(sv)} gespart)`:''}${rb.length?` · ${rb.length} gemeinsame Ausgabe${rb.length===1?'':'n'} (${fmt(rb.reduce((a,t)=>a+t.amount,0))}) über ${esc([...new Set(rb.map(t=>t.rb))].join('/'))} erstattet`:''}${filter.acc!=='*'?` (netto ${net>=0?'+':''}${fmt(net)} für ${esc(filter.acc||NO_ACC)})`:''} – nicht in den Summen enthalten.</p>`})()}
   ${flowCard(all)}
   <h2>Ausgaben nach Kategorie</h2>
   <div class="card">${catBars(all)}</div>
@@ -1124,7 +1148,7 @@ function monthView(){
     <select id="fc"><option value="*">Alle Kategorien</option>${catOptions(filter.cat==='*'?'\u0000':filter.cat)}</select>
   </div>
   <div class="tablewrap"><table><thead><tr><th>Datum</th><th>Beschreibung</th><th class="hide-s">Kategorie</th><th class="n">Betrag</th></tr></thead><tbody>
-  ${list.map(t=>`<tr class="click" data-id="${t.id}"><td>${dateDE(t.date)}</td><td>${esc(t.desc)}${t.account?` <span class="acc">${esc(t.account)}</span>`:''}${t.pend?' <span class="pendtag" title="Aus einem vorläufigen Auszug – wird mit dem endgültigen Auszug abgeglichen">vorgemerkt</span>':''}${t.note?`<div class="muted">${esc(t.note)}</div>`:''}</td><td class="hide-s"><span class="dot" style="background:${catColor(t.category,typeOf(t.amount))}"></span>${esc(catLabel(t.category))}</td><td class="n ${isXfer(t)?'xfer':t.amount>=0?'pos':'neg'}">${fmt(t.amount)}</td></tr>`).join('')||'<tr><td colspan="4" class="muted">Noch keine Buchungen '+(isDay?'an diesem Tag':'in diesem Monat')+'. Nutze „Import“ oder „+ Buchung“.</td></tr>'}
+  ${list.map(t=>`<tr class="click" data-id="${t.id}"><td>${dateDE(t.date)}</td><td>${esc(t.desc)}${t.account?` <span class="acc">${esc(t.account)}</span>`:''}${t.pend?' <span class="pendtag" title="Aus einem vorläufigen Auszug – wird mit dem endgültigen Auszug abgeglichen">vorgemerkt</span>':''}${t.rb?` <span class="pendtag rp" title="Über den Space ${esc(t.rb)} erstattet – zählt nicht">über ${esc(t.rb)} erstattet</span>`:''}${t.note?`<div class="muted">${esc(t.note)}</div>`:''}</td><td class="hide-s"><span class="dot" style="background:${catColor(t.category,typeOf(t.amount))}"></span>${esc(catLabel(t.category))}</td><td class="n ${isXfer(t)?'xfer':t.amount>=0?'pos':'neg'}">${fmt(t.amount)}</td></tr>`).join('')||'<tr><td colspan="4" class="muted">Noch keine Buchungen '+(isDay?'an diesem Tag':'in diesem Monat')+'. Nutze „Import“ oder „+ Buchung“.</td></tr>'}
   </tbody></table></div>
   ${all.length?`<div class="row" style="justify-content:flex-end;margin-top:10px"><button class="danger" id="wipePeriod" type="button">${isDay?'Einträge dieses Tages':'Monatseinträge'} löschen (${all.length})</button></div>`:''}
   ${fixedSection(key.slice(0,7))}
@@ -1204,6 +1228,10 @@ function settingsView(){
   <div class="card">
     <div class="field"><label>Kontoinhaber (dein Name, wie er auf Überweisungen steht)</label><input id="ownerIn" value="${esc(S.owner||'')}" placeholder="z. B. Max Mustermann" autocomplete="name"></div>
     <p class="muted" style="margin:-6px 0 12px">Überweisungen von oder an diesen Namen werden automatisch zur Umbuchung.</p>${S.accounts.map((a,i)=>`<div class="row catrow"><input data-an="${i}" value="${esc(a)}" class="grow"><button class="danger" data-ad="${i}">✕</button></div>`).join('')||'<p class="muted">Noch keine.</p>'}<button id="addAcc">+ Konto</button>
+    <h4>Gemeinsame Spaces</h4>
+    <p class="muted" style="margin:-4px 0 10px">Z. B. ein geteilter N26-Space für gemeinsame Ausgaben. Gezählt wird nur deine <b>Einzahlung</b> (als Ausgabe in der gewählten Kategorie). Zahlungen, die dir aus dem Space erstattet werden („Von food (Penny …)“), zählen samt Erstattung nicht.</p>
+    ${(S.shared||[]).map((x,i)=>`<div class="row catrow"><input data-shn="${i}" value="${esc(x.name)}" class="grow" aria-label="Name des Space"><select data-shc="${i}" aria-label="Kategorie der Einzahlungen">${catOptions(x.cat,EXP)}</select><input type="month" data-shf="${i}" value="${x.from||''}" style="flex:none;width:auto" aria-label="ab Monat"><button class="danger" data-shd="${i}" aria-label="${esc(x.name)} entfernen">✕</button></div>`).join('')}
+    <div class="row"><button id="addShared" type="button">+ Gemeinsamer Space</button></div>
     <h4>Sparkonten (zählen als Ersparnis)</h4>
     <p class="muted" style="margin:-4px 0 10px">Z. B. ein N26-Space. Was im Monat netto dorthin geht, wird als <b>Ersparnis</b> angezeigt. Erkannt am Namen im Buchungstext („An Immobilie (Space-Umbuchung)“).</p>
     ${(S.savings||[]).map((n,i)=>`<div class="row catrow"><input data-svn="${i}" value="${esc(n)}" class="grow"><button class="danger" data-svd="${i}" aria-label="${esc(n)} entfernen">✕</button></div>`).join('')}
@@ -1279,6 +1307,12 @@ function bindView(){
   on('#dupCheck','click',openDupCheck);
   document.querySelectorAll('[data-ld]').forEach(b=>b.onclick=()=>{S.learn.splice(+b.dataset.ld,1);save();const y=scrollY;render();scrollTo(0,y)});
   on('#setSync','click',()=>openData());
+  const shUpd=fn=>{fn();sharedSig='';S.tx.forEach(t=>{if(t.rb)delete t.rb});save();const y=scrollY;render();scrollTo(0,y)};
+  on('#addShared','click',()=>{const n=prompt('Name des gemeinsamen Space (wie im Buchungstext, z. B. food):');if(n&&n.trim())shUpd(()=>{S.shared=[...(S.shared||[]),{name:n.trim(),cat:S.cats.find(c=>c.name==='Nahrung & Pflege')?'Nahrung & Pflege':'',from:todayISO().slice(0,7)}]})});
+  document.querySelectorAll('[data-shn]').forEach(e=>e.onchange=()=>shUpd(()=>{const v=e.value.trim();if(v)S.shared[+e.dataset.shn].name=v;else S.shared.splice(+e.dataset.shn,1)}));
+  document.querySelectorAll('[data-shc]').forEach(e=>e.onchange=()=>shUpd(()=>{S.shared[+e.dataset.shc].cat=e.value;S.tx.forEach(t=>{const x=sharedOf(t);if(x&&t.amount<0&&x===S.shared[+e.dataset.shc])t.category=e.value})}));
+  document.querySelectorAll('[data-shf]').forEach(e=>e.onchange=()=>shUpd(()=>{S.shared[+e.dataset.shf].from=e.value||''}));
+  document.querySelectorAll('[data-shd]').forEach(b=>b.onclick=()=>shUpd(()=>{S.shared.splice(+b.dataset.shd,1)}));
   document.querySelectorAll('[data-svadd]').forEach(b=>b.onclick=()=>{S.savings=[...(S.savings||[]),b.dataset.svadd];save();const y=scrollY;render();scrollTo(0,y)});
   on('#addSav','click',()=>{const n=prompt('Name des Sparkontos (wie im Buchungstext, z. B. Immobilie):');if(n&&n.trim()){S.savings=[...(S.savings||[]),n.trim()];save();const y=scrollY;render();scrollTo(0,y)}});
   document.querySelectorAll('[data-svn]').forEach(e=>e.onchange=()=>{const v=e.value.trim();if(v)S.savings[+e.dataset.svn]=v;else S.savings.splice(+e.dataset.svn,1);save();render()});
@@ -1769,6 +1803,7 @@ function aiCategoryContext(){
     ((S.learn||[]).length?`Vom Nutzer selbst korrigiert – genau so zuordnen (Händler → Kategorie): ${(S.learn||[]).slice(0,60).map(l=>`${l.k} (${l.t===INC?'+':'−'}) → ${l.c}`).join('; ')}\n\n`:'')+
     (ex.length?`So hat der Nutzer bisher zugeordnet (daran orientieren):\n${ex.join('\n')}\n\n`:'')+
     `„${xferName(EXP)||'Umbuchung'}“ ist für Überweisungen zwischen den EIGENEN Konten des Nutzers (${S.accounts.join(', ')||'–'}), z. B. Commerzbank → N26, Aufladen/Übertrag aufs eigene Konto oder Überweisungen auf/von einem N26-Space bzw. Unterkonto${(S.savings||[]).length?` (Sparkonten: ${S.savings.join(', ')})`:''}, auch Aufrundungen – nicht für Zahlungen an andere Personen.\n`+
+    ((S.shared||[]).length?`Gemeinsame Spaces (${S.shared.map(x=>x.name).join(', ')}): Einzahlungen dorthin („An ${S.shared[0].name}“) sind Ausgaben der Kategorie ${S.shared.map(x=>`„${x.cat}“`).join('/')}; Erstattungen daraus („Von ${S.shared[0].name} (…)“) sind Umbuchungen.\n`:'')+
     (S.owner?`Der Kontoinhaber heißt „${S.owner}“. JEDE Buchung, bei der „${S.owner}“ Absender oder Empfänger ist (auch in anderer Schreibweise, z. B. Nachname zuerst, mit Komma, ohne Mittelnamen, in Großbuchstaben), ist eine Umbuchung zwischen seinen eigenen Konten – weder Einnahme noch Ausgabe. Nur wenn der Name allein im Verwendungszweck einer Zahlung von jemand anderem steht (z. B. Gehalt vom Arbeitgeber), gilt das nicht.\n`:'')+
     `Wähle für jede Buchung genau eine Kategorie aus der passenden Liste, Name exakt wie angegeben. Wenn keine eindeutig passt, gib "" zurück – nicht raten.`;
 }
@@ -1806,7 +1841,7 @@ ${aiCategoryContext()}${userNote()}`});
     if(!date||isNaN(amount)||!amount)return null;
     const desc=String(t.description||'').trim()||'(ohne Beschreibung)',party=String(t.counterparty||'').trim();
     const acc=stage.acc&&stage.acc!=='auto'?stage.acc:(S.accounts.includes(String(t.account||''))?String(t.account):'');
-    return {date,desc,account:acc,amount:Math.round(amount*100)/100,category:ownerXfer(desc,amount,party)||learnedCat(desc,amount)||validCat(String(t.category||''),amount)||autoCat(desc,amount),note:String(t.note||'').trim().slice(0,300),file:'ai:'+(Number.isInteger(t.file)?t.file:0),pend:t.pending===true,include:true,src:'ai',uncertain:false,ai:true,aiTried:true};
+    return {date,desc,account:acc,amount:Math.round(amount*100)/100,category:(amount<0&&(()=>{const sx=sharedOf({desc,date});return sx&&validCat(sx.cat,amount)?sx.cat:''})())||ownerXfer(desc,amount,party)||learnedCat(desc,amount)||validCat(String(t.category||''),amount)||autoCat(desc,amount),note:String(t.note||'').trim().slice(0,300),file:'ai:'+(Number.isInteger(t.file)?t.file:0),pend:t.pending===true,include:true,src:'ai',uncertain:false,ai:true,aiTried:true};
   }).filter(Boolean);
 }
 async function aiCategorize(rows,onProgress){
@@ -2158,14 +2193,14 @@ let R={};try{R=JSON.parse(localStorage.getItem(REM_KEY))||{}}catch(e){}
 const persistR=()=>{try{localStorage.setItem(REM_KEY,JSON.stringify(R))}catch(e){}};
 let syncState={s:'off',msg:'',at:null},syncing=false,again=false;
 
-const normTx=t=>({id:t.id,date:t.date,desc:t.desc,amount:Number(t.amount),category:t.category,account:t.account||'',note:t.note||'',...(t.pend?{pend:1}:{}),u:t.u||0});
+const normTx=t=>({id:t.id,date:t.date,desc:t.desc,amount:Number(t.amount),category:t.category,account:t.account||'',note:t.note||'',...(t.pend?{pend:1}:{}),...(t.rb?{rb:t.rb}:{}),u:t.u||0});
 const jlines=a=>a.length?'\n'+a.map(x=>'  '+JSON.stringify(x)).join(',\n')+'\n ':'';
 function serMonth(m){
   const tx=S.tx.filter(t=>t.date.startsWith(m)).map(normTx).sort((a,b)=>a.date.localeCompare(b.date)||a.id.localeCompare(b.id));
   const tb=S.tomb.filter(t=>t.date.startsWith(m)).map(t=>({id:t.id,date:t.date,u:t.u||0})).sort((a,b)=>a.id.localeCompare(b.id));
   return `{\n "tx": [${jlines(tx)}],\n "tomb": [${jlines(tb)}]\n}\n`;
 }
-const serSettings=()=>JSON.stringify({u:S.su||0,catsV:S.catsV||0,cats:S.cats,rules:S.rules,access:S.access||null,ai:S.ai||null,accounts:S.accounts,owner:S.owner||'',fixed:S.fixed||[],fixDone:S.fixDone||{},recv:S.recv||[],pay:S.pay||[],learn:S.learn||[],savings:S.savings||[]},null,1)+'\n';
+const serSettings=()=>JSON.stringify({u:S.su||0,catsV:S.catsV||0,cats:S.cats,rules:S.rules,access:S.access||null,ai:S.ai||null,accounts:S.accounts,owner:S.owner||'',fixed:S.fixed||[],fixDone:S.fixDone||{},recv:S.recv||[],pay:S.pay||[],learn:S.learn||[],savings:S.savings||[],shared:S.shared||[]},null,1)+'\n';
 const b64d=s=>new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\s/g,'')),c=>c.charCodeAt(0)));
 function b64e(s){const b=new TextEncoder().encode(s);let o='';for(let i=0;i<b.length;i+=8192)o+=String.fromCharCode(...b.subarray(i,i+8192));return btoa(o)}
 
@@ -2219,7 +2254,7 @@ function mergeFile(name,content){
   if(name==='workouts.json')return mergeWorkouts(d);
   if(name==='todos.json')return mergeTodos(d);
   if(name==='settings.json'){
-    if((d.u||0)>(S.su||0)&&Array.isArray(d.cats)&&Array.isArray(d.rules)){S.cats=d.cats;S.rules=d.rules;S.access=d.access||S.access;S.ai=d.ai===undefined?S.ai:d.ai;if(Array.isArray(d.accounts))S.accounts=d.accounts;if(typeof d.owner==='string')S.owner=d.owner;if(Array.isArray(d.fixed))S.fixed=d.fixed;if(d.fixDone&&typeof d.fixDone==='object')S.fixDone=d.fixDone;if(Array.isArray(d.recv))S.recv=d.recv;if(Array.isArray(d.pay))S.pay=d.pay;if(Array.isArray(d.learn))S.learn=d.learn;if(Array.isArray(d.savings))S.savings=d.savings;S.su=d.u;ssig=JSON.stringify([S.cats,S.rules,S.access,S.ai,S.accounts,S.owner,S.fixed,S.fixDone,S.recv,S.pay,S.learn,S.savings]);S.catsV=d.catsV||0;if(S.catsV<CATS_V){S.su=d.u;migrateCats()}return true}
+    if((d.u||0)>(S.su||0)&&Array.isArray(d.cats)&&Array.isArray(d.rules)){S.cats=d.cats;S.rules=d.rules;S.access=d.access||S.access;S.ai=d.ai===undefined?S.ai:d.ai;if(Array.isArray(d.accounts))S.accounts=d.accounts;if(typeof d.owner==='string')S.owner=d.owner;if(Array.isArray(d.fixed))S.fixed=d.fixed;if(d.fixDone&&typeof d.fixDone==='object')S.fixDone=d.fixDone;if(Array.isArray(d.recv))S.recv=d.recv;if(Array.isArray(d.pay))S.pay=d.pay;if(Array.isArray(d.learn))S.learn=d.learn;if(Array.isArray(d.savings))S.savings=d.savings;if(Array.isArray(d.shared))S.shared=d.shared;S.su=d.u;ssig=JSON.stringify([S.cats,S.rules,S.access,S.ai,S.accounts,S.owner,S.fixed,S.fixDone,S.recv,S.pay,S.learn,S.savings,S.shared]);S.catsV=d.catsV||0;if(S.catsV<CATS_V){S.su=d.u;migrateCats()}return true}
     return false;
   }
   return mergeIn(d.tx||[],d.tomb||[]);
