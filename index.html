@@ -476,7 +476,7 @@ button.upx:hover{color:var(--neg);background:rgba(255,255,255,.06)}
 
 <script>
 /* ============ Konstanten & State ============ */
-const APP_VERSION='2026-10-23.12';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
+const APP_VERSION='2026-10-24.1';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
 const KEY='1percent-v1',CFG_KEY='1percent-cfg',REM_KEY='1percent-remote';
 const DEFAULT_ACCOUNTS=['Commerzbank','N26'];
 const CATS_V=5;          /* Version der Kategorienliste – bei Änderung wird einmalig migriert */
@@ -1427,7 +1427,7 @@ async function handleFiles(files){
       const names=aiFiles.map(f=>f.name||'Screenshot').join(', ');
       log(`… Claude liest ${aiFiles.length===1?names:aiFiles.length+' Dateien'} und ordnet Kategorien zu – das dauert einen Moment`);
       try{
-        const rows=await aiReadFiles(aiFiles,n=>logLast(`… Claude liest und schreibt die Buchungen (${Math.round(n/100)/10}k Zeichen)`));
+        const rows=await aiReadFiles(aiFiles,(n,part)=>logLast(`… Claude liest und schreibt die Buchungen${part?' – '+part:''}${n?` (${Math.round(n/100)/10}k Zeichen)`:''}`));
         stage.rows.push(...rows);markDups();
         logLast((rows.length?`✓ Claude: ${rows.length} Buchungen erkannt, ${rows.filter(r=>r.category).length} mit Kategorie.`:'⚠ Claude hat keine Buchungen gefunden.')+` (Kosten ≈ ${fmtUsd(aiLastCost)})`);
       }catch(err){console.error(err);log('✗ '+(err.message||err))}
@@ -1752,7 +1752,7 @@ async function aiAsk(content,tool,onProgress){
     }
   }
   aiLastCost=aiCostAdd(model,usage);
-  if(stop==='max_tokens')throw new AiError('Die Antwort war zu lang – bitte weniger Dateien auf einmal.');
+  if(stop==='max_tokens'){const e=new AiError('Die Antwort war zu lang – bitte weniger Dateien auf einmal.');e.tooLong=true;throw e}
   const out=[];const take=raw=>{try{const o=JSON.parse(raw);if(o&&typeof o==='object')out.push(o)}catch(e){}};
   Object.values(calls).forEach(take);
   if(!out.length){const a=text.indexOf('{'),b=text.lastIndexOf('}');if(a>=0&&b>a)take(text.slice(a,b+1))}
@@ -1822,11 +1822,60 @@ const AI_CAT_TOOL={name:'assign_categories',description:'Ordnet Buchungen Katego
   input_schema:{type:'object',required:['items'],properties:{items:{type:'array',items:{type:'object',required:['i','category'],properties:{i:{type:'integer'},category:{type:'string'}}}}}}};
 const userNote=()=>{const n=(stage&&stage.note||'').trim();return n?`\n\nZUSÄTZLICHE ANWEISUNGEN DES NUTZERS für diesen Import – befolge sie, sie haben Vorrang vor den allgemeinen Regeln oben (Kategorien nur aus den Listen):\n"""${n.slice(0,2000)}"""`:''};
 const validCat=(name,amount)=>name&&S.cats.some(c=>c.name===name&&catType(c)===typeOf(amount))?name:'';
+/* Lange Dokumente (z. B. Jahresumsätze) in Teile schneiden: Text-PDFs/Textdateien nach Zeilen (mit ein paar Zeilen
+   Überlappung als Kontext), gescannte PDFs seitenweise als Bilder, viele Screenshots in Gruppen. Jeder Teil ist eine eigene,
+   kleine Anfrage – so wird keine Antwort zu lang. Wird ein Teil trotzdem zu lang, wird er automatisch halbiert. */
+const AI_CHUNK_CHARS=6000,AI_CHUNK_OVERLAP=4,AI_IMG_GROUP=5,AI_PDF_PAGES=4;
+async function pdfPageImages(f){
+  await pdfLines(f);   /* lädt pdf.js */
+  const pdf=await pdfjsLib.getDocument({data:await f.arrayBuffer()}).promise,out=[];
+  for(let p=1;p<=pdf.numPages;p++){const pg=await pdf.getPage(p),v=pg.getViewport({scale:1}),sc=Math.min(2,AI_IMG_MAX*1.3/Math.max(v.width,v.height)),vp=pg.getViewport({scale:sc});
+    const cv=document.createElement('canvas');cv.width=Math.round(vp.width);cv.height=Math.round(vp.height);const cx=cv.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,cv.width,cv.height);
+    await pg.render({canvasContext:cx,viewport:vp}).promise;out.push({type:'image',source:{type:'base64',media_type:'image/jpeg',data:cv.toDataURL('image/jpeg',0.8).split(',')[1]}})}
+  return out;
+}
+function textUnits(n,name,lines){
+  const head=lines.slice(0,6).join('\n'),units=[];let cur=[],len=0,start=0;
+  const flush=end=>{if(!cur.length)return;const ctx=start>0?lines.slice(Math.max(0,start-AI_CHUNK_OVERLAP),start):[];
+    units.push({files:[n],lines:[start,end],blocks:[{type:'text',text:`[Datei ${n}] „${name}“${start>0?` – Fortsetzung ab Zeile ${start+1}.\nKopf des Dokuments (nur zur Orientierung, z. B. Konto/Jahr):\n${head}\n--- Kontext: Ende des vorherigen Teils, schon verarbeitet – NICHT melden ---\n${ctx.join('\n')}\n--- Ab hier neu ---`:':'}\n${cur.join('\n')}`}]});cur=[];len=0};
+  lines.forEach((l,k)=>{if(len+l.length>AI_CHUNK_CHARS&&cur.length){flush(k);start=k}cur.push(l);len+=l.length+1});flush(lines.length);
+  return units;
+}
+async function buildUnits(files){
+  const units=[];let imgs=[];
+  const flushImgs=()=>{if(imgs.length){units.push({files:imgs.map(x=>x.n),blocks:imgs.flatMap(x=>x.blocks)});imgs=[]}};
+  for(const [i,f] of files.entries()){const n=i+1,name=f.name||'Bild',low=name.toLowerCase();
+    if(f.type==='application/pdf'||low.endsWith('.pdf')){
+      let lines=null;try{const l=await pdfLines(f);if(l.join('').replace(/\s/g,'').length>=150*(l.pages||1))lines=l}catch(e){console.warn('PDF-Text',e)}
+      if(lines){units.push(...textUnits(n,name,lines));continue}
+      let pages=null;try{pages=await pdfPageImages(f)}catch(e){console.warn('PDF-Bilder',e)}
+      if(pages&&pages.length>AI_PDF_PAGES){for(let p=0;p<pages.length;p+=AI_PDF_PAGES)units.push({files:[n],blocks:[{type:'text',text:`[Datei ${n}] „${name}“ – Seiten ${p+1}–${Math.min(pages.length,p+AI_PDF_PAGES)} von ${pages.length}:`},...pages.slice(p,p+AI_PDF_PAGES)]});continue}
+      units.push({files:[n],blocks:[{type:'text',text:`[Datei ${n}]`},...await fileBlocks(f)]});continue;
+    }
+    if(!f.type.startsWith('image/')){const t=await decodeText(f);units.push(...textUnits(n,name,t.split(/\r?\n/)));continue}
+    imgs.push({n,blocks:[{type:'text',text:`[Datei ${n}]`},...await fileBlocks(f)]});if(imgs.length>=AI_IMG_GROUP)flushImgs();
+  }
+  flushImgs();
+  /* kleine Teile wieder zusammenlegen: eine Anfrage für alles, solange es klein bleibt (Claude erkennt so auch Überschneidungen) */
+  const sz=u=>u.blocks.reduce((a,b)=>a+(b.type==='text'?b.text.length:0),0),ni=u=>u.blocks.reduce((a,b)=>a+(b.type==='image'?1:b.type==='document'?3:0),0);
+  const out=[];for(const u of units){const l=out[out.length-1];
+    if(l&&sz(l)+sz(u)<=AI_CHUNK_CHARS&&ni(l)+ni(u)<=AI_IMG_GROUP)out[out.length-1]={files:[...l.files,...u.files],blocks:[...l.blocks,...u.blocks]};else out.push(u)}
+  return out;
+}
+/* Teil zu lang → halbieren (Text nach Zeilen, Bilder nach Anzahl) */
+function splitUnit(u){
+  const b=u.blocks;
+  if(b.length===1&&b[0].type==='text'){const t=b[0].text,ls=t.split('\n'),k=ls.findIndex(l=>l==='--- Ab hier neu ---'),from=k>=0?k+1:1,mid=from+Math.floor((ls.length-from)/2);
+    if(ls.length-from<4)return null;
+    return [{...u,blocks:[{type:'text',text:ls.slice(0,mid).join('\n')}]},{...u,blocks:[{type:'text',text:ls.slice(0,from).join('\n')+'\n--- (zweite Hälfte) ---\n'+ls.slice(mid).join('\n')}]}]}
+  const imgs=b.filter(x=>x.type==='image');if(imgs.length<2)return null;
+  const half=Math.ceil(b.length/2);let cut=half;while(cut<b.length&&b[cut].type==='image')cut++;   /* nach einem Bild trennen */
+  return [{...u,blocks:b.slice(0,cut)},{...u,blocks:b.slice(cut)}].filter(x=>x.blocks.some(y=>y.type==='image'));
+}
 async function aiReadFiles(files,onProgress){
-  const content=[];for(const [i,f] of files.entries()){content.push({type:'text',text:`[Datei ${i+1}]`});content.push(...await fileBlocks(f))}
   const today=new Date().toISOString().slice(0,10);
-  content.push({type:'text',text:`Das sind Kontoauszüge, Screenshots aus einer Banking-App, Rechnungen oder Belege des Nutzers (Deutschland, Euro). Heute ist ${today}.
-Lies ALLE einzelnen Buchungen heraus und melde sie mit report_transactions.
+  const promptFor=part=>`Das sind Kontoauszüge, Screenshots aus einer Banking-App, Rechnungen oder Belege des Nutzers (Deutschland, Euro). Heute ist ${today}.
+Lies ALLE einzelnen Buchungen heraus und melde sie mit report_transactions.${part}
 - Nur echte Buchungen: keine Kontostände, Salden, Zwischensummen oder Überschriften. Vorgemerkte/ausstehende Umsätze (z. B. „vorgemerkt“, „in Bearbeitung“, „ausstehend“, „pending“, Kartenreservierung) MIT Betrag melden und pending=true setzen; alles Gebuchte pending=false.
 - Vorzeichen: Abbuchung/Lastschrift/Kartenzahlung/Überweisung an andere = negativ; Gutschrift/Eingang/Gehalt = positiv. Bei Belegen und Rechnungen (Kassenbon) ist es eine Ausgabe mit der Endsumme.
 - Fehlt das Jahr im Datum, nimm das plausibelste (meist das aktuelle; Daten nach heute gehören ins Vorjahr).
@@ -1835,8 +1884,18 @@ Lies ALLE einzelnen Buchungen heraus und melde sie mit report_transactions.
 - Beschreibung: Name des Händlers/Empfängers bzw. Auftraggebers, ggf. kurz der Zweck (ohne IBAN, Mandats- oder Referenznummern).
 - Konto: ${stage.acc&&stage.acc!=='auto'?`Alle Dateien stammen vom Konto „${stage.acc}“ – setze bei jeder Buchung account="${stage.acc}".`:`Bestimme für jede Datei, von welchem Konto des Nutzers sie stammt, und setze account bei jeder Buchung. Konten: ${S.accounts.map(a=>`„${a}“`).join(', ')||'(keine)'}. Erkennungsmerkmale: Logo, Kopfzeile, App-Design, IBAN/BIC (N26: BIC NTSBDEB1, IBAN mit Bankleitzahl 10011001, schwarz-weiße/türkise App; Commerzbank: BIC COBADEFF, gelbes Logo/Band). Wenn nicht erkennbar: "".`}
 
-${aiCategoryContext()}${userNote()}`});
-  const all=[];for(const o of await aiAsk(content,AI_TX_TOOL,onProgress))if(Array.isArray(o.transactions))all.push(...o.transactions);
+${aiCategoryContext()}${userNote()}`;
+  const queue=await buildUnits(files),total=queue.length,all=[];let done=0,cost=0;
+  if(total>1&&onProgress)onProgress(0,`Teil 1 von ${total}`);
+  while(queue.length){
+    const u=queue.shift(),part=total>1?`\nDas ist Teil ${done+1} von ${total+queue.length-(total-done-1)} eines längeren Imports – melde nur die Buchungen aus DIESEM Teil.`:'';
+    try{
+      const out=await aiAsk([...u.blocks,{type:'text',text:promptFor(part)}],AI_TX_TOOL,n=>onProgress&&onProgress(n,total>1?`Teil ${done+1} von ${done+1+queue.length}`:''));cost+=aiLastCost;
+      for(const o of out)if(Array.isArray(o.transactions))for(const t of o.transactions){if(u.files.length===1)t.file=u.files[0];all.push(t)}
+      done++;
+    }catch(e){cost+=aiLastCost;const sp=e.tooLong&&splitUnit(u);if(!sp)throw e;queue.unshift(...sp)}
+  }
+  aiLastCost=cost;
   return all.map(t=>{const date=parseDate(String(t.date||'')),amount=typeof t.amount==='number'?t.amount:parseAmount(String(t.amount));
     if(!date||isNaN(amount)||!amount)return null;
     const desc=String(t.description||'').trim()||'(ohne Beschreibung)',party=String(t.counterparty||'').trim();
@@ -1846,6 +1905,7 @@ ${aiCategoryContext()}${userNote()}`});
 }
 async function aiCategorize(rows,onProgress){
   if(!rows.length)return 0;
+  if(rows.length>150){let n=0,cost=0;for(let k=0;k<rows.length;k+=150){n+=await aiCategorize(rows.slice(k,k+150),onProgress);cost+=aiLastCost}aiLastCost=cost;return n}
   const lines=rows.map((r,i)=>`${i}\t${r.date}\t${r.amount.toFixed(2)}\t${r.desc.slice(0,160)}`).join('\n');
   const content=[{type:'text',text:`Ordne diese Buchungen (Index, Datum, Betrag in €, Beschreibung) den Kategorien des Nutzers zu und melde das Ergebnis mit assign_categories.\n\n${aiCategoryContext()}${userNote()}\n\nBuchungen:\n${lines}`}];
   let n=0;
