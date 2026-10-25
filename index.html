@@ -309,6 +309,11 @@ button.ovbtn:hover{background:#e1e4e9}
 @media(max-width:600px){.modal.ovmodal{padding:16px}.ovkpi b{font-size:17px}}
 /* --- Fixkosten-Checkliste --- */
 .fixcard{padding:14px 16px}
+.kfatop{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin-bottom:6px}
+.kfabig{font:800 italic 40px/1 var(--serif)}
+.kfamass{text-align:right;font-size:12.5px;white-space:nowrap;flex:none}
+.kfaline{display:block;width:100%;height:70px;margin:8px 0 4px;overflow:visible}.kfaline polyline{fill:none;stroke:var(--tx);stroke-width:2;vector-effect:non-scaling-stroke}.kfaline circle{fill:var(--tx)}
+.kfares{margin:4px 0 14px;font-size:14px;min-height:20px}
 .pendtag{display:inline-block;font-size:10.5px;font-weight:600;letter-spacing:.03em;padding:0 6px;margin-left:6px;border-radius:6px;border:1px dashed rgba(250,204,21,.6);color:#fde68a;vertical-align:1px;white-space:nowrap}.pendtag.rp{border-style:solid;border-color:rgba(74,222,128,.5);color:#bbf7d0}
 :root[data-theme="light"] .pendtag{color:#8a6100;border-color:#d4a106}:root[data-theme="light"] .pendtag.rp{color:#15803d;border-color:#22c55e}
 .dupg{padding:10px 12px;border-bottom:1px solid var(--line)}.dupg:last-child{border-bottom:0}
@@ -476,7 +481,7 @@ button.upx:hover{color:var(--neg);background:rgba(255,255,255,.06)}
 
 <script>
 /* ============ Konstanten & State ============ */
-const APP_VERSION='2026-10-24.1';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
+const APP_VERSION='2026-10-25.1';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
 const KEY='1percent-v1',CFG_KEY='1percent-cfg',REM_KEY='1percent-remote';
 const DEFAULT_ACCOUNTS=['Commerzbank','N26'];
 const CATS_V=5;          /* Version der Kategorienliste – bei Änderung wird einmalig migriert */
@@ -575,7 +580,7 @@ function migrateCats(){
 /* Änderungen werden automatisch mit Zeitstempel (u) versehen, gelöschte Buchungen werden zu Tombstones.
    So lassen sich Änderungen von mehreren Geräten sauber zusammenführen. */
 function sig(t){return JSON.stringify([t.date,t.desc,t.amount,t.category,t.note||'',t.account||'',t.pend?1:0,t.rb||''])}
-function wsig(w){return JSON.stringify([w.ts,w.title||'',w.muscles||[],w.ex||[],w.note||''])}
+function wsig(w){return JSON.stringify([w.ts,w.title||'',w.muscles||[],w.ex||[],w.note||'',w.kind||'',w.m||null])}
 function tsig(t){return JSON.stringify([t.date,t.text,!!t.done,t.c||0])}
 function initSigs(){sigs={};S.tx.forEach(t=>sigs[t.id]=sig(t));tsigs={};(S.todo||[]).forEach(t=>tsigs[t.id]=tsig(t));wsigs={};(S.wo||[]).forEach(w=>wsigs[w.id]=wsig(w));ssig=JSON.stringify([S.cats,S.rules,S.access,S.ai,S.accounts,S.owner,S.fixed,S.fixDone,S.recv,S.pay,S.learn,S.savings,S.shared])}
 function stamp(){
@@ -895,7 +900,7 @@ const tsDate=ts=>new Date(ts.length===16?ts+':00':ts);
 const agoText=h=>h<1?'gerade eben':h<24?`vor ${Math.floor(h)} h`:h<48?`vor ${Math.floor(h)} h`:`vor ${Math.floor(h/24)} Tagen`;
 function muscleState(){
   const now=Date.now(),st={};
-  for(const w of S.wo){const t=tsDate(w.ts).getTime();if(isNaN(t)||t>now+6e4)continue;for(const m of w.muscles||[])if(MUSCLES[m]&&(!st[m]||t>st[m].t))st[m]={t,w}}
+  for(const w of S.wo){if(w.kind)continue;const t=tsDate(w.ts).getTime();if(isNaN(t)||t>now+6e4)continue;for(const m of w.muscles||[])if(MUSCLES[m]&&(!st[m]||t>st[m].t))st[m]={t,w}}
   for(const m in st){const h=(now-st[m].t)/36e5;st[m].h=h;st[m].lvl=h<24?'red':h<36?'orange':h<48?'green':''}
   return st;
 }
@@ -910,16 +915,90 @@ function bodySvg(st){
 const exText=e=>[e.name,e.sets&&e.reps?`${e.sets}×${e.reps}`:e.sets?`${e.sets} Sätze`:e.reps?`${e.reps} Wdh.`:'',e.weight?`${String(e.weight).replace('.',',')} kg`:'',e.duration?`${e.duration} min`:''].filter(Boolean).join(' ');
 const woDay=ts=>{const d=tsDate(ts),t=new Date();const diff=Math.round((new Date(t.toDateString())-new Date(d.toDateString()))/864e5);return (diff===0?'Heute':diff===1?'Gestern':d.toLocaleDateString('de-DE',{weekday:'short',day:'numeric',month:'short'}))+', '+pad2(d.getHours())+':'+pad2(d.getMinutes())};
 let woDraft=null,woRec=null,woTimer=null;
+/* ============ Körperfett: 3-Punkt-Methode (Jackson & Pollock) ============
+   Männer: Brust, Bauch, Oberschenkel · Frauen: Trizeps, Hüfte (suprailiakal), Oberschenkel – Hautfalten in mm.
+   Körperdichte D (Männer) = 1,10938 − 0,0008267·S + 0,0000016·S² − 0,0002574·Alter
+   Körperdichte D (Frauen) = 1,0994921 − 0,0009929·S + 0,0000023·S² − 0,0001392·Alter
+   KFA (Siri) = 495 / D − 450   (S = Summe der drei Falten in mm) */
+const KFA_SITES={m:[['brust','Brust','diagonale Falte zwischen Achsel und Brustwarze'],['bauch','Bauch','senkrechte Falte 2 cm neben dem Bauchnabel'],['oberschenkel','Oberschenkel','senkrechte Falte vorne, Mitte zwischen Leiste und Knie']],
+  w:[['trizeps','Trizeps','senkrechte Falte hinten am Oberarm, Mitte zwischen Schulter und Ellbogen'],['huefte','Hüfte','diagonale Falte direkt über dem Beckenkamm'],['oberschenkel','Oberschenkel','senkrechte Falte vorne, Mitte zwischen Leiste und Knie']]};
+function kfaCalc(sex,age,sum){
+  if(!(sum>0)||!(age>0))return null;
+  const d=sex==='w'?1.0994921-0.0009929*sum+0.0000023*sum*sum-0.0001392*age:1.10938-0.0008267*sum+0.0000016*sum*sum-0.0002574*age;
+  const bf=495/d-450;return {d,bf:Math.round(bf*10)/10};
+}
+const kfaProfile=()=>(S.wo.find(w=>w.kind==='prof')||{}).m||{};
+const kfaList=()=>S.wo.filter(w=>w.kind==='kfa'&&w.m).sort((a,b)=>a.ts.localeCompare(b.ts));
+const ageAt=(prof,date)=>prof.by?Number(date.slice(0,4))-prof.by-((date.slice(5)<(prof.bd||'07-01'))?1:0):0;
+function kfaClass(sex,bf){const t=sex==='w'?[[14,'sehr niedrig'],[21,'athletisch'],[25,'fit'],[32,'durchschnittlich'],[99,'erhöht']]:[[6,'sehr niedrig'],[14,'athletisch'],[18,'fit'],[25,'durchschnittlich'],[99,'erhöht']];return t.find(x=>bf<x[0])[1]}
+function kfaSection(){
+  const l=kfaList(),last=l[l.length-1],prev=l[l.length-2];
+  const line=l.length>1?(()=>{const W=300,H=70,xs=l.map((_,i)=>i/(l.length-1)*W),vs=l.map(w=>w.m.bf),mn=Math.min(...vs)-1,mx=Math.max(...vs)+1;
+    const ys=vs.map(v=>H-(v-mn)/(mx-mn)*H);return `<svg class="kfaline" viewBox="-6 -8 ${W+12} ${H+16}" preserveAspectRatio="none" aria-hidden="true"><polyline points="${xs.map((x,i)=>x+','+ys[i].toFixed(1)).join(' ')}"/>${xs.map((x,i)=>`<circle cx="${x}" cy="${ys[i].toFixed(1)}" r="3.5"/>`).join('')}</svg>`})():'';
+  return `<h2>Körperfett (3-Punkt-Methode)</h2>
+  <div class="card fixcard">
+    ${last?`<div class="kfatop"><div><div class="kfabig">${String(last.m.bf).replace('.',',')} %</div><div class="muted">${kfaClass(last.m.sex,last.m.bf)} · ${dateDE(last.ts.slice(0,10))}${prev?` · <span class="${last.m.bf<=prev.m.bf?'pos':'neg'}">${last.m.bf<=prev.m.bf?'':'+'}${String(Math.round((last.m.bf-prev.m.bf)*10)/10).replace('.',',')} %-Punkte</span> seit ${dateDE(prev.ts.slice(0,10))}`:''}</div></div>
+      ${last.m.kg?`<div class="muted kfamass">Fettmasse ${(last.m.kg*last.m.bf/100).toFixed(1).replace('.',',')} kg<br>Magermasse ${(last.m.kg*(1-last.m.bf/100)).toFixed(1).replace('.',',')} kg</div>`:''}</div>${line}
+      ${[...l].reverse().slice(0,8).map(w=>`<div class="fixrow" data-kfa="${w.id}" role="button" tabindex="0"><div class="fixmain"><div class="fixname">${dateDE(w.ts.slice(0,10))} · ${String(w.m.bf).replace('.',',')} %</div><div class="muted">${KFA_SITES[w.m.sex].map(([k,lab])=>lab+' '+String(w.m.s[k]).replace('.',',')).join(' · ')} mm${w.m.kg?' · '+String(w.m.kg).replace('.',',')+' kg':''}</div></div></div>`).join('')}`
+    :'<p class="muted" style="margin-top:0">Noch keine Messung. Mit einem Hautfaltenmessgerät (Caliper) drei Falten messen – die App rechnet den Körperfettanteil aus.</p>'}
+    <div class="row" style="margin-top:10px"><button type="button" id="kfaAdd">+ Messung</button></div>
+  </div>`;
+}
+function editKfa(id){
+  const prof=kfaProfile(),w=id?S.wo.find(x=>x.id===id):null,m=w?w.m:{sex:prof.sex||'m',s:{},kg:''};
+  let sex=m.sex||'m';const date=w?w.ts.slice(0,10):woSel;
+  const draw=()=>{
+    modal(`<h3>${id?'Messung bearbeiten':'KFA messen'}</h3>
+      <p class="muted" style="margin:-6px 0 12px">3-Punkt-Methode nach Jackson &amp; Pollock. Rechte Körperseite, Falte mit Daumen und Zeigefinger abheben, Caliper 1 cm daneben ansetzen, 2 s warten, ablesen. Am besten jede Stelle 2× messen und den Mittelwert nehmen.</p>
+      <div class="row"><div class="field grow"><label>Datum</label><input id="k_date" type="date" value="${date}"></div>
+        <div class="field"><label>Geschlecht</label><select id="k_sex"><option value="m" ${sex==='m'?'selected':''}>Mann</option><option value="w" ${sex==='w'?'selected':''}>Frau</option></select></div>
+        <div class="field" style="width:110px"><label>Geburtsjahr</label><input id="k_by" type="number" inputmode="numeric" min="1920" max="2015" value="${prof.by||''}" placeholder="z. B. 2001"></div></div>
+      ${KFA_SITES[sex].map(([k,lab,hint])=>`<div class="field"><label>${lab} (mm) <span class="muted" style="font-size:11.5px">– ${hint}</span></label><input data-ks="${k}" inputmode="decimal" value="${m.s&&m.s[k]!=null?String(m.s[k]).replace('.',','):''}" placeholder="0"></div>`).join('')}
+      <div class="field"><label>Gewicht (kg, optional – für Fett- und Magermasse)</label><input id="k_kg" inputmode="decimal" value="${m.kg?String(m.kg).replace('.',','):''}"></div>
+      <div id="k_res" class="kfares"></div>
+      <div class="row"><button class="primary" id="k_save">Speichern</button><button id="k_cancel">Abbrechen</button><span class="grow"></span>${id?'<button class="danger" id="k_del">Löschen</button>':''}</div>`,'sm');
+    const num=v=>parseFloat(String(v).replace(',','.'));
+    const calc=()=>{const by=num($('#k_by').value),vals=KFA_SITES[sex].map(([k])=>num(document.querySelector(`[data-ks="${k}"]`).value)),sum=vals.reduce((a,b)=>a+(b||0),0),age=by?ageAt({by},$('#k_date').value||todayISO()):0;
+      const r=vals.every(v=>v>0)&&age>0?kfaCalc(sex,age,sum):null;
+      $('#k_res').innerHTML=r?`<b>${String(r.bf).replace('.',',')} % Körperfett</b> <span class="muted">(${kfaClass(sex,r.bf)}) · Summe ${String(Math.round(sum*10)/10).replace('.',',')} mm · Alter ${age} · Körperdichte ${r.d.toFixed(4).replace('.',',')} g/cm³</span>`:'<span class="muted">Alle drei Werte und das Geburtsjahr eingeben – das Ergebnis erscheint hier.</span>';
+      return {r,vals,sum,by,age}};
+    document.querySelectorAll('#modalBg input').forEach(e=>e.oninput=calc);calc();
+    $('#k_sex').onchange=e=>{const keep={by:$('#k_by').value,kg:$('#k_kg').value,date:$('#k_date').value};sex=e.target.value;prof.by=num(keep.by)||prof.by;m.kg=keep.kg;draw()};
+    $('#k_cancel').onclick=closeModal;
+    $('#k_save').onclick=()=>{const c=calc();if(!c.r)return toast('Bitte alle drei Falten und das Geburtsjahr eingeben');
+      const sites={};KFA_SITES[sex].forEach(([k],i)=>sites[k]=c.vals[i]);const kg=num($('#k_kg').value)||0;
+      const data={sex,s:sites,sum:Math.round(c.sum*10)/10,age:c.age,bf:c.r.bf,...(kg?{kg}:{})},ts=($('#k_date').value||todayISO())+'T12:00';
+      if(w){w.ts=ts;w.m=data}else S.wo.push({id:uid(),kind:'kfa',ts,title:'KFA',muscles:[],ex:[],note:'',m:data});
+      let p=S.wo.find(x=>x.kind==='prof');if(!p){p={id:'profile',kind:'prof',ts:'2000-01-01T00:00',title:'Profil',muscles:[],ex:[],note:'',m:{}};S.wo.push(p)}
+      p.m={...p.m,sex,by:c.by};save();closeModal();render();toast(`Körperfett: ${String(c.r.bf).replace('.',',')} %`)};
+    if(id)$('#k_del').onclick=()=>{if(confirm('Messung löschen?')){S.wo=S.wo.filter(x=>x.id!==id);save();closeModal();render()}};
+  };
+  draw();
+}
+/* Tag auswählen: Trainings des Tages ansehen und für diesen Tag eintragen */
+let woSel=todayISO();
+const woSelTs=()=>woSel===todayISO()?nowLocal():woSel+'T18:00';
+const isWorkout=w=>!w.kind;
 function workoutView(){
-  const st=muscleState(),active=MKEYS.filter(m=>st[m]&&st[m].lvl).sort((a,b)=>st[a].h-st[b].h);
-  const list=[...S.wo].sort((a,b)=>b.ts.localeCompare(a.ts)).slice(0,30);
+  const today=woSel===todayISO(),dayList=S.wo.filter(w=>isWorkout(w)&&w.ts.slice(0,10)===woSel).sort((a,b)=>a.ts.localeCompare(b.ts));
+  const st=today?muscleState():(()=>{const o={};dayList.forEach(w=>(w.muscles||[]).forEach(m=>{o[m]={lvl:'red',h:0,w}}));return o})();
+  const active=MKEYS.filter(m=>st[m]&&st[m].lvl).sort((a,b)=>st[a].h-st[b].h);
+  const list=[...S.wo].filter(isWorkout).sort((a,b)=>b.ts.localeCompare(a.ts)).slice(0,30);
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  return `<div class="period"><span class="ptitle">Training</span></div>
-  <div class="card bodycard">${bodySvg(st)}
-    <div class="lvllegend">${Object.entries(LVL).map(([k,v])=>`<span><i style="background:${v.c}"></i>${v.l}</span>`).join('')}<span><i class="none"></i>erholt</span></div>
-    ${active.length?`<div class="mchips">${active.map(m=>`<span class="mchip l-${st[m].lvl}">${MUSCLES[m]} · ${agoText(st[m].h)}</span>`).join('')}</div>`:'<p class="muted" style="text-align:center;margin:8px 0 0">Alle Muskelgruppen sind erholt.</p>'}
+  const row=w=>`<div class="worow" data-wo="${w.id}" role="button" tabindex="0">
+      <div class="wotop"><b>${esc(w.title||'Training')}</b><span class="muted">${woDay(w.ts)}</span></div>
+      ${(w.ex||[]).length?`<div class="muted woex">${(w.ex||[]).map(e=>esc(exText(e))).join(' · ')}</div>`:''}
+      <div class="mchips sm">${(w.muscles||[]).map(m=>`<span class="mchip${today&&st[m]&&st[m].w===w&&st[m].lvl?' l-'+st[m].lvl:''}">${MUSCLES[m]||m}</span>`).join('')}</div></div>`;
+  return `<div class="period"><button id="woPrev" class="navarrow" aria-label="Vorheriger Tag">&lt;</button><span class="ptitle${today?'':' day'}" id="woTitle" title="Zu heute">${today?'Training':tdLabel(woSel)}</span><button id="woNext" class="navarrow" aria-label="Nächster Tag">&gt;</button></div>
+  <p class="muted" style="text-align:center;margin:2px 0 0">${new Date(woSel+'T12:00').toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}${today?'':' · <button type="button" class="linkbtn" id="woToday" style="width:auto;display:inline;padding:0">zu heute</button>'}</p>
+  <div class="card bodycard" style="margin-top:12px">${bodySvg(st)}
+    ${today?`<div class="lvllegend">${Object.entries(LVL).map(([k,v])=>`<span><i style="background:${v.c}"></i>${v.l}</span>`).join('')}<span><i class="none"></i>erholt</span></div>
+    ${active.length?`<div class="mchips">${active.map(m=>`<span class="mchip l-${st[m].lvl}">${MUSCLES[m]} · ${agoText(st[m].h)}</span>`).join('')}</div>`:'<p class="muted" style="text-align:center;margin:8px 0 0">Alle Muskelgruppen sind erholt.</p>'}`
+    :`<p class="muted" style="text-align:center;margin:8px 0 0">${active.length?'Rot: an diesem Tag trainiert':'An diesem Tag kein Training eingetragen.'}</p>`}
   </div>
-  <h2>Training eintragen</h2>
+  <h2>${today?'Heute':tdLabel(woSel)} ${dayList.length?`(${dayList.length})`:''}</h2>
+  <div class="card fixcard">${dayList.length?dayList.map(row).join(''):'<p class="muted" style="margin:0">Noch kein Training an diesem Tag.</p>'}</div>
+  <h2>Training eintragen${today?'':' – '+tdLabel(woSel)}</h2>
   <div class="card">
     <div class="microw">
       ${SR?`<button id="woMic" class="micbtn${woRec?' rec':''}" type="button" aria-label="${woRec?'Aufnahme beenden':'Training einsprechen'}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>`:''}
@@ -930,11 +1009,9 @@ function workoutView(){
     <div class="row" style="margin-top:8px"><button class="primary" id="woParse" type="button">Mit Claude auswerten</button><button id="woManual" type="button">Manuell eintragen</button><span id="woMsg" class="muted"></span></div>
     ${woDraft&&woDraft.items?woPreview():''}
   </div>
-  <h2>Letzte Trainings ${S.wo.length?`(${S.wo.length})`:''}</h2>
-  <div class="card fixcard">${list.length?list.map(w=>`<div class="worow" data-wo="${w.id}" role="button" tabindex="0">
-      <div class="wotop"><b>${esc(w.title||'Training')}</b><span class="muted">${woDay(w.ts)}</span></div>
-      ${(w.ex||[]).length?`<div class="muted woex">${(w.ex||[]).map(e=>esc(exText(e))).join(' · ')}</div>`:''}
-      <div class="mchips sm">${(w.muscles||[]).map(m=>`<span class="mchip${st[m]&&st[m].w===w&&st[m].lvl?' l-'+st[m].lvl:''}">${MUSCLES[m]||m}</span>`).join('')}</div></div>`).join(''):'<p class="muted">Noch keine Trainings eingetragen.</p>'}</div>`;
+  ${kfaSection()}
+  <h2>Letzte Trainings ${list.length?`(${S.wo.filter(isWorkout).length})`:''}</h2>
+  <div class="card fixcard">${list.length?list.map(row).join(''):'<p class="muted">Noch keine Trainings eingetragen.</p>'}</div>`;
 }
 function woPreview(){
   return `<div class="wopreview">${woDraft.items.map((w,i)=>`<div class="woprev">
@@ -948,10 +1025,10 @@ const WO_TOOL={name:'log_workout',description:'Gibt die erkannten Trainingseinhe
   muscles:{type:'array',items:{type:'string',enum:MKEYS},description:'alle deutlich beanspruchten Muskelgruppen'},
   exercises:{type:'array',items:{type:'object',required:['name'],properties:{name:{type:'string'},sets:{type:'integer'},reps:{type:'integer'},weight:{type:'number',description:'kg'},duration:{type:'number',description:'Minuten'},note:{type:'string'}}}}}}}}}};
 async function woParse(text){
-  const now=nowLocal(),wd=new Date().toLocaleDateString('de-DE',{weekday:'long'});
-  const out=await aiAsk([{type:'text',text:`Der Nutzer beschreibt sein Training (gesprochen, evtl. mit Erkennungsfehlern). Jetzt ist ${wd}, ${now.replace('T',' ')} Uhr (Ortszeit).
+  const now=nowLocal(),wd=new Date().toLocaleDateString('de-DE',{weekday:'long'}),def=woSelTs(),selTxt=woSel===todayISO()?'':` Der Nutzer trägt gerade für ${new Date(woSel+'T12:00').toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long'})} (${woSel}) ein – Bezüge wie „heute“ oder ohne Angabe meinen DIESEN Tag.`;
+  const out=await aiAsk([{type:'text',text:`Der Nutzer beschreibt sein Training (gesprochen, evtl. mit Erkennungsfehlern). Jetzt ist ${wd}, ${now.replace('T',' ')} Uhr (Ortszeit).${selTxt}
 Erkenne jede Trainingseinheit und melde sie mit log_workout:
-- datetime: ausdrücklich genannter Zeitpunkt („heute früh“ ≈ 08:00, „gestern Abend“ ≈ gestern 19:00, „vor 2 Stunden“); ohne Angabe: jetzt (${now}).
+- datetime: ausdrücklich genannter Zeitpunkt („heute früh“ ≈ 08:00, „gestern Abend“ ≈ gestern 19:00, „vor 2 Stunden“); ohne Angabe: ${def}.
 - exercises: jede Übung mit Sätzen, Wiederholungen, Gewicht in kg bzw. Dauer in Minuten, soweit genannt. Korrigiere offensichtliche Erkennungsfehler (z. B. „Bank drücken“ → Bankdrücken).
 - muscles: alle Muskelgruppen, die die Übungen deutlich beanspruchen (Haupt- und wichtige Hilfsmuskeln), nur aus: ${MKEYS.map(k=>k+' ('+MUSCLES[k]+')').join(', ')}.
   Beispiele: Bankdrücken → brust, trizeps, schultern; Klimmzüge → ruecken, bizeps, unterarme; Kniebeugen → quadrizeps, gesaess, beinbeuger, unterer_ruecken; Laufen → quadrizeps, beinbeuger, waden, gesaess.
@@ -959,7 +1036,7 @@ Erkenne jede Trainingseinheit und melde sie mit log_workout:
 
 Text: """${text}"""`}],WO_TOOL);
   const items=[];for(const o of out)for(const w of o.workouts||[]){
-    let ts=String(w.datetime||'').slice(0,16);if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(ts))ts=now;
+    let ts=String(w.datetime||'').slice(0,16);if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(ts))ts=def;
     items.push({ts,title:String(w.title||'Training').trim()||'Training',muscles:[...new Set((w.muscles||[]).filter(m=>MUSCLES[m]))],
       ex:(w.exercises||[]).filter(e=>e&&e.name).map(e=>({name:String(e.name),...(e.sets?{sets:+e.sets}:{}),...(e.reps?{reps:+e.reps}:{}),...(e.weight?{weight:+e.weight}:{}),...(e.duration?{duration:+e.duration}:{}),...(e.note?{note:String(e.note)}:{})}))});
   }
@@ -984,7 +1061,7 @@ async function runWoParse(text){
   render();
 }
 function editWorkout(id){
-  const w=id?S.wo.find(x=>x.id===id):{ts:nowLocal(),title:'',muscles:[],ex:[],note:''};
+  const w=id?S.wo.find(x=>x.id===id):{ts:woSelTs(),title:'',muscles:[],ex:[],note:''};
   const sel=new Set(w.muscles||[]);
   modal(`<h3>${id?'Training bearbeiten':'Training eintragen'}</h3>
     <div class="row"><div class="field grow"><label>Titel</label><input id="w_title" value="${esc(w.title||'')}" placeholder="z. B. Push, Beine, Laufen"></div><div class="field"><label>Zeitpunkt</label><input id="w_ts" type="datetime-local" value="${w.ts}"></div></div>
@@ -1006,6 +1083,11 @@ function bindWorkout(){
   on('#woMic',woMicToggle);
   on('#woParse',()=>{const t=$('#woText').value.trim();if(!t)return toast('Sprich oder tippe zuerst dein Training');runWoParse(t)});
   on('#woManual',()=>editWorkout(null));
+  on('#woPrev',()=>{woSel=shiftDay(woSel,-1);woDraft=null;render()});
+  on('#woNext',()=>{woSel=shiftDay(woSel,1);woDraft=null;render()});
+  on('#woTitle',()=>{woSel=todayISO();render()});on('#woToday',()=>{woSel=todayISO();render()});
+  on('#kfaAdd',()=>editKfa(null));
+  document.querySelectorAll('[data-kfa]').forEach(r=>{const go=()=>editKfa(r.dataset.kfa);r.onclick=go;r.onkeydown=e=>{if(e.key==='Enter')go()}});
   const ta=$('#woText');if(ta)ta.oninput=()=>{woDraft={...(woDraft||{}),text:ta.value}};
   document.querySelectorAll('[data-wo]').forEach(r=>{const go=()=>editWorkout(r.dataset.wo);r.onclick=go;r.onkeydown=e=>{if(e.key==='Enter')go()}});
   document.querySelectorAll('[data-wm]').forEach(b=>b.onclick=()=>{const w=woDraft.items[+b.dataset.wi],m=b.dataset.wm,i=w.muscles.indexOf(m);i<0?w.muscles.push(m):w.muscles.splice(i,1);b.classList.toggle('on')});
@@ -1014,7 +1096,7 @@ function bindWorkout(){
   on('#woDiscard',()=>{woDraft=null;render()});
   on('#woSave',()=>{const items=woDraft.items.filter(w=>w.muscles.length);if(!items.length)return toast('Bitte mindestens eine Muskelgruppe wählen');
     items.forEach(w=>S.wo.push({id:uid(),ts:w.ts,title:w.title,muscles:w.muscles,ex:w.ex,note:''}));woDraft=null;save();render();toast(items.length===1?'Training gespeichert':items.length+' Trainings gespeichert');scrollTo(0,0)});
-  document.querySelectorAll('.bodymap .mz').forEach(p=>p.onclick=()=>{const st=muscleState()[p.dataset.m];toast(MUSCLES[p.dataset.m]+(st?` – zuletzt ${agoText(st.h)} (${st.w.title||'Training'})`:' – noch nicht trainiert'))});
+  if(woSel===todayISO())document.querySelectorAll('.bodymap .mz').forEach(p=>p.onclick=()=>{const st=muscleState()[p.dataset.m];toast(MUSCLES[p.dataset.m]+(st?` – zuletzt ${agoText(st.h)} (${st.w.title||'Training'})`:' – noch nicht trainiert'))});
   clearInterval(woTimer);woTimer=setInterval(()=>{if(view==='workout'&&!$('#modalBg')&&!woRec&&!(woDraft&&woDraft.items))render()},60000);
 }
 
@@ -2681,7 +2763,7 @@ async function checkUpdate(){
 }
 /* ============ Start ============ */
 $('#btnSettings').onclick=()=>{view=view==='settings'?period:'settings';render();scrollTo(0,0)};
-$('#btnWorkout').onclick=()=>{view=view==='workout'?period:'workout';render();scrollTo(0,0)};
+$('#btnWorkout').onclick=()=>{if(view!=='workout')woSel=todayISO();view=view==='workout'?period:'workout';render();scrollTo(0,0)};
 $('#btnTodo').onclick=()=>{if(view!=='todo')todoDay=todayISO();view=view==='todo'?period:'todo';render();scrollTo(0,0)};
 $('#btnFinance').onclick=()=>{view=period;render();scrollTo(0,0)};
 const goHome=()=>{if(view==='settings'||view==='workout'||view==='todo'){view=period;render()}scrollTo(0,0)};

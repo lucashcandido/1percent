@@ -106,6 +106,8 @@ Unten rechts öffnet **✦ Assistent** einen Chat, in dem du deine Buchungen nac
 | 36–48 h | grün |
 | ab 48 h | farblos (erholt) |
 
+- **Tage:** Mit `<` `>` blätterst du durch die Tage. Du siehst die Trainings des Tages (die Karte zeigt rot, was an diesem Tag trainiert wurde) und trägst per Sprache oder manuell für genau diesen Tag ein – ohne Uhrzeit gilt 18:00. Antippen des Titels springt zurück zu heute.
+- **Körperfett (3-Punkt-Methode nach Jackson & Pollock):** „+ Messung“ → drei Hautfalten in mm (Männer: Brust, Bauch, Oberschenkel; Frauen: Trizeps, Hüfte, Oberschenkel), Geburtsjahr und optional Gewicht. Berechnet wird die Körperdichte D = 1,10938 − 0,0008267·S + 0,0000016·S² − 0,0002574·Alter (Frauen: 1,0994921 − 0,0009929·S + 0,0000023·S² − 0,0001392·Alter) und daraus der KFA nach Siri: 495 / D − 450. Angezeigt werden der aktuelle Wert, die Veränderung seit der letzten Messung, Fett- und Magermasse und der Verlauf. Synchronisiert über `data/workouts.json`.
 - **Per Sprache eintragen:** Mikrofon antippen, Training einsprechen (z. B. „Heute Bankdrücken 4 mal 8 mit 70 Kilo und 20 Minuten Laufen“), nochmal antippen. Claude erkennt Übungen, Sätze, Wiederholungen, Gewicht, Zeitpunkt („gestern Abend“) und die beanspruchten Muskelgruppen. In der Vorschau kannst du die Muskelgruppen noch an- und abwählen, dann speichern.
 - Wo der Browser keine Spracherkennung hat (z. B. Firefox), sprichst du über das Mikrofon der Handy-Tastatur ins Textfeld.
 - **Manuell eintragen:** „Manuell eintragen“ oder „+“ in der Kopfzeile. Übungen schreibst du eine pro Zeile („Curls 3x12 15 kg“).
