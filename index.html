@@ -490,7 +490,7 @@ button.upx:hover{color:var(--neg);background:rgba(255,255,255,.06)}
 
 <script>
 /* ============ Konstanten & State ============ */
-const APP_VERSION='2026-10-25.2';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
+const APP_VERSION='2026-10-28.1';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
 const KEY='1percent-v1',CFG_KEY='1percent-cfg',REM_KEY='1percent-remote';
 const DEFAULT_ACCOUNTS=['Commerzbank','N26'];
 const CATS_V=5;          /* Version der Kategorienliste – bei Änderung wird einmalig migriert */
@@ -718,7 +718,10 @@ function applyShared(){
 }
 let sharedSig='';
 function sharedCatchUp(){const k=JSON.stringify(S.shared||[])+'|'+S.tx.length+'|'+S.su;if(k===sharedSig)return;sharedSig=k;if(applyShared())save()}
+let lastToday=todayISO();
+function followToday(){const t=todayISO();if(t===lastToday)return;if(woSel===lastToday)woSel=t;if(todoDay===lastToday)todoDay=t;if(view==='day'&&curDay===lastToday)curDay=t;lastToday=t}
 function render(){
+  followToday();
   ownerCatchUp();sharedCatchUp();
   const gs=$('#btnSettings');if(gs)gs.classList.toggle('active',view==='settings');
   const gf=$('#btnFinance');if(gf)gf.classList.toggle('active',view==='month'||view==='day'||view==='year');
@@ -1130,7 +1133,8 @@ function workoutView(){
   <p class="muted" style="text-align:center;margin:2px 0 0">${new Date(woSel+'T12:00').toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}${today?'':' · <button type="button" class="linkbtn" id="woToday" style="width:auto;display:inline;padding:0">zu heute</button>'}</p>
   <div class="card bodycard" style="margin-top:12px">${bodySvg(st)}
     ${today?`<div class="lvllegend">${Object.entries(LVL).map(([k,v])=>`<span><i style="background:${v.c}"></i>${v.l}</span>`).join('')}<span><i class="none"></i>erholt</span></div>
-    ${active.length?`<div class="mchips">${active.map(m=>`<span class="mchip l-${st[m].lvl}">${MUSCLES[m]} · ${agoText(st[m].h)}</span>`).join('')}</div>`:'<p class="muted" style="text-align:center;margin:8px 0 0">Alle Muskelgruppen sind erholt.</p>'}`
+    ${active.length?`<div class="mchips">${active.map(m=>`<span class="mchip l-${st[m].lvl}">${MUSCLES[m]} · ${agoText(st[m].h)}</span>`).join('')}</div>`:(()=>{const l=S.wo.filter(w=>!w.kind&&(w.muscles||[]).length&&tsDate(w.ts).getTime()<=Date.now()).sort((a,b)=>b.ts.localeCompare(a.ts))[0];
+      return `<p class="muted" style="text-align:center;margin:8px 0 0">Alle Muskelgruppen sind erholt${l?` – letztes Training: ${esc(l.title||'Training')}, ${woDay(l.ts)} (${agoText((Date.now()-tsDate(l.ts).getTime())/36e5)}; nach 48 h farblos)`:''}.</p>`})()}`
     :`<p class="muted" style="text-align:center;margin:8px 0 0">${active.length?'Rot: an diesem Tag trainiert':'An diesem Tag kein Training eingetragen.'}</p>`}
   </div>
   <h2>${today?'Heute':tdLabel(woSel)} ${dayList.length?`(${dayList.length})`:''}</h2>
@@ -2914,7 +2918,7 @@ asstInit();
 render();
 startAccess();
 if(cfg())syncNow().then(()=>publishAccess()).catch(()=>{});
-document.addEventListener('visibilitychange',()=>{if(!document.hidden){syncNow();checkUpdate()}});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){syncNow();checkUpdate();if(!$('#modalBg')&&!(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))){const y=scrollY;render();scrollTo(0,y)}}});
 checkUpdate();setInterval(checkUpdate,10*60000);
 addEventListener('online',syncNow);
 const POLL_MS=5000;
