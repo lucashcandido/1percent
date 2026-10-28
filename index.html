@@ -490,7 +490,7 @@ button.upx:hover{color:var(--neg);background:rgba(255,255,255,.06)}
 
 <script>
 /* ============ Konstanten & State ============ */
-const APP_VERSION='2026-10-28.1';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
+const APP_VERSION='2026-10-28.2';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
 const KEY='1percent-v1',CFG_KEY='1percent-cfg',REM_KEY='1percent-remote';
 const DEFAULT_ACCOUNTS=['Commerzbank','N26'];
 const CATS_V=5;          /* Version der Kategorienliste – bei Änderung wird einmalig migriert */
@@ -910,10 +910,12 @@ const pad2=n=>String(n).padStart(2,'0');
 const nowLocal=()=>{const d=new Date();return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate())+'T'+pad2(d.getHours())+':'+pad2(d.getMinutes())};
 const tsDate=ts=>new Date(ts.length===16?ts+':00':ts);
 const agoText=h=>h<1?'gerade eben':h<24?`vor ${Math.floor(h)} h`:h<48?`vor ${Math.floor(h)} h`:`vor ${Math.floor(h/24)} Tagen`;
-function muscleState(){
-  const now=Date.now(),st={};
-  for(const w of S.wo){if(w.kind)continue;const t=tsDate(w.ts).getTime();if(isNaN(t)||t>now+6e4)continue;for(const m of w.muscles||[])if(MUSCLES[m]&&(!st[m]||t>st[m].t))st[m]={t,w}}
-  for(const m in st){const h=(now-st[m].t)/36e5;st[m].h=h;st[m].lvl=h<24?'red':h<36?'orange':h<48?'green':''}
+/* Stand der Muskeln zu einem Zeitpunkt (Standard: jetzt). Für einen anderen Tag: derselbe Tag zur aktuellen Uhrzeit –
+   Trainings, die an diesem Tag erst später stattfanden, zählen dort als „gerade trainiert“. */
+function muscleState(ref,upTo){
+  const now=ref||Date.now(),lim=upTo||now+6e4,st={};
+  for(const w of S.wo){if(w.kind)continue;const t=tsDate(w.ts).getTime();if(isNaN(t)||t>lim)continue;for(const m of w.muscles||[])if(MUSCLES[m]&&(!st[m]||t>st[m].t))st[m]={t,w}}
+  for(const m in st){const h=Math.max(0,(now-st[m].t)/36e5);st[m].h=h;st[m].lvl=h<24?'red':h<36?'orange':h<48?'green':''}
   return st;
 }
 const LVL={red:{c:'#ef4444',l:'unter 24 h'},orange:{c:'#f59e0b',l:'24–36 h'},green:{c:'#22c55e',l:'36–48 h'}};
@@ -1121,21 +1123,23 @@ const woSelTs=()=>woSel===todayISO()?nowLocal():woSel+'T18:00';
 const isWorkout=w=>!w.kind;
 function workoutView(){
   const today=woSel===todayISO(),dayList=S.wo.filter(w=>isWorkout(w)&&w.ts.slice(0,10)===woSel).sort((a,b)=>a.ts.localeCompare(b.ts));
-  const st=today?muscleState():(()=>{const o={};dayList.forEach(w=>(w.muscles||[]).forEach(m=>{o[m]={lvl:'red',h:0,w}}));return o})();
+  const refT=(()=>{const n=new Date(),d=new Date(woSel+'T00:00');d.setHours(n.getHours(),n.getMinutes(),0,0);return d.getTime()})();
+  const st=today?muscleState():muscleState(refT,new Date(woSel+'T23:59:59').getTime());
   const active=MKEYS.filter(m=>st[m]&&st[m].lvl).sort((a,b)=>st[a].h-st[b].h);
   const list=[...S.wo].filter(isWorkout).sort((a,b)=>b.ts.localeCompare(a.ts)).slice(0,30);
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   const row=w=>`<div class="worow" data-wo="${w.id}" role="button" tabindex="0">
       <div class="wotop"><b>${esc(w.title||'Training')}</b><span class="muted">${woDay(w.ts)}</span></div>
       ${(w.ex||[]).length?`<div class="muted woex">${(w.ex||[]).map(e=>esc(exText(e))).join(' · ')}</div>`:''}
-      <div class="mchips sm">${(w.muscles||[]).map(m=>`<span class="mchip${today&&st[m]&&st[m].w===w&&st[m].lvl?' l-'+st[m].lvl:''}">${MUSCLES[m]||m}</span>`).join('')}</div></div>`;
+      <div class="mchips sm">${(w.muscles||[]).map(m=>`<span class="mchip${st[m]&&st[m].w===w&&st[m].lvl?' l-'+st[m].lvl:''}">${MUSCLES[m]||m}</span>`).join('')}</div></div>`;
   return `<div class="period"><button id="woPrev" class="navarrow" aria-label="Vorheriger Tag">&lt;</button><span class="ptitle${today?'':' day'}" id="woTitle" title="Zu heute">${today?'Training':tdLabel(woSel)}</span><button id="woNext" class="navarrow" aria-label="Nächster Tag">&gt;</button></div>
   <p class="muted" style="text-align:center;margin:2px 0 0">${new Date(woSel+'T12:00').toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}${today?'':' · <button type="button" class="linkbtn" id="woToday" style="width:auto;display:inline;padding:0">zu heute</button>'}</p>
   <div class="card bodycard" style="margin-top:12px">${bodySvg(st)}
-    ${today?`<div class="lvllegend">${Object.entries(LVL).map(([k,v])=>`<span><i style="background:${v.c}"></i>${v.l}</span>`).join('')}<span><i class="none"></i>erholt</span></div>
+    ${!today?`<p class="muted" style="text-align:center;margin:6px 0 2px">Stand am ${tdLabel(woSel)} um ${new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})} Uhr</p>`:''}
+    ${true?`<div class="lvllegend">${Object.entries(LVL).map(([k,v])=>`<span><i style="background:${v.c}"></i>${v.l}</span>`).join('')}<span><i class="none"></i>erholt</span></div>
     ${active.length?`<div class="mchips">${active.map(m=>`<span class="mchip l-${st[m].lvl}">${MUSCLES[m]} · ${agoText(st[m].h)}</span>`).join('')}</div>`:(()=>{const l=S.wo.filter(w=>!w.kind&&(w.muscles||[]).length&&tsDate(w.ts).getTime()<=Date.now()).sort((a,b)=>b.ts.localeCompare(a.ts))[0];
-      return `<p class="muted" style="text-align:center;margin:8px 0 0">Alle Muskelgruppen sind erholt${l?` – letztes Training: ${esc(l.title||'Training')}, ${woDay(l.ts)} (${agoText((Date.now()-tsDate(l.ts).getTime())/36e5)}; nach 48 h farblos)`:''}.</p>`})()}`
-    :`<p class="muted" style="text-align:center;margin:8px 0 0">${active.length?'Rot: an diesem Tag trainiert':'An diesem Tag kein Training eingetragen.'}</p>`}
+      return today?`<p class="muted" style="text-align:center;margin:8px 0 0">Alle Muskelgruppen sind erholt${l?` – letztes Training: ${esc(l.title||'Training')}, ${woDay(l.ts)} (${agoText((Date.now()-tsDate(l.ts).getTime())/36e5)}; nach 48 h farblos)`:''}.</p>`:'<p class="muted" style="text-align:center;margin:8px 0 0">An diesem Tag waren alle Muskelgruppen erholt.</p>'})()}`
+    :''}
   </div>
   <h2>${today?'Heute':tdLabel(woSel)} ${dayList.length?`(${dayList.length})`:''}</h2>
   <div class="card fixcard">${dayList.length?dayList.map(row).join(''):'<p class="muted" style="margin:0">Noch kein Training an diesem Tag.</p>'}</div>
