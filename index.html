@@ -490,7 +490,7 @@ button.upx:hover{color:var(--neg);background:rgba(255,255,255,.06)}
 
 <script>
 /* ============ Konstanten & State ============ */
-const APP_VERSION='2026-10-28.3';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
+const APP_VERSION='2026-10-29.1';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
 const KEY='1percent-v1',CFG_KEY='1percent-cfg',REM_KEY='1percent-remote';
 const DEFAULT_ACCOUNTS=['Commerzbank','N26'];
 const CATS_V=5;          /* Version der Kategorienliste – bei Änderung wird einmalig migriert */
@@ -647,7 +647,8 @@ const nameTokens=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u030
 function isOwner(party){
   const own=nameTokens(S.owner);if(!own.length||!party)return false;
   const got=new Set(nameTokens(party));const hits=own.filter(w=>got.has(w)).length;
-  return hits>=Math.min(2,own.length);
+  /* Vorname muss dabei sein – sonst wären Familienmitglieder mit gleichem Nachnamen („Jeanette Harting Candido“) Umbuchungen */
+  return hits>=Math.min(2,own.length)&&(own.length<2||got.has(own[0])||new RegExp('(^|[^a-z])'+own[0][0]+'\\.','i').test(String(party)));
 }
 /* Alles von oder an den Kontoinhaber ist eine Umbuchung – egal ob der Name als Gegenpartei oder im Buchungstext steht. */
 /* Name am Anfang des Buchungstexts = Gegenpartei („Lucas Harting Candido Übertrag“, „Überweisung von Lucas Candido“);
