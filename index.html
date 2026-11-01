@@ -309,6 +309,7 @@ button.ovbtn:hover{background:#e1e4e9}
 @media(max-width:600px){.modal.ovmodal{padding:16px}.ovkpi b{font-size:17px}}
 /* --- Fixkosten-Checkliste --- */
 .fixcard{padding:14px 16px}
+.card.clickable{cursor:pointer}.card.clickable:hover{outline:1px solid var(--line)}
 .hcards{grid-template-columns:repeat(4,1fr)}@media(max-width:600px){.hcards{grid-template-columns:repeat(2,1fr)}}
 .htrack{margin-top:12px}.hhead{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap}.hhead b{font:800 italic 17px/1 var(--serif);text-transform:uppercase;letter-spacing:.03em}.hhead .muted{font-size:12.5px}
 .htrack textarea{width:100%;margin-top:10px;resize:vertical;font:inherit}
@@ -490,7 +491,7 @@ button.upx:hover{color:var(--neg);background:rgba(255,255,255,.06)}
 
 <script>
 /* ============ Konstanten & State ============ */
-const APP_VERSION='2026-11-01.2';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
+const APP_VERSION='2026-11-01.3';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
 const KEY='1percent-v1',CFG_KEY='1percent-cfg',REM_KEY='1percent-remote';
 const DEFAULT_ACCOUNTS=['Commerzbank','N26'];
 const CATS_V=5;          /* Version der Kategorienliste – bei Änderung wird einmalig migriert */
@@ -562,7 +563,7 @@ const accOk=t=>filter.acc==='*'||(t.account||'')===filter.acc;
 
 function load(){
   let s=null;try{s=JSON.parse(localStorage.getItem(KEY))}catch(e){}
-  return {tx:(s&&s.tx)||[],tomb:(s&&s.tomb)||[],cats:(s&&s.cats)||DEFAULT_CATS,rules:(s&&s.rules)||DEFAULT_RULES,su:(s&&s.su)||0,access:(s&&s.access)||null,ai:(s&&s.ai)||null,accounts:(s&&Array.isArray(s.accounts)&&s.accounts)||DEFAULT_ACCOUNTS.slice(),owner:(s&&s.owner)||'',fixed:(s&&Array.isArray(s.fixed)&&s.fixed)||[],fixDone:(s&&s.fixDone&&typeof s.fixDone==='object'&&s.fixDone)||{},recv:(s&&Array.isArray(s.recv)&&s.recv)||[],pay:(s&&Array.isArray(s.pay)&&s.pay)||[],learn:(s&&Array.isArray(s.learn)&&s.learn)||[],savings:(s&&Array.isArray(s.savings)&&s.savings)||[],shared:(s&&Array.isArray(s.shared)&&s.shared)||[],sx:(s&&s.sx&&typeof s.sx==='object'&&s.sx)||{},wo:(s&&Array.isArray(s.wo)&&s.wo)||[],todo:(s&&Array.isArray(s.todo)&&s.todo)||[],ttomb:(s&&Array.isArray(s.ttomb)&&s.ttomb)||[],wtomb:(s&&Array.isArray(s.wtomb)&&s.wtomb)||[],catsV:(s&&s.catsV)||0};
+  return {tx:(s&&s.tx)||[],tomb:(s&&s.tomb)||[],cats:(s&&s.cats)||DEFAULT_CATS,rules:(s&&s.rules)||DEFAULT_RULES,su:(s&&s.su)||0,access:(s&&s.access)||null,ai:(s&&s.ai)||null,accounts:(s&&Array.isArray(s.accounts)&&s.accounts)||DEFAULT_ACCOUNTS.slice(),owner:(s&&s.owner)||'',fixed:(s&&Array.isArray(s.fixed)&&s.fixed)||[],fixDone:(s&&s.fixDone&&typeof s.fixDone==='object'&&s.fixDone)||{},recv:(s&&Array.isArray(s.recv)&&s.recv)||[],pay:(s&&Array.isArray(s.pay)&&s.pay)||[],learn:(s&&Array.isArray(s.learn)&&s.learn)||[],savings:(s&&Array.isArray(s.savings)&&s.savings)||[],shared:(s&&Array.isArray(s.shared)&&s.shared)||[],bal:(s&&s.bal&&typeof s.bal==='object'&&s.bal)||{},sx:(s&&s.sx&&typeof s.sx==='object'&&s.sx)||{},wo:(s&&Array.isArray(s.wo)&&s.wo)||[],todo:(s&&Array.isArray(s.todo)&&s.todo)||[],ttomb:(s&&Array.isArray(s.ttomb)&&s.ttomb)||[],wtomb:(s&&Array.isArray(s.wtomb)&&s.wtomb)||[],catsV:(s&&s.catsV)||0};
 }
 function migrateCats(){
   if(S.catsV>=CATS_V)return;
@@ -591,7 +592,7 @@ function migrateCats(){
 function sig(t){return JSON.stringify([t.date,t.desc,t.amount,t.category,t.note||'',t.account||'',t.pend?1:0,t.rb||''])}
 function wsig(w){return JSON.stringify([w.ts,w.title||'',w.muscles||[],w.ex||[],w.note||'',w.kind||'',w.m||null])}
 function tsig(t){return JSON.stringify([t.date,t.text,!!t.done,t.c||0])}
-function initSigs(){sigs={};S.tx.forEach(t=>sigs[t.id]=sig(t));tsigs={};(S.todo||[]).forEach(t=>tsigs[t.id]=tsig(t));wsigs={};(S.wo||[]).forEach(w=>wsigs[w.id]=wsig(w));ssig=JSON.stringify([S.cats,S.rules,S.access,S.ai,S.accounts,S.owner,S.fixed,S.fixDone,S.recv,S.pay,S.learn,S.savings,S.shared])}
+function initSigs(){sigs={};S.tx.forEach(t=>sigs[t.id]=sig(t));tsigs={};(S.todo||[]).forEach(t=>tsigs[t.id]=tsig(t));wsigs={};(S.wo||[]).forEach(w=>wsigs[w.id]=wsig(w));ssig=JSON.stringify([S.cats,S.rules,S.access,S.ai,S.accounts,S.owner,S.fixed,S.fixDone,S.recv,S.pay,S.learn,S.savings,S.shared,S.bal])}
 function stamp(){
   const now=Date.now(),ids=new Set();
   for(const t of S.tx){ids.add(t.id);const j=sig(t);if(sigs[t.id]!==j){t.u=now;sigs[t.id]=j}}
@@ -600,7 +601,7 @@ function stamp(){
   for(const id of Object.keys(wsigs))if(!wids.has(id)){S.wtomb.push({id,u:now});delete wsigs[id]}
   const tids=new Set();for(const t of S.todo){tids.add(t.id);const j=tsig(t);if(tsigs[t.id]!==j){t.u=now;tsigs[t.id]=j}}
   for(const id of Object.keys(tsigs))if(!tids.has(id)){S.ttomb.push({id,u:now});delete tsigs[id]}
-  const ss=JSON.stringify([S.cats,S.rules,S.access,S.ai,S.accounts,S.owner,S.fixed,S.fixDone,S.recv,S.pay,S.learn,S.savings,S.shared]);if(ss!==ssig){S.su=now;ssig=ss}
+  const ss=JSON.stringify([S.cats,S.rules,S.access,S.ai,S.accounts,S.owner,S.fixed,S.fixDone,S.recv,S.pay,S.learn,S.savings,S.shared,S.bal]);if(ss!==ssig){S.su=now;ssig=ss}
 }
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 let saveTimer;
@@ -758,6 +759,21 @@ function savingsInfo(list){
   return {saved:round2(v),space:new Set(space)};
 }
 const savedOf=list=>savingsInfo(list).saved;
+/* Ist für einen Monat der Kontostand (Anfang und Ende) eingetragen, gilt der – er ist die Wahrheit, die Buchungen nur eine Erklärung. */
+function balOf(month){let s=0,e=0,n=0;for(const name of S.savings||[]){const b=((S.bal||{})[name]||{})[month];if(b&&b.s!=null&&b.e!=null){s+=+b.s;e+=+b.e;n++}}return n&&n===(S.savings||[]).length?{s,e,diff:round2(e-s)}:null}
+function savedMonth(list,month){const tx=savedOf(list),b=balOf(month);return b?{v:b.diff,tx,bal:b}:{v:tx,tx,bal:null}}
+function editBal(month){
+  const lab=new Date(month+'-01T12:00').toLocaleDateString('de-DE',{month:'long',year:'numeric'});
+  modal(`<h3>Kontostand ${esc(lab)}</h3>
+    <p class="muted" style="margin:-6px 0 12px">Trag den Stand deines Sparkontos am Monatsanfang und am Monatsende ein (z. B. aus der N26-App). Dann zeigt die App die echte Ersparnis – und wie viel davon die importierten Buchungen erklären.</p>
+    ${(S.savings||[]).map((n,i)=>{const b=((S.bal||{})[n]||{})[month]||{};return `<div class="row"><div class="field grow"><label>${esc(n)} – Stand am 1.</label><input data-bs="${i}" inputmode="decimal" value="${b.s!=null?String(b.s).replace('.',','):''}"></div><div class="field grow"><label>Stand am Monatsende</label><input data-be="${i}" inputmode="decimal" value="${b.e!=null?String(b.e).replace('.',','):''}"></div></div>`}).join('')}
+    <div class="row"><button class="primary" id="b_save">Speichern</button><button id="b_cancel">Abbrechen</button><span class="grow"></span><button class="danger" id="b_del">Entfernen</button></div>`,'sm');
+  const num=v=>{const x=parseFloat(String(v).replace(/\./g,'').replace(',','.'));return isNaN(x)?null:x};
+  $('#b_cancel').onclick=closeModal;
+  $('#b_save').onclick=()=>{S.bal={...(S.bal||{})};(S.savings||[]).forEach((n,i)=>{const sv=num(document.querySelector(`[data-bs="${i}"]`).value),ev=num(document.querySelector(`[data-be="${i}"]`).value);
+      S.bal[n]={...(S.bal[n]||{})};if(sv==null&&ev==null)delete S.bal[n][month];else S.bal[n][month]={s:sv,e:ev}});save();closeModal();render()};
+  $('#b_del').onclick=()=>{S.bal={...(S.bal||{})};(S.savings||[]).forEach(n=>{if(S.bal[n]){S.bal[n]={...S.bal[n]};delete S.bal[n][month]}});save();closeModal();render()};
+}
 function detectSpaces(){
   const seen=new Map();
   for(const t of S.tx){const m=/\b(?:von|an|from|to)\s+(.+?)\s*\((?:space[- ]?umbuchung|space transfer)\)/i.exec(t.desc)||/\(space\s+([^)]+)\)/i.exec(t.desc);
@@ -1332,7 +1348,7 @@ function flowCard(list){
   const accs=S.accounts.filter(a=>list.some(t=>(t.account||'')===a&&!isSpaceSide(t)));
   const missing=S.accounts.filter(a=>!accs.includes(a));
   const other=a=>S.accounts.length===2?S.accounts.find(x=>x!==a):'andere Konten';
-  const line=(label,v,cls,strong)=>v||strong?`<div class="flrow${strong?' sum':''}"><span>${label}</span><b class="${cls||(v>0?'pos':v<0?'neg':'')}">${v>0?'+':''}${fmt(v)}</b></div>`:'';
+  const line=(label,v,cls,strong)=>v||strong?`<div class="flrow${strong?' sum':''}"><span>${label}</span><b class="${cls||(v>0?'pos':v<0?'neg':'')}">${v>0&&cls!=='muted'?'+':''}${fmt(v)}</b></div>`:'';
   const blocks=accs.map(a=>{
     const l=list.filter(t=>(t.account||'')===a&&!isSpaceSide(t)),plain=l.filter(t=>!isXfer(t)&&!savingName(t));
     const inc=round2(plain.filter(t=>t.amount>0).reduce((x,t)=>x+t.amount,0)),exp=round2(plain.filter(t=>t.amount<0).reduce((x,t)=>x+t.amount,0));
@@ -1345,15 +1361,19 @@ function flowCard(list){
       ${line('Bleibt auf dem Konto',rest,'',true)}</div>`;
   });
   const sv=(S.savings||[]).length?savedOf(list):null;
-  if(sv!==null&&list.some(t=>savingName(t)))blocks.push(`<div class="flacc"><div class="flname">${esc(S.savings.join(' / '))}</div>${line('Ersparnis im Zeitraum',sv,'',true)}</div>`);
+  if(sv!==null&&list.some(t=>savingName(t))){const mm=[...new Set(list.map(t=>t.date.slice(0,7)))],b=mm.length===1&&view!=='day'?balOf(mm[0]):null;
+    blocks.push(`<div class="flacc"><div class="flname">${esc(S.savings.join(' / '))}</div>${b?line('Stand am 1.',b.s,'muted')+line('Stand am Monatsende',b.e,'muted'):''}${line('Ersparnis laut Buchungen',sv,'',!b)}${b?line('Ersparnis laut Kontostand',b.diff,'',true):''}</div>`)}
   if(blocks.length<2&&!missing.length)return '';
   return `<h2>Geldfluss</h2><div class="card flcard">${blocks.join('<div class="flarrow" aria-hidden="true">↓</div>')}
     ${missing.length?`<p class="muted" style="margin:10px 0 0">Keine Buchungen von <b>${missing.map(esc).join(', ')}</b> in diesem Zeitraum – Auszug importieren, damit Einnahmen und Fixkosten mitzählen.</p>`:''}</div>`;
 }
-function savCard(list,sm){
+function savCard(list,sm,month){
   if(!(S.savings||[]).length)return `<div class="card"><div class="l">Sparquote</div><div class="v">${sm.inc>0?Math.round(sm.net/sm.inc*100)+' %':'–'}</div></div>`;
-  const sv=savedOf(list);
-  return `<div class="card" title="Netto auf ${esc(S.savings.join(', '))} überwiesen"><div class="l">Ersparnis</div><div class="v ${sv>0?'pos':sv<0?'neg':''}">${sv>0?'+':''}${fmt(sv)}</div><div class="muted savsub">${esc(S.savings.join(', '))}${sm.inc>0&&Math.abs(sv)<=sm.inc?` · ${Math.round(sv/sm.inc*100)} % vom Einkommen`:''}</div></div>`;
+  let sv,sub;
+  if(month){const r=savedMonth(list,month);sv=r.v;const gap=r.bal?round2(r.bal.diff-r.tx):0;
+    sub=r.bal?`laut Kontostand ${fmt(r.bal.s)} → ${fmt(r.bal.e)}${Math.abs(gap)>=0.01?` · Buchungen erklären ${r.tx>0?'+':''}${fmt(r.tx)}, ${fmt(Math.abs(gap))} fehlen`:' · passt zu den Buchungen ✓'}`:`${esc(S.savings.join(', '))}${sm.inc>0&&Math.abs(sv)<=sm.inc?` · ${Math.round(sv/sm.inc*100)} % vom Einkommen`:''} · <u>Kontostand eintragen</u>`}
+  else{const ms=[...new Set(list.map(t=>t.date.slice(0,7)))];sv=round2(ms.reduce((a,m)=>a+savedMonth(list.filter(t=>t.date.startsWith(m)),m).v,0));sub=esc(S.savings.join(', '))+(sm.inc>0&&Math.abs(sv)<=sm.inc?` · ${Math.round(sv/sm.inc*100)} % vom Einkommen`:'')}
+  return `<div class="card${month?' clickable':''}"${month?` id="savCard" data-month="${month}" role="button" tabindex="0" title="Kontostand des Sparkontos eintragen"`:''}><div class="l">Ersparnis</div><div class="v ${sv>0?'pos':sv<0?'neg':''}">${sv>0?'+':''}${fmt(sv)}</div><div class="muted savsub" style="white-space:normal">${sub}</div></div>`;
 }
 function monthView(){
   const isDay=view==='day',key=isDay?curDay:curMonth;
@@ -1372,7 +1392,7 @@ function monthView(){
     <div class="card"><div class="l">Einnahmen</div><div class="v pos">${fmt(sm.inc)}</div></div>
     <div class="card"><div class="l">Ausgaben</div><div class="v neg">${fmt(sm.exp)}</div></div>
     <div class="card"><div class="l">Saldo</div><div class="v ${sm.net>=0?'pos':'neg'}">${fmt(sm.net)}</div></div>
-    ${savCard(all,sm)}
+    ${savCard(all,sm,isDay?null:curMonth)}
   </div>
   ${(()=>{const x=all.filter(isXfer);if(!x.length)return '';const net=x.reduce((a,t)=>a+t.amount,0);
     const sv=(S.savings||[]).length?savedOf(all):0,sn=all.filter(t=>savingName(t)).length,rb=all.filter(t=>t.rb&&t.amount<0&&!sharedOf(t));
@@ -1414,7 +1434,7 @@ function yearView(){
   <div class="tablewrap"><table><thead><tr><th>Monat</th><th>Verlauf</th><th class="n">Einnahmen</th><th class="n">Ausgaben</th><th class="n">Saldo</th>${(S.savings||[]).length?'<th class="n hide-s">Ersparnis</th>':''}</tr></thead><tbody>
   ${months.map(x=>`<tr class="click${x.inc||x.exp?'':' zero'}" data-m="${x.m}"><td>${new Date(x.m+'-01T12:00').toLocaleDateString('de-DE',{month:'short'})}</td>
    <td style="width:35%"><div style="height:8px;border-radius:4px;background:var(--pos);width:${x.inc/max*100}%;margin-bottom:3px"></div><div style="height:8px;border-radius:4px;background:var(--neg);width:${-x.exp/max*100}%"></div></td>
-   <td class="n pos">${fmt(x.inc)}</td><td class="n neg">${fmt(x.exp)}</td><td class="n ${x.net>=0?'pos':'neg'}">${fmt(x.net)}</td>${(S.savings||[]).length?(()=>{const sv=savedOf(all.filter(t=>t.date.startsWith(x.m)));return `<td class="n hide-s ${sv>0?'pos':sv<0?'neg':''}">${sv?(sv>0?'+':'')+fmt(sv):'–'}</td>`})():''}</tr>`).join('')}
+   <td class="n pos">${fmt(x.inc)}</td><td class="n neg">${fmt(x.exp)}</td><td class="n ${x.net>=0?'pos':'neg'}">${fmt(x.net)}</td>${(S.savings||[]).length?(()=>{const sv=savedMonth(all.filter(t=>t.date.startsWith(x.m)),x.m).v;return `<td class="n hide-s ${sv>0?'pos':sv<0?'neg':''}">${sv?(sv>0?'+':'')+fmt(sv):'–'}</td>`})():''}</tr>`).join('')}
   </tbody></table></div>
   <h2>Ausgaben nach Kategorie (Jahr)</h2><div class="card">${catBars(all)}</div>
   <h2>Einnahmen nach Kategorie (Jahr)</h2><div class="card">${catBars(all,INC)}</div>`;
@@ -1498,6 +1518,7 @@ function bindView(){
   on('#fp','change',e=>setPeriod(e.target.value));
   on('#ovBtn','click',openOverview);
   on('#fixAdd','click',()=>editFixed(null));
+  {const c=$('#savCard');if(c){const go=()=>editBal(c.dataset.month);c.onclick=go;c.onkeydown=e=>{if(e.key==='Enter')go()}}}
   on('#wipePeriod','click',wipePeriod);
   document.querySelectorAll('[data-theme-set]').forEach(b=>b.onclick=()=>setTheme(b.dataset.themeSet));
   bindDebts();
@@ -2501,8 +2522,8 @@ function serMonth(m){
   return `{\n "tx": [${jlines(tx)}],\n "tomb": [${jlines(tb)}]\n}\n`;
 }
 /* Felder, die diese App-Version nicht kennt (aus einer neueren Version), bleiben beim Speichern erhalten */
-const SETTINGS_KEYS=new Set(['u','catsV','cats','rules','access','ai','accounts','owner','fixed','fixDone','recv','pay','learn','savings','shared']);
-const serSettings=()=>JSON.stringify({...(S.sx||{}),u:S.su||0,catsV:S.catsV||0,cats:S.cats,rules:S.rules,access:S.access||null,ai:S.ai||null,accounts:S.accounts,owner:S.owner||'',fixed:S.fixed||[],fixDone:S.fixDone||{},recv:S.recv||[],pay:S.pay||[],learn:S.learn||[],savings:S.savings||[],shared:S.shared||[]},null,1)+'\n';
+const SETTINGS_KEYS=new Set(['u','catsV','cats','rules','access','ai','accounts','owner','fixed','fixDone','recv','pay','learn','savings','shared','bal']);
+const serSettings=()=>JSON.stringify({...(S.sx||{}),u:S.su||0,catsV:S.catsV||0,cats:S.cats,rules:S.rules,access:S.access||null,ai:S.ai||null,accounts:S.accounts,owner:S.owner||'',fixed:S.fixed||[],fixDone:S.fixDone||{},recv:S.recv||[],pay:S.pay||[],learn:S.learn||[],savings:S.savings||[],shared:S.shared||[],bal:S.bal||{}},null,1)+'\n';
 const b64d=s=>new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\s/g,'')),c=>c.charCodeAt(0)));
 function b64e(s){const b=new TextEncoder().encode(s);let o='';for(let i=0;i<b.length;i+=8192)o+=String.fromCharCode(...b.subarray(i,i+8192));return btoa(o)}
 
@@ -2557,7 +2578,7 @@ function mergeFile(name,content){
   if(name==='todos.json')return mergeTodos(d);
   if(name==='settings.json'){
     {const x={};for(const k in d)if(!SETTINGS_KEYS.has(k))x[k]=d[k];S.sx=x}
-    if((d.u||0)>(S.su||0)&&Array.isArray(d.cats)&&Array.isArray(d.rules)){S.cats=d.cats;S.rules=d.rules;S.access=d.access||S.access;S.ai=d.ai===undefined?S.ai:d.ai;if(Array.isArray(d.accounts))S.accounts=d.accounts;if(typeof d.owner==='string')S.owner=d.owner;if(Array.isArray(d.fixed))S.fixed=d.fixed;if(d.fixDone&&typeof d.fixDone==='object')S.fixDone=d.fixDone;if(Array.isArray(d.recv))S.recv=d.recv;if(Array.isArray(d.pay))S.pay=d.pay;if(Array.isArray(d.learn))S.learn=d.learn;if(Array.isArray(d.savings))S.savings=d.savings;if(Array.isArray(d.shared))S.shared=d.shared;S.su=d.u;ssig=JSON.stringify([S.cats,S.rules,S.access,S.ai,S.accounts,S.owner,S.fixed,S.fixDone,S.recv,S.pay,S.learn,S.savings,S.shared]);S.catsV=d.catsV||0;if(S.catsV<CATS_V){S.su=d.u;migrateCats()}return true}
+    if((d.u||0)>(S.su||0)&&Array.isArray(d.cats)&&Array.isArray(d.rules)){S.cats=d.cats;S.rules=d.rules;S.access=d.access||S.access;S.ai=d.ai===undefined?S.ai:d.ai;if(Array.isArray(d.accounts))S.accounts=d.accounts;if(typeof d.owner==='string')S.owner=d.owner;if(Array.isArray(d.fixed))S.fixed=d.fixed;if(d.fixDone&&typeof d.fixDone==='object')S.fixDone=d.fixDone;if(Array.isArray(d.recv))S.recv=d.recv;if(Array.isArray(d.pay))S.pay=d.pay;if(Array.isArray(d.learn))S.learn=d.learn;if(Array.isArray(d.savings))S.savings=d.savings;if(Array.isArray(d.shared))S.shared=d.shared;if(d.bal&&typeof d.bal==='object')S.bal=d.bal;S.su=d.u;ssig=JSON.stringify([S.cats,S.rules,S.access,S.ai,S.accounts,S.owner,S.fixed,S.fixDone,S.recv,S.pay,S.learn,S.savings,S.shared,S.bal]);S.catsV=d.catsV||0;if(S.catsV<CATS_V){S.su=d.u;migrateCats()}return true}
     return false;
   }
   return mergeIn(d.tx||[],d.tomb||[]);
