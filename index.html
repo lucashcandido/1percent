@@ -490,7 +490,7 @@ button.upx:hover{color:var(--neg);background:rgba(255,255,255,.06)}
 
 <script>
 /* ============ Konstanten & State ============ */
-const APP_VERSION='2026-10-29.1';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
+const APP_VERSION='2026-11-01.1';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
 const KEY='1percent-v1',CFG_KEY='1percent-cfg',REM_KEY='1percent-remote';
 const DEFAULT_ACCOUNTS=['Commerzbank','N26'];
 const CATS_V=5;          /* Version der Kategorienliste – bei Änderung wird einmalig migriert */
@@ -562,7 +562,7 @@ const accOk=t=>filter.acc==='*'||(t.account||'')===filter.acc;
 
 function load(){
   let s=null;try{s=JSON.parse(localStorage.getItem(KEY))}catch(e){}
-  return {tx:(s&&s.tx)||[],tomb:(s&&s.tomb)||[],cats:(s&&s.cats)||DEFAULT_CATS,rules:(s&&s.rules)||DEFAULT_RULES,su:(s&&s.su)||0,access:(s&&s.access)||null,ai:(s&&s.ai)||null,accounts:(s&&Array.isArray(s.accounts)&&s.accounts)||DEFAULT_ACCOUNTS.slice(),owner:(s&&s.owner)||'',fixed:(s&&Array.isArray(s.fixed)&&s.fixed)||[],fixDone:(s&&s.fixDone&&typeof s.fixDone==='object'&&s.fixDone)||{},recv:(s&&Array.isArray(s.recv)&&s.recv)||[],pay:(s&&Array.isArray(s.pay)&&s.pay)||[],learn:(s&&Array.isArray(s.learn)&&s.learn)||[],savings:(s&&Array.isArray(s.savings)&&s.savings)||[],shared:(s&&Array.isArray(s.shared)&&s.shared)||[],wo:(s&&Array.isArray(s.wo)&&s.wo)||[],todo:(s&&Array.isArray(s.todo)&&s.todo)||[],ttomb:(s&&Array.isArray(s.ttomb)&&s.ttomb)||[],wtomb:(s&&Array.isArray(s.wtomb)&&s.wtomb)||[],catsV:(s&&s.catsV)||0};
+  return {tx:(s&&s.tx)||[],tomb:(s&&s.tomb)||[],cats:(s&&s.cats)||DEFAULT_CATS,rules:(s&&s.rules)||DEFAULT_RULES,su:(s&&s.su)||0,access:(s&&s.access)||null,ai:(s&&s.ai)||null,accounts:(s&&Array.isArray(s.accounts)&&s.accounts)||DEFAULT_ACCOUNTS.slice(),owner:(s&&s.owner)||'',fixed:(s&&Array.isArray(s.fixed)&&s.fixed)||[],fixDone:(s&&s.fixDone&&typeof s.fixDone==='object'&&s.fixDone)||{},recv:(s&&Array.isArray(s.recv)&&s.recv)||[],pay:(s&&Array.isArray(s.pay)&&s.pay)||[],learn:(s&&Array.isArray(s.learn)&&s.learn)||[],savings:(s&&Array.isArray(s.savings)&&s.savings)||[],shared:(s&&Array.isArray(s.shared)&&s.shared)||[],sx:(s&&s.sx&&typeof s.sx==='object'&&s.sx)||{},wo:(s&&Array.isArray(s.wo)&&s.wo)||[],todo:(s&&Array.isArray(s.todo)&&s.todo)||[],ttomb:(s&&Array.isArray(s.ttomb)&&s.ttomb)||[],wtomb:(s&&Array.isArray(s.wtomb)&&s.wtomb)||[],catsV:(s&&s.catsV)||0};
 }
 function migrateCats(){
   if(S.catsV>=CATS_V)return;
@@ -2490,7 +2490,9 @@ function serMonth(m){
   const tb=S.tomb.filter(t=>t.date.startsWith(m)).map(t=>({id:t.id,date:t.date,u:t.u||0})).sort((a,b)=>a.id.localeCompare(b.id));
   return `{\n "tx": [${jlines(tx)}],\n "tomb": [${jlines(tb)}]\n}\n`;
 }
-const serSettings=()=>JSON.stringify({u:S.su||0,catsV:S.catsV||0,cats:S.cats,rules:S.rules,access:S.access||null,ai:S.ai||null,accounts:S.accounts,owner:S.owner||'',fixed:S.fixed||[],fixDone:S.fixDone||{},recv:S.recv||[],pay:S.pay||[],learn:S.learn||[],savings:S.savings||[],shared:S.shared||[]},null,1)+'\n';
+/* Felder, die diese App-Version nicht kennt (aus einer neueren Version), bleiben beim Speichern erhalten */
+const SETTINGS_KEYS=new Set(['u','catsV','cats','rules','access','ai','accounts','owner','fixed','fixDone','recv','pay','learn','savings','shared']);
+const serSettings=()=>JSON.stringify({...(S.sx||{}),u:S.su||0,catsV:S.catsV||0,cats:S.cats,rules:S.rules,access:S.access||null,ai:S.ai||null,accounts:S.accounts,owner:S.owner||'',fixed:S.fixed||[],fixDone:S.fixDone||{},recv:S.recv||[],pay:S.pay||[],learn:S.learn||[],savings:S.savings||[],shared:S.shared||[]},null,1)+'\n';
 const b64d=s=>new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\s/g,'')),c=>c.charCodeAt(0)));
 function b64e(s){const b=new TextEncoder().encode(s);let o='';for(let i=0;i<b.length;i+=8192)o+=String.fromCharCode(...b.subarray(i,i+8192));return btoa(o)}
 
@@ -2544,6 +2546,7 @@ function mergeFile(name,content){
   if(name==='workouts.json')return mergeWorkouts(d);
   if(name==='todos.json')return mergeTodos(d);
   if(name==='settings.json'){
+    {const x={};for(const k in d)if(!SETTINGS_KEYS.has(k))x[k]=d[k];S.sx=x}
     if((d.u||0)>(S.su||0)&&Array.isArray(d.cats)&&Array.isArray(d.rules)){S.cats=d.cats;S.rules=d.rules;S.access=d.access||S.access;S.ai=d.ai===undefined?S.ai:d.ai;if(Array.isArray(d.accounts))S.accounts=d.accounts;if(typeof d.owner==='string')S.owner=d.owner;if(Array.isArray(d.fixed))S.fixed=d.fixed;if(d.fixDone&&typeof d.fixDone==='object')S.fixDone=d.fixDone;if(Array.isArray(d.recv))S.recv=d.recv;if(Array.isArray(d.pay))S.pay=d.pay;if(Array.isArray(d.learn))S.learn=d.learn;if(Array.isArray(d.savings))S.savings=d.savings;if(Array.isArray(d.shared))S.shared=d.shared;S.su=d.u;ssig=JSON.stringify([S.cats,S.rules,S.access,S.ai,S.accounts,S.owner,S.fixed,S.fixDone,S.recv,S.pay,S.learn,S.savings,S.shared]);S.catsV=d.catsV||0;if(S.catsV<CATS_V){S.su=d.u;migrateCats()}return true}
     return false;
   }
@@ -2904,7 +2907,10 @@ async function checkUpdate(){
   try{
     const r=await fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'});if(!r.ok)return;
     const m=/const APP_VERSION='([^']+)'/.exec(await r.text());
-    if(m&&m[1]!==APP_VERSION){updShown=true;const b=document.createElement('div');b.className='updbar';
+    if(m&&m[1]!==APP_VERSION){
+      const busy=$('#modalBg')||woRec||mealBusy||(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))||(stage&&stage.rows&&stage.rows.length);
+      if(!busy){persist();location.replace(location.pathname+'?v='+encodeURIComponent(m[1])+location.hash);return}
+      updShown=true;const b=document.createElement('div');b.className='updbar';
       b.innerHTML='Neue Version von 1Percent verfügbar <button class="primary">Jetzt laden</button>';
       b.querySelector('button').onclick=()=>location.replace(location.pathname+'?v='+encodeURIComponent(m[1])+location.hash);document.body.appendChild(b)}
   }catch(e){}
