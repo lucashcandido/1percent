@@ -490,7 +490,7 @@ button.upx:hover{color:var(--neg);background:rgba(255,255,255,.06)}
 
 <script>
 /* ============ Konstanten & State ============ */
-const APP_VERSION='2026-11-01.1';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
+const APP_VERSION='2026-11-01.2';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
 const KEY='1percent-v1',CFG_KEY='1percent-cfg',REM_KEY='1percent-remote';
 const DEFAULT_ACCOUNTS=['Commerzbank','N26'];
 const CATS_V=5;          /* Version der Kategorienliste – bei Änderung wird einmalig migriert */
@@ -747,7 +747,17 @@ const isXfer=t=>!!t.rb||!!t.category&&S.cats.some(c=>c.transfer&&c.name===t.cate
    Überweisungen auf/von einem Sparkonto sind Umbuchungen. Was im Zeitraum netto aufs Sparkonto geht, ist echte Ersparnis:
    „An Immobilie“ −100 € → +100 € gespart; „Von Immobilie“ +50 € → 50 € wieder entnommen. */
 const savingName=t=>{const tk=new Set(nameTokens(t.desc));return (S.savings||[]).find(n=>{const w=nameTokens(n);return w.length&&w.every(x=>tk.has(x))})||''};
-const savedOf=list=>round2(-list.filter(t=>savingName(t)).reduce((a,t)=>a+t.amount,0));
+/* Zwei Sichten auf dieselbe Bewegung: Hauptkonto („Von Immobilie“ +30, „An Immobilie“ −30) und der Space selbst
+   („Überweisung an Hauptkonto (N26 Space: Immobilie)“ −30, „… von Hauptkonto …“ +30). Space-Sicht = Vorzeichen aus Sicht
+   des Sparkontos. Kommt eine Bewegung in beiden Sichten vor (gleicher Betrag, ≤ 2 Tage), zählt sie nur einmal. */
+const isSpaceSide=t=>!!savingName(t)&&/hauptkonto|main account/i.test(t.desc);
+function savingsInfo(list){
+  const sav=list.filter(t=>savingName(t)),space=sav.filter(isSpaceSide),main=sav.filter(t=>!isSpaceSide(t)),used=new Set();let v=0;
+  for(const s of space)v+=s.amount;
+  for(const m of main){const k=space.find(s=>!used.has(s)&&Math.abs(s.amount+m.amount)<0.005&&dayDiff(s.date,m.date)<=2);if(k)used.add(k);else v-=m.amount}
+  return {saved:round2(v),space:new Set(space)};
+}
+const savedOf=list=>savingsInfo(list).saved;
 function detectSpaces(){
   const seen=new Map();
   for(const t of S.tx){const m=/\b(?:von|an|from|to)\s+(.+?)\s*\((?:space[- ]?umbuchung|space transfer)\)/i.exec(t.desc)||/\(space\s+([^)]+)\)/i.exec(t.desc);
@@ -1319,12 +1329,12 @@ function wipePeriod(){
          N26: von Commerzbank → Ausgaben → an Immobilie → bleibt; Immobilie: Ersparnis. */
 function flowCard(list){
   if(filter.acc!=='*'||S.accounts.length<1||!list.length)return '';
-  const accs=S.accounts.filter(a=>list.some(t=>(t.account||'')===a));
+  const accs=S.accounts.filter(a=>list.some(t=>(t.account||'')===a&&!isSpaceSide(t)));
   const missing=S.accounts.filter(a=>!accs.includes(a));
   const other=a=>S.accounts.length===2?S.accounts.find(x=>x!==a):'andere Konten';
   const line=(label,v,cls,strong)=>v||strong?`<div class="flrow${strong?' sum':''}"><span>${label}</span><b class="${cls||(v>0?'pos':v<0?'neg':'')}">${v>0?'+':''}${fmt(v)}</b></div>`:'';
   const blocks=accs.map(a=>{
-    const l=list.filter(t=>(t.account||'')===a),plain=l.filter(t=>!isXfer(t)&&!savingName(t));
+    const l=list.filter(t=>(t.account||'')===a&&!isSpaceSide(t)),plain=l.filter(t=>!isXfer(t)&&!savingName(t));
     const inc=round2(plain.filter(t=>t.amount>0).reduce((x,t)=>x+t.amount,0)),exp=round2(plain.filter(t=>t.amount<0).reduce((x,t)=>x+t.amount,0));
     const sav=l.filter(t=>savingName(t)),xf=l.filter(t=>isXfer(t)&&!savingName(t)&&!t.rb);
     const xin=round2(xf.filter(t=>t.amount>0).reduce((x,t)=>x+t.amount,0)),xout=round2(xf.filter(t=>t.amount<0).reduce((x,t)=>x+t.amount,0));
