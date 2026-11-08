@@ -16,6 +16,7 @@ Einnahmen und Ausgaben tracken – als einzelne HTML-Datei (`index.html`), ohne 
 - **Vorläufiger und endgültiger Auszug:** Lädst du mitten im Monat einen vorläufigen Auszug und am Monatsende den vollständigen hoch, werden die schon vorhandenen Buchungen nicht doppelt übernommen. Vorgemerkte Umsätze merkt sich die App als „vorgemerkt“. Im endgültigen Auszug ersetzt sie sie durch die gebuchte Fassung, auch bei leicht anderem Betrag oder Datum (z. B. Wechselkurs oder Trinkgeld, bis 15 % bzw. 7 Tage). Deine Kategorie bleibt dabei erhalten. Vorgemerkte, die im neuen Auszug fehlen (z. B. eine aufgehobene Tankstellen-Reservierung), schlägt sie zum Löschen vor.
 - Vorschau zum Korrigieren vor dem Übernehmen
 - **ToDos** (Kreis-mit-Haken-Symbol oben): tägliche Liste mit < > durch die Tage, abhaken, bearbeiten; Unerledigtes von früheren Tagen erscheint unter „Heute“ und lässt sich mit einem Tipp übernehmen. Sync über `data/todos.json`
+- **Important Dates** unter den ToDos: wichtige Termine (Geburtstage, Fristen, Prüfungen), einmalig oder jährlich, sortiert nach dem nächsten Termin mit Countdown; Termine in den nächsten 7 Tagen sind rot, bei jährlichen Geburtstagen steht das Alter dabei. Sync über `data/todos.json`.
 - **Dunkel / Hell / System** unter *Einstellungen → Darstellung* (pro Gerät)
 - **Geräteübergreifender Sync** über ein *privates* GitHub-Repo (eine JSON-Datei pro Monat)
 - **Workout-Tracker** (Hantel-Symbol oben, zurück zu den Finanzen mit dem $ daneben): Körperkarte vorne/hinten mit 14 Muskelgruppen

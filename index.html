@@ -309,6 +309,8 @@ button.ovbtn:hover{background:#e1e4e9}
 @media(max-width:600px){.modal.ovmodal{padding:16px}.ovkpi b{font-size:17px}}
 /* --- Fixkosten-Checkliste --- */
 .fixcard{padding:14px 16px}
+.improw{cursor:pointer}.fixcard>.improw:first-child{border-top:0}.impdate{flex:none;width:44px;text-align:center;line-height:1}.impdate b{display:block;font:800 italic 24px/1 var(--serif)}.impdate span{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em}
+.improw.soon .impdate b{color:var(--neg)}
 .card.clickable{cursor:pointer}.card.clickable:hover{outline:1px solid var(--line)}
 .hcards{grid-template-columns:repeat(4,1fr)}@media(max-width:600px){.hcards{grid-template-columns:repeat(2,1fr)}}
 .htrack{margin-top:12px}.hhead{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap}.hhead b{font:800 italic 17px/1 var(--serif);text-transform:uppercase;letter-spacing:.03em}.hhead .muted{font-size:12.5px}
@@ -491,7 +493,7 @@ button.upx:hover{color:var(--neg);background:rgba(255,255,255,.06)}
 
 <script>
 /* ============ Konstanten & State ============ */
-const APP_VERSION='2026-11-01.3';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
+const APP_VERSION='2026-11-08.1';    /* bei jeder Änderung erhöhen – die App erkennt damit neue Versionen */
 const KEY='1percent-v1',CFG_KEY='1percent-cfg',REM_KEY='1percent-remote';
 const DEFAULT_ACCOUNTS=['Commerzbank','N26'];
 const CATS_V=5;          /* Version der Kategorienliste – bei Änderung wird einmalig migriert */
@@ -591,7 +593,7 @@ function migrateCats(){
    So lassen sich Änderungen von mehreren Geräten sauber zusammenführen. */
 function sig(t){return JSON.stringify([t.date,t.desc,t.amount,t.category,t.note||'',t.account||'',t.pend?1:0,t.rb||''])}
 function wsig(w){return JSON.stringify([w.ts,w.title||'',w.muscles||[],w.ex||[],w.note||'',w.kind||'',w.m||null])}
-function tsig(t){return JSON.stringify([t.date,t.text,!!t.done,t.c||0])}
+function tsig(t){return JSON.stringify([t.date,t.text,!!t.done,t.c||0,t.kind||'',t.rep||''])}
 function initSigs(){sigs={};S.tx.forEach(t=>sigs[t.id]=sig(t));tsigs={};(S.todo||[]).forEach(t=>tsigs[t.id]=tsig(t));wsigs={};(S.wo||[]).forEach(w=>wsigs[w.id]=wsig(w));ssig=JSON.stringify([S.cats,S.rules,S.access,S.ai,S.accounts,S.owner,S.fixed,S.fixDone,S.recv,S.pay,S.learn,S.savings,S.shared,S.bal])}
 function stamp(){
   const now=Date.now(),ids=new Set();
@@ -1278,8 +1280,8 @@ function bindWorkout(){
 let todoDay=todayISO();
 const tdLabel=d=>{const t=todayISO();return d===t?'Heute':d===shiftDay(t,1)?'Morgen':d===shiftDay(t,-1)?'Gestern':new Date(d+'T12:00').toLocaleDateString('de-DE',{weekday:'short',day:'numeric',month:'short'})};
 function todoView(){
-  const t=todayISO(),list=S.todo.filter(x=>x.date===todoDay),open=list.filter(x=>!x.done).sort((a,b)=>(a.c||0)-(b.c||0)),done=list.filter(x=>x.done).sort((a,b)=>(a.done||0)-(b.done||0));
-  const old=todoDay===t?S.todo.filter(x=>!x.done&&x.date<t).sort((a,b)=>a.date.localeCompare(b.date)||(a.c||0)-(b.c||0)):[];
+  const t=todayISO(),list=S.todo.filter(x=>!x.kind&&x.date===todoDay),open=list.filter(x=>!x.done).sort((a,b)=>(a.c||0)-(b.c||0)),done=list.filter(x=>x.done).sort((a,b)=>(a.done||0)-(b.done||0));
+  const old=todoDay===t?S.todo.filter(x=>!x.kind&&!x.done&&x.date<t).sort((a,b)=>a.date.localeCompare(b.date)||(a.c||0)-(b.c||0)):[];
   const sub=todoDay===t?new Date(t+'T12:00').toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long'}):'';
   const row=(x,showDate)=>`<div class="fixrow tdrow${x.done?' done':''}">
       <label class="fixchk tdchk" title="${x.done?'Wieder öffnen':'Erledigt'}"><input type="checkbox" data-tdc="${x.id}" ${x.done?'checked':''} aria-label="${esc(x.text)} erledigt"><span></span></label>
@@ -1294,7 +1296,39 @@ function todoView(){
     ${open.map(x=>row(x)).join('')}${done.map(x=>row(x)).join('')}
   </div>
   ${old.length?`<h2>Offen von früheren Tagen (${old.length})</h2><div class="card fixcard">${old.map(x=>row(x,true)).join('')}
-    <div class="row" style="margin-top:10px"><button type="button" id="tdMoveAll">Alle auf heute übernehmen</button></div></div>`:''}`;
+    <div class="row" style="margin-top:10px"><button type="button" id="tdMoveAll">Alle auf heute übernehmen</button></div></div>`:''}
+  ${impSection()}`;
+}
+/* ============ Important Dates ============
+   Wichtige Termine (Geburtstage, Fristen, Prüfungen …). „Jährlich“ wiederholt sich jedes Jahr am selben Tag.
+   Gespeichert in S.todo mit kind:'imp' (gleicher Sync über todos.json). */
+function impNext(x,from){if(x.rep!=='y')return x.date;const y=+from.slice(0,4);let d=y+x.date.slice(4);if(d<from)d=(y+1)+x.date.slice(4);return d}
+function impSection(){
+  const t=todayISO(),l=S.todo.filter(x=>x.kind==='imp').map(x=>({x,next:impNext(x,t)}));
+  const up=l.filter(o=>o.next>=t).sort((a,b)=>a.next.localeCompare(b.next)),past=l.filter(o=>o.next<t).sort((a,b)=>b.next.localeCompare(a.next));
+  const days=d=>{const n=dayDiff(d,t);return n===0?'heute':n===1?'morgen':`in ${n} Tagen`};
+  const row=(o,isPast)=>{const age=o.x.rep==='y'&&o.x.y?(+o.next.slice(0,4))-o.x.y:0;return `<div class="fixrow improw${isPast?' done':''}${!isPast&&dayDiff(o.next,t)<=7?' soon':''}" data-imp="${o.x.id}" role="button" tabindex="0">
+      <div class="impdate"><b>${o.next.slice(8)}</b><span>${new Date(o.next+'T12:00').toLocaleDateString('de-DE',{month:'short'})}</span></div>
+      <div class="fixmain"><div class="fixname">${esc(o.x.text)}${age>0?` <span class="muted">(${age})</span>`:''}</div><div class="muted">${new Date(o.next+'T12:00').toLocaleDateString('de-DE',{weekday:'long'})}, ${dateDE(o.next)}${o.x.rep==='y'?' · jährlich':''}${isPast?'':' · '+days(o.next)}</div></div></div>`};
+  return `<h2>Important Dates ${up.length?`(${up.length})`:''}</h2>
+  <div class="card fixcard">${up.length?up.map(o=>row(o,false)).join(''):'<p class="muted" style="margin:0">Keine anstehenden Termine. Trag Geburtstage, Fristen oder Prüfungen ein.</p>'}
+    ${past.length?`<details class="debtdone"><summary>Vergangen (${past.length})</summary>${past.map(o=>row(o,true)).join('')}</details>`:''}
+    <div class="row" style="margin-top:10px"><button type="button" id="impAdd">+ Termin</button></div></div>`;
+}
+function editImp(id){
+  const x=id?S.todo.find(v=>v.id===id):{text:'',date:todoDay,rep:''};
+  modal(`<h3>${id?'Termin bearbeiten':'Wichtiger Termin'}</h3>
+    <div class="field"><label>Was?</label><input id="im_text" value="${esc(x.text)}" placeholder="z. B. Geburtstag Mama, Prüfung Stochastik, Steuererklärung"></div>
+    <div class="row"><div class="field grow"><label>Datum</label><input id="im_date" type="date" value="${x.date}"></div>
+      <div class="field"><label>Wiederholung</label><select id="im_rep"><option value="" ${x.rep!=='y'?'selected':''}>einmalig</option><option value="y" ${x.rep==='y'?'selected':''}>jährlich</option></select></div></div>
+    <p class="muted" style="margin:-4px 0 12px;font-size:12.5px">Bei jährlichen Terminen (z. B. Geburtstagen) zeigt die App auch das Alter, wenn du das Geburtsjahr als Datum einträgst.</p>
+    <div class="row"><button class="primary" id="im_save">Speichern</button><button id="im_cancel">Abbrechen</button><span class="grow"></span>${id?'<button class="danger" id="im_del">Löschen</button>':''}</div>`,'sm');
+  $('#im_cancel').onclick=closeModal;
+  $('#im_save').onclick=()=>{const text=$('#im_text').value.trim(),date=$('#im_date').value,rep=$('#im_rep').value;if(!text||!date)return toast('Bitte Titel und Datum angeben');
+    const o={text,date,rep,y:rep==='y'&&+date.slice(0,4)<+todayISO().slice(0,4)?+date.slice(0,4):0};
+    if(id)Object.assign(x,o);else S.todo.push({id:uid(),kind:'imp',done:0,c:Date.now(),...o});save();closeModal();const y=scrollY;render();scrollTo(0,y)};
+  $('#im_text').onkeydown=e=>{if(e.key==='Enter')$('#im_save').click()};
+  if(id)$('#im_del').onclick=()=>{S.todo=S.todo.filter(v=>v.id!==id);save();closeModal();render()};
 }
 function editTodo(id){
   const x=S.todo.find(v=>v.id===id);if(!x)return;
@@ -1310,6 +1344,8 @@ function editTodo(id){
 function bindTodo(){
   const keep=fn=>{const y=scrollY;fn();save();render();scrollTo(0,y)};
   const on=(id,fn)=>{const e=$(id);if(e)e.onclick=fn};
+  on('#impAdd',()=>editImp(null));
+  document.querySelectorAll('[data-imp]').forEach(r=>{const go=()=>editImp(r.dataset.imp);r.onclick=go;r.onkeydown=e=>{if(e.key==='Enter')go()}});
   on('#tdPrev',()=>{todoDay=shiftDay(todoDay,-1);render()});
   on('#tdNext',()=>{todoDay=shiftDay(todoDay,1);render()});
   on('#tdTitle',()=>{todoDay=todayISO();render()});on('#tdToday',()=>{todoDay=todayISO();render()});
@@ -1318,7 +1354,7 @@ function bindTodo(){
   document.querySelectorAll('[data-tdc]').forEach(e=>e.onchange=()=>keep(()=>{const x=S.todo.find(v=>v.id===e.dataset.tdc);if(x)x.done=e.checked?Date.now():0}));
   document.querySelectorAll('[data-tde]').forEach(e=>{const go=()=>editTodo(e.dataset.tde);e.onclick=go;e.onkeydown=ev=>{if(ev.key==='Enter')go()}});
   document.querySelectorAll('[data-tdm]').forEach(b=>b.onclick=()=>keep(()=>{const x=S.todo.find(v=>v.id===b.dataset.tdm);if(x)x.date=todayISO()}));
-  on('#tdMoveAll',()=>keep(()=>{const t=todayISO();S.todo.forEach(x=>{if(!x.done&&x.date<t)x.date=t})}));
+  on('#tdMoveAll',()=>keep(()=>{const t=todayISO();S.todo.forEach(x=>{if(!x.kind&&!x.done&&x.date<t)x.date=t})}));
 }
 
 /* Alle Buchungen des angezeigten Monats/Tags löschen (bei gewähltem Konto nur dessen) – mit Rückgängig */
