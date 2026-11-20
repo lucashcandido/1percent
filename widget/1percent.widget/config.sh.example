@@ -1,0 +1,5 @@
+# Kopiere diese Datei nach config.sh (im selben Ordner) und trag deine Daten ein.
+# Token: GitHub → Settings → Developer settings → Fine-grained tokens → nur dein Daten-Repo,
+#        Permissions → Contents: Read-only  (das Widget liest nur, es schreibt nichts)
+REPO="lucashcandido/1percent-data"
+TOKEN="github_pat_…"

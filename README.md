@@ -21,6 +21,10 @@ Einnahmen und Ausgaben tracken – als einzelne HTML-Datei (`index.html`), ohne 
 - **Geräteübergreifender Sync** über ein *privates* GitHub-Repo (eine JSON-Datei pro Monat)
 - **Workout-Tracker** (Hantel-Symbol oben, zurück zu den Finanzen mit dem $ daneben): Körperkarte vorne/hinten mit 14 Muskelgruppen
 
+## Schreibtisch-Widget (macOS)
+
+Im Ordner [`widget/`](widget/1percent.widget) liegt ein Widget für [Übersicht](https://tracesof.net/uebersicht/): Monat (Einnahmen, Ausgaben, Saldo, Ersparnis, offene Fixkosten), ToDos von heute, Important Dates, letztes Training. Einrichtung siehe README im Widget-Ordner (eigener Token mit *Contents: Read-only*).
+
 ## Aufbau
 
 | Repo | Sichtbarkeit | Inhalt |
